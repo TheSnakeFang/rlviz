@@ -57,6 +57,8 @@ func main() {
 		runStop(os.Args[2:])
 	case "doctor":
 		runDoctor(os.Args[2:])
+	case "cache":
+		runCache(os.Args[2:])
 	case "plugin":
 		runPlugin(os.Args[2:])
 	case "daemon":
@@ -229,6 +231,160 @@ func runDoctor(arguments []string) {
 	writeOutput(map[string]any{"status": status, "checks": checks}, *jsonOutput, human)
 }
 
+type cacheStatusResult struct {
+	Status        string `json:"status"`
+	Path          string `json:"path"`
+	SizeBytes     int64  `json:"size_bytes"`
+	DaemonRunning bool   `json:"daemon_running"`
+}
+
+type cacheCleanResult struct {
+	Status  string   `json:"status"`
+	Path    string   `json:"path"`
+	Removed []string `json:"removed"`
+}
+
+func runCache(arguments []string) {
+	if len(arguments) == 0 {
+		printCacheHelp()
+		return
+	}
+	switch arguments[0] {
+	case "status":
+		runCacheStatus(arguments[1:])
+	case "clean":
+		runCacheClean(arguments[1:])
+	case "help", "-h", "--help":
+		printCacheHelp()
+	default:
+		fmt.Fprintf(os.Stderr, "unknown cache command %q\n", arguments[0])
+		os.Exit(2)
+	}
+}
+
+func runCacheStatus(arguments []string) {
+	flags := flag.NewFlagSet("cache status", flag.ExitOnError)
+	jsonOutput := flags.Bool("json", false, "print machine-readable output")
+	_ = flags.Parse(arguments)
+	if flags.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "Usage: rlviz cache status [--json]")
+		os.Exit(2)
+	}
+	paths, err := daemon.DefaultPaths()
+	if err != nil {
+		fatalError("cache_status", *jsonOutput, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	status, err := inspectCache(paths, func() (bool, error) {
+		return daemonIsRunning(ctx, paths)
+	})
+	if err != nil {
+		fatalError("cache_status", *jsonOutput, err)
+	}
+	human := fmt.Sprintf("RolloutViz cache is absent at %s (daemon stopped)", status.Path)
+	if status.Status == "present" {
+		human = fmt.Sprintf("RolloutViz cache is present at %s (%d bytes; daemon stopped)", status.Path, status.SizeBytes)
+	}
+	if status.DaemonRunning {
+		human = strings.Replace(human, "daemon stopped", "daemon running", 1)
+	}
+	writeOutput(status, *jsonOutput, human)
+}
+
+func runCacheClean(arguments []string) {
+	flags := flag.NewFlagSet("cache clean", flag.ExitOnError)
+	jsonOutput := flags.Bool("json", false, "print machine-readable output")
+	_ = flags.Parse(arguments)
+	if flags.NArg() != 0 {
+		fmt.Fprintln(os.Stderr, "Usage: rlviz cache clean [--json]")
+		os.Exit(2)
+	}
+	paths, err := daemon.DefaultPaths()
+	if err != nil {
+		fatalError("cache_clean", *jsonOutput, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	result, err := cleanCache(paths, func() (bool, error) {
+		return daemonIsRunning(ctx, paths)
+	})
+	if err != nil {
+		fatalError("cache_clean", *jsonOutput, err)
+	}
+	human := "RolloutViz cache is already clean"
+	if len(result.Removed) > 0 {
+		human = fmt.Sprintf("Removed RolloutViz cache at %s", result.Path)
+	}
+	writeOutput(result, *jsonOutput, human)
+}
+
+func daemonIsRunning(ctx context.Context, paths daemon.Paths) (bool, error) {
+	_, err := daemon.LoadLiveMetadata(ctx, paths, daemon.Client{})
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, daemon.ErrNoMetadata) || errors.Is(err, daemon.ErrDaemonUnavailable) {
+		return false, nil
+	}
+	return false, err
+}
+
+func inspectCache(paths daemon.Paths, live func() (bool, error)) (cacheStatusResult, error) {
+	running, err := live()
+	if err != nil {
+		return cacheStatusResult{}, fmt.Errorf("check daemon status: %w", err)
+	}
+	result := cacheStatusResult{Status: "absent", Path: paths.IndexFile, DaemonRunning: running}
+	info, err := os.Stat(paths.IndexFile)
+	if errors.Is(err, os.ErrNotExist) {
+		return result, nil
+	}
+	if err != nil {
+		return cacheStatusResult{}, fmt.Errorf("inspect cache index: %w", err)
+	}
+	if !info.Mode().IsRegular() {
+		return cacheStatusResult{}, fmt.Errorf("cache index is not a regular file: %s", paths.IndexFile)
+	}
+	result.Status = "present"
+	result.SizeBytes = info.Size()
+	return result, nil
+}
+
+func cleanCache(paths daemon.Paths, live func() (bool, error)) (cacheCleanResult, error) {
+	running, err := live()
+	if err != nil {
+		return cacheCleanResult{}, fmt.Errorf("check daemon status: %w", err)
+	}
+	if running {
+		return cacheCleanResult{}, fmt.Errorf("daemon is running; run `rlviz stop` before cleaning the cache")
+	}
+	result := cacheCleanResult{Status: "cleaned", Path: paths.IndexFile, Removed: []string{}}
+	candidates := []string{paths.IndexFile, paths.IndexFile + "-wal", paths.IndexFile + "-shm"}
+	for _, path := range candidates {
+		info, statErr := os.Lstat(path)
+		if errors.Is(statErr, os.ErrNotExist) {
+			continue
+		}
+		if statErr != nil {
+			return cacheCleanResult{}, fmt.Errorf("inspect cache file %s: %w", path, statErr)
+		}
+		if info.IsDir() {
+			return cacheCleanResult{}, fmt.Errorf("refusing to remove cache path because it is a directory: %s", path)
+		}
+	}
+	for _, path := range candidates {
+		if err := os.Remove(path); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return cacheCleanResult{}, fmt.Errorf("remove cache file %s: %w", path, err)
+		}
+		result.Removed = append(result.Removed, path)
+	}
+	return result, nil
+}
+
 func runInternalDaemon(arguments []string) {
 	if len(arguments) == 0 || arguments[0] != "serve" {
 		fmt.Fprintln(os.Stderr, "internal daemon command requires serve")
@@ -276,12 +432,12 @@ func runPlugin(arguments []string) {
 func runPluginInit(arguments []string) {
 	flags := flag.NewFlagSet("plugin init", flag.ExitOnError)
 	kind := flags.String("type", "adapter", "plugin type")
-	language := flags.String("lang", "python", "adapter language")
-	name := flags.String("name", "", "adapter name")
+	language := flags.String("lang", "python", "plugin language")
+	name := flags.String("name", "", "plugin name")
 	jsonOutput := flags.Bool("json", false, "print machine-readable output")
 	_ = flags.Parse(arguments)
-	if flags.NArg() != 1 || *kind != "adapter" || *language != "python" {
-		fmt.Fprintln(os.Stderr, "Usage: rlviz plugin init --type adapter --lang python [--name NAME] DIR")
+	if flags.NArg() != 1 || (*kind != "adapter" && *kind != "analyzer") || *language != "python" {
+		fmt.Fprintln(os.Stderr, "Usage: rlviz plugin init --type adapter|analyzer --lang python [--name NAME] DIR")
 		os.Exit(2)
 	}
 	destination := flags.Arg(0)
@@ -289,11 +445,11 @@ func runPluginInit(arguments []string) {
 	if pluginName == "" {
 		pluginName = safePluginName(filepath.Base(filepath.Clean(destination)))
 	}
-	if err := plugins.ScaffoldPython(destination, plugins.ScaffoldOptions{Name: pluginName}); err != nil {
+	if err := plugins.ScaffoldPython(destination, plugins.ScaffoldOptions{Name: pluginName, Kind: *kind}); err != nil {
 		fatalError("plugin_init", *jsonOutput, err)
 	}
 	absolute, _ := filepath.Abs(destination)
-	writeOutput(map[string]any{"status": "created", "path": absolute, "name": pluginName}, *jsonOutput, fmt.Sprintf("Created Python adapter %s at %s", pluginName, absolute))
+	writeOutput(map[string]any{"status": "created", "path": absolute, "name": pluginName, "type": *kind}, *jsonOutput, fmt.Sprintf("Created Python %s %s at %s", *kind, pluginName, absolute))
 }
 
 func runPluginTrust(arguments []string) {
@@ -323,7 +479,7 @@ func runPluginValidate(arguments []string) {
 	jsonOutput := flags.Bool("json", false, "print machine-readable output")
 	_ = flags.Parse(arguments)
 	if flags.NArg() != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: rlviz plugin validate [--json] DIR SOURCE")
+		fmt.Fprintln(os.Stderr, "Usage: rlviz plugin validate [--json] DIR SOURCE_OR_ANALYZER_INPUT")
 		os.Exit(2)
 	}
 	plugin, err := plugins.Load(flags.Arg(0))
@@ -337,6 +493,18 @@ func runPluginValidate(arguments []string) {
 	host := plugins.NewHost(store)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if plugin.Manifest.Kind == "Analyzer" {
+		input, err := plugins.LoadAnalyzerInput(flags.Arg(1))
+		if err != nil {
+			fatalError("plugin_validate", *jsonOutput, err)
+		}
+		report, err := host.ValidateAnalyzer(ctx, plugin, input)
+		if err != nil {
+			fatalError("plugin_validate", *jsonOutput, err)
+		}
+		writeOutput(report, *jsonOutput, fmt.Sprintf("Validated %s: %d findings and %d signals (deterministic)", report.Plugin, report.Findings, report.Signals))
+		return
+	}
 	report, err := host.ValidateAdapter(ctx, plugin, flags.Arg(1), "")
 	if err != nil {
 		fatalError("plugin_validate", *jsonOutput, err)
@@ -506,9 +674,19 @@ Usage:
   rlviz status [--json]
   rlviz stop [--json]
   rlviz doctor [--json]
+  rlviz cache <status|clean>
   rlviz plugin <init|trust|validate|list|revoke>
   rlviz version [--json]
   rlviz help
+`)
+}
+
+func printCacheHelp() {
+	fmt.Print(`RolloutViz cache
+
+Usage:
+  rlviz cache status [--json]
+  rlviz cache clean [--json]
 `)
 }
 
@@ -516,9 +694,9 @@ func printPluginHelp() {
 	fmt.Print(`RolloutViz plugins
 
 Usage:
-  rlviz plugin init --type adapter --lang python [--name NAME] DIR
+  rlviz plugin init --type adapter|analyzer --lang python [--name NAME] DIR
   rlviz plugin trust [--json] DIR
-  rlviz plugin validate [--json] DIR SOURCE
+  rlviz plugin validate [--json] DIR SOURCE_OR_ANALYZER_INPUT
   rlviz plugin list [--json]
   rlviz plugin revoke [--json] DIR
 `)

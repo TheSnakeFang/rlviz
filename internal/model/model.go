@@ -115,8 +115,10 @@ type Complete struct {
 
 // Record contains one decoded NDJSON record and its original bytes.
 type Record struct {
-	Type  RecordType
-	Value any
-	Raw   json.RawMessage
-	Line  int64
+	Type       RecordType
+	Value      any
+	Raw        json.RawMessage
+	Line       int64
+	ByteOffset int64
+	ByteLength int64
 }

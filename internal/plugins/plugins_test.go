@@ -2,6 +2,7 @@ package plugins
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -43,6 +44,87 @@ func TestParseManifestDocumentedYAMLAndJSON(t *testing.T) {
 	}
 	if err := m.Validate(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAnalyzerManifestCapabilities(t *testing.T) {
+	t.Parallel()
+	analyzer := strings.NewReplacer(
+		"kind: Adapter", "kind: Analyzer",
+		"name: test-adapter", "name: test-analyzer",
+		`capabilities: ["adapter.probe", "adapter.stream"]`, `capabilities: ["analyzer.analyze"]`,
+	).Replace(validManifest)
+	m, err := ParseManifest([]byte(analyzer))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Validate(); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, capabilities := range map[string][]string{
+		"adapter with analyzer capability":   {"analyzer.analyze"},
+		"analyzer with adapter capabilities": {"adapter.probe", "adapter.stream"},
+		"analyzer with extra capability":     {"analyzer.analyze", "adapter.stream"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			candidate := m
+			candidate.Capabilities = capabilities
+			if strings.HasPrefix(name, "adapter") {
+				candidate.Kind = "Adapter"
+			}
+			if err := candidate.Validate(); err == nil {
+				t.Fatal("expected error")
+			}
+		})
+	}
+}
+
+func TestAdapterHostRejectsAnalyzerPlugin(t *testing.T) {
+	t.Parallel()
+	plugin := &Plugin{Manifest: Manifest{Kind: "Analyzer", Name: "test-analyzer"}}
+	if _, _, err := NewHost(nil).Probe(context.Background(), plugin, Request{}); err == nil || !strings.Contains(err.Error(), "want Adapter") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestPluginManifestSchemaContainsManifestKindsAndCapabilities(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(filepath.Join("..", "..", "schemas", "v1alpha1", "plugin-manifest.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var schema any
+	if err := json.Unmarshal(data, &schema); err != nil {
+		t.Fatal(err)
+	}
+	values := map[string]bool{}
+	var walk func(any)
+	walk = func(value any) {
+		switch v := value.(type) {
+		case map[string]any:
+			for key, child := range v {
+				if key == "const" {
+					if text, ok := child.(string); ok {
+						values[text] = true
+					}
+				}
+				walk(child)
+			}
+		case []any:
+			for _, child := range v {
+				if text, ok := child.(string); ok {
+					values[text] = true
+				}
+				walk(child)
+			}
+		}
+	}
+	walk(schema)
+	for _, value := range []string{"Adapter", "Analyzer", "adapter.probe", "adapter.stream", "analyzer.analyze"} {
+		if !values[value] {
+			t.Errorf("schema is missing %q", value)
+		}
 	}
 }
 
@@ -337,6 +419,151 @@ printf '%s\n' \
 	if err == nil || !strings.Contains(err.Error(), "escapes registered root") {
 		t.Fatalf("error = %v", err)
 	}
+}
+
+func TestHostStreamVisitsBeforeAdapterExit(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	script := `#!/bin/sh
+printf '%s\n' '{"record_type":"run","id":"run"}'
+sleep 2
+printf '%s\n' \
+  '{"record_type":"case","id":"case","run_id":"run"}' \
+  '{"record_type":"group","id":"group","case_id":"case"}' \
+  '{"record_type":"trajectory","id":"trajectory","group_id":"group"}' \
+  '{"record_type":"complete","records":4,"warnings":0}'
+`
+	plugin, store := loadAndTrust(t, newPlugin(t, script))
+	request, err := NewRequest("stream", source, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	visited := make(chan struct{}, 1)
+	done := make(chan error, 1)
+	go func() {
+		_, streamErr := NewHost(store).Stream(context.Background(), plugin, request, func(*model.Record) error {
+			select {
+			case visited <- struct{}{}:
+			default:
+			}
+			return nil
+		})
+		done <- streamErr
+	}()
+	select {
+	case <-visited:
+	case <-time.After(time.Second):
+		t.Fatal("first record was not delivered while adapter was still running")
+	}
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHostStreamSupportsLargeIncrementalOutput(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	script := `#!/bin/sh
+printf '%s\n' \
+  '{"record_type":"run","id":"run"}' \
+  '{"record_type":"case","id":"case","run_id":"run"}' \
+  '{"record_type":"group","id":"group","case_id":"case"}' \
+  '{"record_type":"trajectory","id":"trajectory","group_id":"group"}'
+padding=$(awk 'BEGIN { for (i=0; i<20000; i++) printf "x" }')
+i=0
+while [ "$i" -lt 1700 ]; do
+  printf '{"record_type":"event","id":"event-%s","trajectory_id":"trajectory","sequence":%s,"kind":"message","data":"%s"}\n' "$i" "$i" "$padding"
+  i=$((i + 1))
+done
+printf '%s\n' '{"record_type":"complete","records":1704,"warnings":0}'
+`
+	plugin, store := loadAndTrust(t, newPlugin(t, script))
+	request, err := NewRequest("stream", source, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := NewHost(store)
+	host.Timeout = 30 * time.Second
+	host.MaxStdoutBytes = 40 << 20
+	count := 0
+	if _, err := host.Stream(context.Background(), plugin, request, func(*model.Record) error {
+		count++
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1705 {
+		t.Fatalf("visited %d records, want 1705", count)
+	}
+}
+
+func TestHostStreamCancellationKillsAdapter(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	plugin, store := loadAndTrust(t, newPlugin(t, "#!/bin/sh\nprintf '%s\\n' '{\"record_type\":\"run\",\"id\":\"run\"}'\nsleep 10\n"))
+	request, _ := NewRequest("stream", source, "")
+	ctx, cancel := context.WithCancel(context.Background())
+	start := time.Now()
+	_, err := NewHost(store).Stream(ctx, plugin, request, func(*model.Record) error {
+		cancel()
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context cancellation", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Fatalf("adapter cancellation took %s", elapsed)
+	}
+}
+
+func TestHostStreamBoundsOutputAndDiagnostics(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	t.Run("stdout", func(t *testing.T) {
+		plugin, store := loadAndTrust(t, newPlugin(t, stableScript))
+		request, _ := NewRequest("stream", source, "")
+		host := NewHost(store)
+		host.MaxStdoutBytes = 32
+		_, err := host.Stream(context.Background(), plugin, request, func(*model.Record) error { return nil })
+		if err == nil || !strings.Contains(err.Error(), "stdout exceeded 32 bytes") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+	t.Run("stderr", func(t *testing.T) {
+		script := "#!/bin/sh\nprintf 'this diagnostic is deliberately too long' >&2\nprintf '%s\\n' '{\"record_type\":\"complete\",\"records\":0,\"warnings\":0}'\n"
+		plugin, store := loadAndTrust(t, newPlugin(t, script))
+		request, _ := NewRequest("stream", source, "")
+		host := NewHost(store)
+		host.MaxStderrBytes = 12
+		stderr, err := host.Stream(context.Background(), plugin, request, func(*model.Record) error { return nil })
+		if err == nil || !strings.Contains(err.Error(), "stderr exceeded 12 bytes") {
+			t.Fatalf("stderr=%q len=%d error = %v", stderr, len(stderr), err)
+		}
+		if len(stderr) != 12 {
+			t.Fatalf("stderr length = %d, want 12", len(stderr))
+		}
+	})
+	t.Run("invalid stream", func(t *testing.T) {
+		script := "#!/bin/sh\nprintf 'adapter detail' >&2\nprintf 'not-json\\n'\n"
+		plugin, store := loadAndTrust(t, newPlugin(t, script))
+		request, _ := NewRequest("stream", source, "")
+		stderr, err := NewHost(store).Stream(context.Background(), plugin, request, func(*model.Record) error { return nil })
+		if err == nil || !strings.Contains(err.Error(), "invalid canonical stream") || stderr != "adapter detail" {
+			t.Fatalf("stderr=%q error=%v", stderr, err)
+		}
+	})
 }
 
 func TestProbeRequiresSchemaFields(t *testing.T) {

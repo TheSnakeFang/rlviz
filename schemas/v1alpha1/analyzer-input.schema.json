@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolloutviz.dev/schemas/v1alpha1/analyzer-input.schema.json",
+  "title": "RolloutViz analyzer input",
+  "description": "A normalized, single-trajectory request passed to a trusted analyzer CLI.",
+  "$comment": "Cross-record trajectory equality, unique IDs, strictly increasing event sequences, signal event references, and the 64 MiB encoded-size limit are enforced by the host because JSON Schema cannot express them across array items or encoded bytes.",
+  "type": "object",
+  "required": ["api_version", "operation", "trajectory_id", "events"],
+  "properties": {
+    "api_version": { "const": "rolloutviz.dev/analyzer/v1alpha1" },
+    "operation": { "const": "analyze" },
+    "trajectory_id": { "$ref": "#/$defs/required_string" },
+    "events": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/event" }
+    },
+    "signals": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/signal" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "required_string": { "type": "string", "minLength": 1 },
+    "metadata": { "type": "object" },
+    "source_location": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "line": { "type": "integer" },
+        "byte_offset": { "type": "integer" },
+        "byte_length": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "event": {
+      "type": "object",
+      "required": ["record_type", "id", "trajectory_id", "sequence", "kind"],
+      "properties": {
+        "record_type": { "const": "event" },
+        "id": { "$ref": "#/$defs/required_string" },
+        "trajectory_id": { "type": "string" },
+        "sequence": { "type": "integer", "minimum": 0 },
+        "kind": { "enum": ["message", "generation", "tool", "environment_action", "observation", "state", "reward", "grader", "artifact", "error", "log"] },
+        "timestamp": { "type": "string" },
+        "parent_id": { "type": "string" },
+        "branch_id": { "type": "string" },
+        "alignment_key": { "type": "string" },
+        "state_hash": { "type": "string" },
+        "input": true,
+        "output": true,
+        "data": true,
+        "source": { "$ref": "#/$defs/source_location" },
+        "raw": true,
+        "metadata": { "$ref": "#/$defs/metadata" }
+      },
+      "additionalProperties": false
+    },
+    "signal": {
+      "type": "object",
+      "required": ["record_type", "id", "trajectory_id", "name", "value"],
+      "properties": {
+        "record_type": { "const": "signal" },
+        "id": { "$ref": "#/$defs/required_string" },
+        "trajectory_id": { "type": "string" },
+        "event_id": { "type": "string" },
+        "name": { "$ref": "#/$defs/required_string" },
+        "value": { "type": ["number", "string", "boolean"] },
+        "unit": { "type": "string" },
+        "metadata": { "$ref": "#/$defs/metadata" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

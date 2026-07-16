@@ -1,0 +1,33 @@
+{
+  "api_version": "rolloutviz.dev/analyzer/v1alpha1",
+  "provenance": {
+    "name": "fixture.repeated-actions",
+    "version": "0.1.0",
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "input_digest": "sha256:ed4d7eaa480bdc30b6002cef7ff1fe3a7eb7ada7d6e01e11a37b9d5528d082bb"
+  },
+  "findings": [
+    {
+      "id": "finding-retry",
+      "trajectory_id": "trajectory-protocol",
+      "event_ids": ["event-1", "event-3"],
+      "kind": "retry",
+      "severity": "warning",
+      "title": "Repeated shell action",
+      "summary": "The same shell action was attempted again after an observation.",
+      "fingerprint": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "metadata": { "attempts": 2 }
+    }
+  ],
+  "signals": [
+    {
+      "record_type": "signal",
+      "id": "signal-finding-retry",
+      "trajectory_id": "trajectory-protocol",
+      "event_id": "event-3",
+      "name": "analyzer.retry.detected",
+      "value": true,
+      "metadata": { "finding_id": "finding-retry" }
+    }
+  ]
+}

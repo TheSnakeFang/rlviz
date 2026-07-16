@@ -1,0 +1,36 @@
+name: Bug report
+description: Report a reproducible RolloutViz problem
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach private customer traces, credentials, or proprietary model output. Reduce the issue to a safe fixture when possible.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Include the command, expected behavior, and actual behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide a minimal public fixture or exact steps.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `rlviz version`.
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system and architecture.
+    validations:
+      required: true

@@ -1,14 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadTrajectory } from "./api";
+import { AnalysisPanel } from "./AnalysisPanel";
+import { ArtifactPanel } from "./ArtifactPanel";
+import { loadAnalysis, loadChildPage, loadComparison, loadEventPage, loadGroup, loadGroupPaths, loadTrajectory } from "./api";
+import { ComparisonView } from "./ComparisonView";
 import { duration, eventText, json, payload, preview, time, title } from "./format";
+import { GroupView } from "./GroupView";
 import { sampleTrajectory } from "./sample";
-import type { Trajectory, TrajectoryEvent } from "./types";
+import type { AnalysisResponse, ComparisonResponse, GroupPathsResponse, GroupResponse, IndexedSource, Trajectory, TrajectoryArtifact, TrajectoryEvent } from "./types";
+import { VirtualList } from "./VirtualList";
 
 const kindMark: Record<string, string> = {
   message: "M", generation: "AI", tool: "T", environment_action: "A", observation: "O",
   state: "S", reward: "R", grader: "G", artifact: "F", error: "!", log: "L",
 };
 const filterKinds = ["all", "generation", "tool", "observation", "reward", "grader", "error"];
+const eventKey = (event: TrajectoryEvent) => event.id;
+
+const viewerKeys = ["view", "left", "right", "step"];
+function validID(value: string | null, max = 512): string | null {
+  return value && value.length <= max && !/[\u0000-\u001f\u007f]/.test(value) ? value : null;
+}
+function replaceParams(update: (params: URLSearchParams) => void) {
+  const params = new URLSearchParams(globalThis.location?.search ?? "");
+  update(params);
+  const query = params.toString();
+  globalThis.history?.replaceState({}, "", `${globalThis.location.pathname}${query ? `?${query}` : ""}${globalThis.location.hash}`);
+}
+function resolvedStep(value: string | null, comparison: ComparisonResponse): number {
+  const fallback = comparison.alignment.first_meaningful_divergence ?? 0;
+  if (value === "divergence") return fallback;
+  if (!value || !/^\d+$/.test(value)) return fallback;
+  const step = Number(value);
+  return Number.isSafeInteger(step) && step < comparison.alignment.steps.length ? step : fallback;
+}
 
 function Kind({ kind }: { kind: string }) {
   return <span className={`kind kind-${kind}`} aria-label={kind}>{kindMark[kind] || kind.slice(0, 2).toUpperCase()}</span>;
@@ -19,12 +43,12 @@ function Value({ value }: { value: unknown }) {
   return <pre className="payload">{preview(value)}</pre>;
 }
 
-function TimelineCard({ event, selected, expanded, onSelect, onExpand }: {
-  event: TrajectoryEvent; selected: boolean; expanded: boolean; onSelect: () => void; onExpand: () => void;
+function TimelineCard({ event, selected, expanded, position, total, onSelect, onExpand }: {
+  event: TrajectoryEvent; selected: boolean; expanded: boolean; position: number; total: number; onSelect: () => void; onExpand: () => void;
 }) {
   const hasIO = event.input !== undefined || event.output !== undefined;
   return (
-    <article id={`event-${event.id}`} className={`event-card kind-border-${event.kind} ${selected ? "selected" : ""}`} onClick={onSelect}>
+    <article id={`event-${event.id}`} className={`event-card kind-border-${event.kind} ${selected ? "selected" : ""}`} onClick={onSelect} aria-posinset={position} aria-setsize={total}>
       <div className="event-rail"><Kind kind={event.kind} /><span className="seq">{String(event.sequence).padStart(3, "0")}</span></div>
       <div className="event-body">
         <header>
@@ -43,7 +67,7 @@ function TimelineCard({ event, selected, expanded, onSelect, onExpand }: {
   );
 }
 
-function Inspector({ event, raw }: { event: TrajectoryEvent; raw: boolean }) {
+function Inspector({ event, raw, analysis, analysisLoading, analysisError, onRetryAnalysis, onJump, artifacts, sourceId, trajectoryId, selectedArtifactId, onSelectArtifact }: { event: TrajectoryEvent; raw: boolean; analysis: AnalysisResponse | null; analysisLoading: boolean; analysisError: string; onRetryAnalysis: () => void; onJump: (id: string) => void; artifacts: TrajectoryArtifact[]; sourceId: string; trajectoryId: string; selectedArtifactId: string; onSelectArtifact: (artifact: TrajectoryArtifact) => void }) {
   const entries = [
     ["Event ID", event.id], ["Sequence", event.sequence], ["Kind", event.kind], ["Time", event.timestamp],
     ["Duration", event.duration_ms === undefined ? undefined : duration(event.duration_ms)], ["Tokens", event.token_count],
@@ -52,6 +76,8 @@ function Inspector({ event, raw }: { event: TrajectoryEvent; raw: boolean }) {
   return (
     <aside className="inspector">
       <div className="panel-heading"><span>Inspector</span><span className="panel-hint">x raw</span></div>
+      <AnalysisPanel analysis={analysis} loading={analysisLoading} error={analysisError} onRetry={onRetryAnalysis} onJump={onJump} />
+      <ArtifactPanel artifacts={artifacts} sourceId={sourceId} trajectoryId={trajectoryId} selectedId={selectedArtifactId} onSelect={onSelectArtifact} />
       <div className="inspector-scroll">
         <div className="selected-heading"><Kind kind={event.kind} /><div><h3>{title(event)}</h3><span>event {event.sequence}</span></div></div>
         {raw ? <section><h4>Raw normalized record</h4><pre className="raw-json">{json(event.raw ?? event)}</pre></section> : <>
@@ -71,49 +97,268 @@ export function App({ initialTrajectory }: { initialTrajectory?: Trajectory }) {
   const [trajectory, setTrajectory] = useState(initialTrajectory || sampleTrajectory);
   const [isSample, setIsSample] = useState(!initialTrajectory);
   const [loading, setLoading] = useState(!initialTrajectory);
-  const [selectedId, setSelectedId] = useState(trajectory.events[0]?.id || "");
+  const [eventTotal, setEventTotal] = useState(trajectory.events.length);
+  const [indexSource, setIndexSource] = useState<IndexedSource | null>(null);
+  const [selectedId, setSelectedId] = useState(validID(new URLSearchParams(globalThis.location?.search ?? "").get("event")) ?? trajectory.events[0]?.id ?? "");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [raw, setRaw] = useState(false);
   const [help, setHelp] = useState(false);
+  const [group, setGroup] = useState<GroupResponse | null>(null);
+  const [groupPaths, setGroupPaths] = useState<GroupPathsResponse | null>(null);
+  const [groupPathsError, setGroupPathsError] = useState("");
+  const [groupLoading, setGroupLoading] = useState(false);
+  const [groupError, setGroupError] = useState("");
+  const [comparison, setComparison] = useState<ComparisonResponse | null>(null);
+  const [comparisonStep, setComparisonStep] = useState(0);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [analysisVersion, setAnalysisVersion] = useState(0);
+  const [selectedArtifactId, setSelectedArtifactId] = useState(trajectory.artifacts?.[0]?.id ?? "");
+  const [routeVersion, setRouteVersion] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
+  const outlineRef = useRef<HTMLElement>(null);
+  const timelineRef = useRef<HTMLElement>(null);
+  const restoredView = useRef("");
+  const sourceId = new URLSearchParams(globalThis.location?.search ?? "").get("trajectory") ?? "";
 
   useEffect(() => {
-    if (initialTrajectory) return;
+    if (initialTrajectory && routeVersion === 0) return;
     const controller = new AbortController();
-    loadTrajectory(controller.signal).then(({ trajectory: next, isSample: sample }) => {
-      setTrajectory(next); setIsSample(sample); setSelectedId(next.events[0]?.id || ""); setLoading(false);
-    }).catch(() => setLoading(false));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const params = new URLSearchParams(globalThis.location?.search ?? "");
+    const sourceId = params.get("trajectory") ?? "";
+    const indexed = params.get("indexed") === "1";
+    const wait = () => new Promise<void>((resolve) => { timer = setTimeout(resolve, 1000); });
+    const run = async () => {
+      const result = await loadTrajectory(controller.signal);
+      const next = result.trajectory;
+      const requestedEvent = validID(params.get("event"));
+      setTrajectory(next); setIsSample(result.isSample); setSelectedId(requestedEvent ?? next.events[0]?.id ?? ""); setLoading(false); setIndexSource(result.source ?? null);
+      setEventTotal(result.page?.total ?? next.events.length);
+      if (!indexed || result.isSample || !sourceId) return;
+      let after = result.page?.next_sequence ?? next.events.at(-1)?.sequence;
+      let hasMore = result.page?.has_more ?? false;
+      let indexState = result.source?.index_state;
+      while (!controller.signal.aborted && after !== undefined && (hasMore || indexState === "indexing" || indexState === "refreshing")) {
+        if (!hasMore) await wait();
+        if (controller.signal.aborted) return;
+        const page = await loadEventPage(sourceId, next.id, after, controller.signal);
+        if (controller.signal.aborted) return;
+        setEventTotal(page.page.total);
+        if (page.source) { setIndexSource(page.source); indexState = page.source.index_state; }
+        if (page.events.length) {
+          setTrajectory((current) => {
+            const existing = new Set(current.events.map((event) => event.id));
+            const appended = page.events.filter((event) => !existing.has(event.id));
+            return appended.length ? { ...current, events: [...current.events, ...appended] } : current;
+          });
+          after = page.events.at(-1)?.sequence ?? after;
+        }
+        hasMore = page.page.has_more;
+        if (page.page.next_sequence !== undefined) after = page.page.next_sequence;
+      }
+      const shouldLoadChildren = (page?: import("./types").PageMetadata) => page?.has_more || result.source?.index_state === "indexing" || result.source?.index_state === "refreshing";
+      const loadRemainingSignals = async () => {
+        if (!shouldLoadChildren(result.signalPage)) return;
+        let offset = result.signalPage?.next_offset ?? next.signals?.length ?? 0;
+        while (!controller.signal.aborted) {
+          const child = await loadChildPage("signals", sourceId, next.id, offset, controller.signal);
+          if (controller.signal.aborted) return;
+          setTrajectory((current) => {
+            const existing = new Set((current.signals ?? []).map((item) => item.id ?? `${item.name}\u0000${item.event_id ?? ""}`));
+            const appended = child.items.filter((item) => !existing.has(item.id ?? `${item.name}\u0000${item.event_id ?? ""}`));
+            if (!appended.length) return current;
+            const signals = [...(current.signals ?? []), ...appended];
+            const reward = [...signals].reverse().find((item) => item.name.toLowerCase() === "reward" && typeof item.value === "number");
+            return { ...current, signals, total_reward: typeof reward?.value === "number" ? reward.value : current.total_reward };
+          });
+          if (!child.page.has_more || child.page.next_offset === undefined || child.page.next_offset <= offset) return;
+          offset = child.page.next_offset;
+        }
+      };
+      const loadRemainingArtifacts = async () => {
+        if (!shouldLoadChildren(result.artifactPage)) return;
+        let offset = result.artifactPage?.next_offset ?? next.artifacts?.length ?? 0;
+        while (!controller.signal.aborted) {
+          const child = await loadChildPage("artifacts", sourceId, next.id, offset, controller.signal);
+          if (controller.signal.aborted) return;
+          setTrajectory((current) => {
+            const existing = new Set((current.artifacts ?? []).map((item) => item.id));
+            const appended = child.items.filter((item) => !existing.has(item.id));
+            return appended.length ? { ...current, artifacts: [...(current.artifacts ?? []), ...appended] } : current;
+          });
+          if (!child.page.has_more || child.page.next_offset === undefined || child.page.next_offset <= offset) return;
+          offset = child.page.next_offset;
+        }
+      };
+      await Promise.all([
+        loadRemainingSignals(),
+        loadRemainingArtifacts(),
+      ]);
+    };
+    run().catch(() => setLoading(false));
     return () => controller.abort();
-  }, [initialTrajectory]);
+  }, [initialTrajectory, routeVersion]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(globalThis.location?.search ?? "");
+    const view = params.get("view");
+    const source = validID(params.get("trajectory"), 256);
+    const key = `${routeVersion}:${trajectory.id}:${view}:${params.get("left")}:${params.get("right")}`;
+    if (!source || !trajectory.id || (view !== "group" && view !== "compare") || restoredView.current === key) return;
+    restoredView.current = key;
+    const controller = new AbortController();
+    const restoreGroup = async () => {
+      if (!trajectory.group_id) return;
+      try {
+        const restored = await loadGroup(source, trajectory.group_id, controller.signal);
+        if (!controller.signal.aborted) setGroup(restored);
+        try {
+          const paths = await loadGroupPaths(source, trajectory.group_id, controller.signal);
+          if (!controller.signal.aborted) setGroupPaths(paths);
+        } catch (error) {
+          if (!controller.signal.aborted) setGroupPathsError(error instanceof Error ? error.message : "Could not load compact paths");
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) setGroupError(error instanceof Error ? error.message : "Could not load group");
+      }
+    };
+    if (view === "group") void restoreGroup();
+    else {
+      const left = validID(params.get("left"), 256);
+      const right = validID(params.get("right"), 256);
+      if (!left || !right || left === right) {
+        replaceParams((next) => viewerKeys.forEach((item) => next.delete(item)));
+        return () => controller.abort();
+      }
+      void restoreGroup();
+      setGroupLoading(true); setGroupError("");
+      loadComparison(source, left, right, controller.signal).then((result) => {
+        if (controller.signal.aborted) return;
+        const step = resolvedStep(params.get("step"), result);
+        setComparisonStep(step); setComparison(result);
+        replaceParams((next) => next.set("step", String(step)));
+      }).catch((error) => {
+        if (!controller.signal.aborted) setGroupError(error instanceof Error ? error.message : "Could not compare trajectories");
+      }).finally(() => { if (!controller.signal.aborted) setGroupLoading(false); });
+    }
+    return () => controller.abort();
+  }, [routeVersion, trajectory.group_id, trajectory.id]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(globalThis.location?.search ?? "");
+    const sourceId = params.get("trajectory") ?? "";
+    if (params.get("indexed") !== "1" || !sourceId || isSample || !trajectory.id) {
+      setAnalysis(null); setAnalysisLoading(false); setAnalysisError("");
+      return;
+    }
+    if (indexSource?.index_state === "indexing" || indexSource?.index_state === "refreshing") {
+      setAnalysis(null); setAnalysisLoading(true); setAnalysisError("");
+      return;
+    }
+    const controller = new AbortController();
+    setAnalysis(null); setAnalysisLoading(true); setAnalysisError("");
+    loadAnalysis(sourceId, trajectory.id, controller.signal).then(setAnalysis).catch((error) => {
+      if (!controller.signal.aborted) setAnalysisError(error instanceof Error ? error.message : "Could not analyze trajectory");
+    }).finally(() => { if (!controller.signal.aborted) setAnalysisLoading(false); });
+    return () => controller.abort();
+  }, [analysisVersion, indexSource?.index_state, isSample, trajectory.id]);
+
+  useEffect(() => {
+    setSelectedArtifactId((current) => trajectory.artifacts?.some((artifact) => artifact.id === current) ? current : (trajectory.artifacts?.[0]?.id ?? ""));
+  }, [trajectory.id, trajectory.artifacts]);
 
   const counts = useMemo(() => trajectory.events.reduce<Record<string, number>>((acc, e) => ({ ...acc, [e.kind]: (acc[e.kind] || 0) + 1 }), {}), [trajectory]);
   const visible = useMemo(() => trajectory.events.filter((event) => (filter === "all" || event.kind === filter) && (!query || eventText(event).includes(query.toLowerCase()))), [trajectory, filter, query]);
   const selected = trajectory.events.find((event) => event.id === selectedId) || visible[0] || trajectory.events[0];
+  const selectedVisibleIndex = visible.findIndex((event) => event.id === selected.id);
+  const analysisEventIds = useMemo(() => [...new Set((analysis?.analysis.findings ?? []).flatMap((finding) => finding.event_ids ?? []))], [analysis]);
+
+  const selectEvent = (id: string) => {
+    if (!trajectory.events.some((event) => event.id === id)) return;
+    setSelectedId(id);
+    replaceParams((params) => params.set("event", id));
+  };
 
   const move = (delta: number, predicate?: (event: TrajectoryEvent) => boolean) => {
     const candidates = predicate ? visible.filter(predicate) : visible;
     if (!candidates.length) return;
     const index = candidates.findIndex((event) => event.id === selectedId);
     const next = candidates[index < 0 ? 0 : (index + delta + candidates.length) % candidates.length];
-    setSelectedId(next.id);
-    requestAnimationFrame(() => document.getElementById(`event-${next.id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }));
+    selectEvent(next.id);
   };
   const toggleExpand = (id: string) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  const jumpToEvent = (id: string) => { setFilter("all"); setQuery(""); setSearchOpen(false); selectEvent(id); };
+  const moveAnalysis = () => {
+    if (!analysisEventIds.length) return;
+    const index = analysisEventIds.indexOf(selectedId);
+    jumpToEvent(analysisEventIds[(index + 1 + analysisEventIds.length) % analysisEventIds.length]);
+  };
+  const selectArtifact = (artifact: TrajectoryArtifact) => {
+    setSelectedArtifactId(artifact.id);
+    if (artifact.event_id && trajectory.events.some((event) => event.id === artifact.event_id)) jumpToEvent(artifact.event_id);
+  };
+  const moveArtifact = () => {
+    const artifacts = trajectory.artifacts ?? [];
+    if (!artifacts.length) return;
+    const index = artifacts.findIndex((artifact) => artifact.id === selectedArtifactId);
+    selectArtifact(artifacts[(index + 1 + artifacts.length) % artifacts.length]);
+  };
+  const openGroup = async () => {
+    const params = new URLSearchParams(globalThis.location?.search ?? "");
+    const sourceId = params.get("trajectory") ?? "";
+    if (!sourceId || !trajectory.group_id) return;
+    setGroupLoading(true); setGroupError(""); setGroupPaths(null); setGroupPathsError("");
+    try {
+      setGroup(await loadGroup(sourceId, trajectory.group_id));
+      replaceParams((next) => { next.set("view", "group"); for (const key of ["left", "right", "step"]) next.delete(key); });
+      try { setGroupPaths(await loadGroupPaths(sourceId, trajectory.group_id)); }
+      catch (error) { setGroupPathsError(error instanceof Error ? error.message : "Could not load compact paths"); }
+    }
+    catch (error) { setGroupError(error instanceof Error ? error.message : "Could not load group"); }
+    finally { setGroupLoading(false); }
+  };
+  const openGroupTrajectory = (id: string) => {
+    const params = new URLSearchParams(globalThis.location?.search ?? "");
+    params.set("indexed", "1"); params.set("trajectory_id", id);
+    params.delete("event"); viewerKeys.forEach((key) => params.delete(key));
+    globalThis.history?.replaceState({}, "", `${globalThis.location.pathname}?${params}${globalThis.location.hash}`);
+    setGroup(null); setLoading(true);
+    setRouteVersion((version) => version + 1);
+  };
+  const openComparison = async (left: string, right: string) => {
+    const sourceId = new URLSearchParams(globalThis.location?.search ?? "").get("trajectory") ?? "";
+    if (!sourceId) return;
+    setGroupLoading(true); setGroupError("");
+    try {
+      const result = await loadComparison(sourceId, left, right);
+      const step = result.alignment.first_meaningful_divergence ?? 0;
+      setComparisonStep(step); setComparison(result);
+      replaceParams((next) => { next.set("view", "compare"); next.set("left", left); next.set("right", right); next.set("step", String(step)); });
+    }
+    catch (error) { setGroupError(error instanceof Error ? error.message : "Could not compare trajectories"); }
+    finally { setGroupLoading(false); }
+  };
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement;
       if (event.key === "Escape") { setSearchOpen(false); setHelp(false); searchRef.current?.blur(); return; }
       if (typing) return;
+      if (group) return;
       if (event.key === "/") { event.preventDefault(); setSearchOpen(true); requestAnimationFrame(() => searchRef.current?.focus()); }
       else if (event.key === "j") move(1);
       else if (event.key === "k") move(-1);
       else if (event.key === "e") move(1, (item) => item.kind === "error");
       else if (event.key === "r") move(1, (item) => item.kind === "reward" || item.kind === "grader");
+      else if (event.key === "a") moveAnalysis();
+      else if (event.key === "o") moveArtifact();
       else if (event.key === "x") setRaw((value) => !value);
+      else if (event.key === "g" && trajectory.group_id) void openGroup();
       else if (event.key === "?") setHelp((value) => !value);
       else if ((event.key === " " || event.key === "Enter") && selected) { event.preventDefault(); toggleExpand(selected.id); }
     };
@@ -121,35 +366,45 @@ export function App({ initialTrajectory }: { initialTrajectory?: Trajectory }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   });
 
+  if (comparison) return <div className="app-shell group-shell comparison-shell">
+    <header className="topbar"><div className="brand"><span className="brand-mark">RV</span><span>RolloutViz</span></div><div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>comparison</strong></div></header>
+    <ComparisonView comparison={comparison} initialStep={comparisonStep} onStepChange={(step) => { setComparisonStep(step); replaceParams((params) => params.set("step", String(step))); }} onClose={() => { setComparison(null); replaceParams((params) => { params.set("view", "group"); for (const key of ["left", "right", "step"]) params.delete(key); }); }} />
+  </div>;
+  if (group) return <div className="app-shell group-shell">
+    <header className="topbar"><div className="brand"><span className="brand-mark">RV</span><span>RolloutViz</span></div><div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>{group.group_id}</strong></div>{groupError && <div className="top-actions"><span className="group-error">{groupError}</span></div>}</header>
+    <GroupView group={group} paths={groupPaths} pathsError={groupPathsError} onClose={() => { setGroup(null); replaceParams((params) => viewerKeys.forEach((key) => params.delete(key))); }} onOpen={openGroupTrajectory} onCompare={(left, right) => void openComparison(left, right)} />
+  </div>;
   if (!selected) return <main className="empty">No events in this trajectory.</main>;
   return (
     <div className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark">RV</span><span>RolloutViz</span></div>
         <div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>{trajectory.name || trajectory.id}</strong></div>
-        <div className="top-actions">{loading && <span className="loading">Connecting…</span>}{isSample && !loading && <span className="demo-pill" title="The local API was unavailable">Sample data</span>}<button onClick={() => setHelp(true)} className="icon-button" aria-label="Keyboard shortcuts">?</button></div>
+        <div className="top-actions">{groupError && <span className="group-error">{groupError}</span>}{indexSource?.index_state === "failed" && <span className="index-state failed" title={indexSource.index_error}>Index failed{indexSource.index_error ? `: ${indexSource.index_error}` : ""}</span>}{(indexSource?.index_state === "indexing" || indexSource?.index_state === "refreshing") && <span className="index-state"><i></i>{indexSource.index_state === "refreshing" ? "Refreshing" : "Indexing"}</span>}{loading && <span className="loading">Connecting…</span>}{isSample && !loading && <span className="demo-pill" title="The local API was unavailable">Sample data</span>}<button onClick={() => setHelp(true)} className="icon-button" aria-label="Keyboard shortcuts">?</button></div>
       </header>
       <div className="contextbar">
         <div className="status"><span className={`status-dot ${trajectory.status}`}></span>{trajectory.status || "complete"}</div>
-        <div><span>MODEL</span>{trajectory.model || "—"}</div><div><span>EVENTS</span>{trajectory.events.length}</div><div><span>DURATION</span>{duration(trajectory.duration_ms)}</div><div><span>REWARD</span><strong className={(trajectory.total_reward || 0) < 0 ? "negative" : "positive"}>{trajectory.total_reward ?? "—"}</strong></div>
-        <div className="context-spacer"></div><div><span>CASE</span>{trajectory.case_id || "—"}</div><div><span>GROUP</span>{trajectory.group_id || "—"}</div>
+        <div><span>MODEL</span>{trajectory.model || "—"}</div><div><span>EVENTS</span>{trajectory.events.length < eventTotal ? `${trajectory.events.length}/${eventTotal}` : eventTotal}</div><div><span>DURATION</span>{duration(trajectory.duration_ms)}</div><div><span>REWARD</span><strong className={(trajectory.total_reward || 0) < 0 ? "negative" : "positive"}>{trajectory.total_reward ?? "—"}</strong></div>
+        <div className="context-spacer"></div><div><span>CASE</span>{trajectory.case_id || "—"}</div><div><span>GROUP</span>{trajectory.group_id ? <button className="context-link" onClick={() => void openGroup()} disabled={groupLoading}>{groupLoading ? "loading…" : trajectory.group_id} <kbd>g</kbd></button> : "—"}</div>
       </div>
       <div className="workspace">
         <aside className="outline">
           <div className="panel-heading"><span>Events</span><span>{visible.length}/{trajectory.events.length}</span></div>
           <div className={`search ${searchOpen ? "open" : ""}`}><span>⌕</span><input ref={searchRef} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search events" aria-label="Search events" /><kbd>/</kbd></div>
           <div className="filters">{filterKinds.filter((kind) => kind === "all" || counts[kind]).map((kind) => <button key={kind} className={filter === kind ? "active" : ""} onClick={() => setFilter(kind)}><span>{kind}</span><b>{kind === "all" ? trajectory.events.length : counts[kind]}</b></button>)}</div>
-          <nav className="event-outline" aria-label="Event outline">{visible.map((event) => <button key={event.id} className={selected.id === event.id ? "active" : ""} onClick={() => setSelectedId(event.id)}><Kind kind={event.kind} /><span className="outline-text"><b>{title(event)}</b><small>{event.kind} · {duration(event.duration_ms)}</small></span><span className="outline-seq">{event.sequence}</span></button>)}</nav>
+          <nav ref={outlineRef} className="event-outline" aria-label="Event outline">
+            <VirtualList items={visible} estimateSize={47} overscan={6} selectedIndex={selectedVisibleIndex} scrollRef={outlineRef} className="outline-virtual" itemKey={eventKey} renderItem={(event, index) => <button className={selected.id === event.id ? "active" : ""} aria-current={selected.id === event.id ? "true" : undefined} aria-posinset={index + 1} aria-setsize={visible.length} onClick={() => selectEvent(event.id)}><Kind kind={event.kind} /><span className="outline-text"><b>{title(event)}</b><small>{event.kind} · {duration(event.duration_ms)}</small></span><span className="outline-seq">{event.sequence}</span></button>} />
+          </nav>
           {!visible.length && <div className="no-results">No matching events</div>}
         </aside>
-        <main className="timeline" aria-label="Trajectory timeline">
+        <main ref={timelineRef} className="timeline" aria-label="Trajectory timeline">
           <div className="timeline-heading"><div><h1>{trajectory.name || trajectory.id}</h1><p>{trajectory.id} · {trajectory.started_at ? new Date(trajectory.started_at).toLocaleString() : "local trajectory"}</p></div><div className="legend"><span><i className="action"></i>action</span><span><i className="observation"></i>observation</span><span><i className="signal"></i>signal</span></div></div>
-          <div className="timeline-events">{visible.map((event) => <TimelineCard key={event.id} event={event} selected={selected.id === event.id} expanded={expanded.has(event.id)} onSelect={() => setSelectedId(event.id)} onExpand={() => toggleExpand(event.id)} />)}</div>
+          <VirtualList items={visible} estimateSize={118} overscan={4} selectedIndex={selectedVisibleIndex} scrollRef={timelineRef} className="timeline-events" itemKey={eventKey} renderItem={(event, index) => <TimelineCard event={event} selected={selected.id === event.id} expanded={expanded.has(event.id)} position={index + 1} total={visible.length} onSelect={() => selectEvent(event.id)} onExpand={() => toggleExpand(event.id)} />} />
         </main>
-        <Inspector event={selected} raw={raw} />
+        <Inspector event={selected} raw={raw} analysis={analysis} analysisLoading={analysisLoading} analysisError={analysisError} onRetryAnalysis={() => setAnalysisVersion((version) => version + 1)} onJump={jumpToEvent} artifacts={trajectory.artifacts ?? []} sourceId={sourceId} trajectoryId={trajectory.id} selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact} />
       </div>
-      <footer className="keybar"><span><kbd>j</kbd><kbd>k</kbd> navigate</span><span><kbd>↵</kbd>/<kbd>space</kbd> expand</span><span><kbd>e</kbd> error</span><span><kbd>r</kbd> reward</span><span><kbd>x</kbd> raw</span><span><kbd>?</kbd> shortcuts</span></footer>
-      {help && <div className="modal-backdrop" onMouseDown={() => setHelp(false)}><div className="help-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onMouseDown={(e) => e.stopPropagation()}><header><div><span className="eyebrow">Navigation</span><h2>Keyboard shortcuts</h2></div><button onClick={() => setHelp(false)} aria-label="Close shortcuts">×</button></header><div className="shortcut-grid">{[["j / k", "Next / previous event"], ["Enter / Space", "Expand selected event"], ["/", "Search events"], ["e", "Jump to next error"], ["r", "Jump to next reward or grader"], ["x", "Toggle raw event record"], ["?", "Toggle this reference"], ["Esc", "Close search or dialog"]].map(([key, label]) => <div key={key}><kbd>{key}</kbd><span>{label}</span></div>)}</div></div></div>}
+      <footer className="keybar"><span><kbd>j</kbd><kbd>k</kbd> navigate</span><span><kbd>↵</kbd>/<kbd>space</kbd> expand</span>{trajectory.group_id && <span><kbd>g</kbd> group</span>}{analysisEventIds.length > 0 && <span><kbd>a</kbd> finding</span>}{(trajectory.artifacts?.length ?? 0) > 0 && <span><kbd>o</kbd> artifact</span>}<span><kbd>e</kbd> error</span><span><kbd>r</kbd> reward</span><span><kbd>x</kbd> raw</span><span><kbd>?</kbd> shortcuts</span></footer>
+      {help && <div className="modal-backdrop" onMouseDown={() => setHelp(false)}><div className="help-modal" role="dialog" aria-modal="true" aria-label="Keyboard shortcuts" onMouseDown={(e) => e.stopPropagation()}><header><div><span className="eyebrow">Navigation</span><h2>Keyboard shortcuts</h2></div><button onClick={() => setHelp(false)} aria-label="Close shortcuts">×</button></header><div className="shortcut-grid">{[["j / k", "Next / previous event"], ["Enter / Space", "Expand selected event"], ["/", "Search events"], ["g", "Compare trajectory group"], ["a", "Jump through analyzer findings"], ["o", "Open next artifact"], ["e", "Jump to next error"], ["r", "Jump to next reward or grader"], ["x", "Toggle raw event record"], ["?", "Toggle this reference"], ["Esc", "Close search or dialog"]].map(([key, label]) => <div key={key}><kbd>{key}</kbd><span>{label}</span></div>)}</div></div></div>}
     </div>
   );
 }

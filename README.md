@@ -15,7 +15,7 @@ The long-term goal is a lightweight workbench for people building agent environm
 
 ## Status
 
-RolloutViz has an initial single-trajectory vertical slice. It accepts canonical v1alpha1 NDJSON, validates the stream, starts a loopback-only server, and opens an embedded keyboard-first viewer:
+RolloutViz accepts canonical v1alpha1 NDJSON, validates and indexes it locally, starts a loopback-only daemon, and opens an embedded keyboard-first viewer:
 
 ```bash
 rlviz open ./path/to/trajectory.jsonl
@@ -29,8 +29,19 @@ make build
 ./bin/rlviz open ./fixtures/canonical/linear.ndjson
 ```
 
-`rlviz open` starts or reuses a private loopback daemon and returns immediately. Use `rlviz status` and `rlviz stop` to inspect or stop it; `rlviz serve` remains the explicit foreground debugging mode.
-The current in-memory slice caps one canonical source or adapter output at 32 MiB; streaming indexes are the next storage milestone.
+`rlviz open` starts or reuses a private loopback daemon and returns after registration. Use `rlviz status` and `rlviz stop` to inspect or stop it; `rlviz serve` remains the explicit foreground debugging mode.
+
+The daemon incrementally decodes sources into a private SQLite cache, watches opened files for changes, and serves paginated events to a virtualized UI. Group sources add a sortable trajectory table, aggregate outcomes, compact behavioral paths, and deterministic two-run divergence comparison.
+
+Inspect the local SQLite index, or remove it after stopping the daemon:
+
+```bash
+rlviz cache status
+rlviz stop
+rlviz cache clean
+```
+
+Both cache commands accept `--json`. Cleanup only removes `index.sqlite` and its SQLite `-wal` and `-shm` siblings.
 
 Private formats can use project-local process adapters:
 
@@ -43,6 +54,24 @@ Private formats can use project-local process adapters:
 ```
 
 See [`docs/adapter-authoring.md`](docs/adapter-authoring.md) and the working [`simple-jsonl` example](examples/adapters/simple-jsonl).
+
+## Install
+
+Release archives contain one native binary and require no language runtime. After the first tagged release, install the latest verified archive with:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/unlatch-ai/rolloutviz/main/scripts/install.sh | sh
+```
+
+Set `ROLLOUTVIZ_VERSION` to pin a release and `ROLLOUTVIZ_INSTALL_DIR` to choose the destination. The installer verifies the release checksum before installing both `rlviz` and the `rolloutviz` alias. Homebrew packaging is planned alongside the first public release.
+
+For Node-based environments and coding-agent sandboxes, the same native binary is available through the `rolloutviz` npm package:
+
+```bash
+npm install --global rolloutviz
+```
+
+The npm installer selects the matching macOS or Linux release and verifies its checksum. npm is an installation path only; the viewer itself remains a native Go binary.
 
 ## Design principles
 
@@ -59,6 +88,7 @@ See [`docs/adapter-authoring.md`](docs/adapter-authoring.md) and the working [`s
 - [`docs/architecture.md`](docs/architecture.md) defines the initial technical architecture.
 - [`docs/adapter-protocol.md`](docs/adapter-protocol.md) defines the external adapter boundary.
 - [`docs/implementation-plan.md`](docs/implementation-plan.md) breaks the work into testable milestones.
+- [`docs/releasing.md`](docs/releasing.md) documents native, Homebrew, and npm publication.
 - [`integrations/`](integrations/) contains instructions for Codex, Claude Code, and Cursor.
 
 ## Development

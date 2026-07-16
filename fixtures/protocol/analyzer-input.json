@@ -1,0 +1,42 @@
+{
+  "api_version": "rolloutviz.dev/analyzer/v1alpha1",
+  "operation": "analyze",
+  "trajectory_id": "trajectory-protocol",
+  "events": [
+    {
+      "record_type": "event",
+      "id": "event-1",
+      "trajectory_id": "trajectory-protocol",
+      "sequence": 0,
+      "kind": "tool",
+      "input": { "name": "shell", "arguments": { "command": "go test ./..." } }
+    },
+    {
+      "record_type": "event",
+      "id": "event-2",
+      "trajectory_id": "trajectory-protocol",
+      "sequence": 1,
+      "kind": "observation",
+      "output": { "exit_code": 1 }
+    },
+    {
+      "record_type": "event",
+      "id": "event-3",
+      "trajectory_id": "trajectory-protocol",
+      "sequence": 2,
+      "kind": "tool",
+      "input": { "name": "shell", "arguments": { "command": "go test ./..." } }
+    }
+  ],
+  "signals": [
+    {
+      "record_type": "signal",
+      "id": "signal-reward",
+      "trajectory_id": "trajectory-protocol",
+      "event_id": "event-3",
+      "name": "reward",
+      "value": 0.25,
+      "unit": "points"
+    }
+  ]
+}

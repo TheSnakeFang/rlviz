@@ -1,13 +1,91 @@
 package model
 
 import (
+	"bytes"
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestDecoderByteProvenanceCRLFAndNoFinalNewline(t *testing.T) {
+	t.Parallel()
+	first := `{"record_type":"run","id":"run-offsets"}`
+	second := `{"record_type":"complete","records":1,"warnings":0}`
+	decoder := NewDecoder(strings.NewReader(first + "\r\n" + second))
+
+	record, err := decoder.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Line != 1 || record.ByteOffset != 0 || record.ByteLength != int64(len(first)) {
+		t.Fatalf("first provenance = line %d offset %d length %d", record.Line, record.ByteOffset, record.ByteLength)
+	}
+	if string(record.Raw) != first {
+		t.Fatalf("first raw = %q, want %q", record.Raw, first)
+	}
+
+	record, err = decoder.Next()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if record.Line != 2 || record.ByteOffset != int64(len(first)+2) || record.ByteLength != int64(len(second)) {
+		t.Fatalf("second provenance = line %d offset %d length %d", record.Line, record.ByteOffset, record.ByteLength)
+	}
+	if string(record.Raw) != second {
+		t.Fatalf("second raw = %q, want %q", record.Raw, second)
+	}
+	if _, err := decoder.Next(); !errors.Is(err, io.EOF) {
+		t.Fatalf("final error = %v, want EOF", err)
+	}
+}
+
+func TestDecoderRejectsOversizedRecord(t *testing.T) {
+	t.Parallel()
+	stream := `{"record_type":"run","id":"run-large","metadata":{"payload":"` +
+		strings.Repeat("x", MaxRecordBytes) + `"}}` + "\n"
+	_, err := NewDecoder(strings.NewReader(stream)).Next()
+	if !errors.Is(err, ErrRecordTooLarge) {
+		t.Fatalf("error = %v, want ErrRecordTooLarge", err)
+	}
+}
+
+func TestDecodeContextCancellation(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	visited := 0
+	err := DecodeContext(ctx, bytes.NewReader(tenThousandEventStream()), func(*Record) error {
+		visited++
+		if visited == 100 {
+			cancel()
+		}
+		return nil
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+	if visited != 100 {
+		t.Fatalf("visited = %d, want 100", visited)
+	}
+}
+
+func TestDecodeTenThousandEvents(t *testing.T) {
+	t.Parallel()
+	visited := 0
+	if err := Decode(bytes.NewReader(tenThousandEventStream()), func(*Record) error {
+		visited++
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if visited != 10_005 {
+		t.Fatalf("visited = %d, want 10005", visited)
+	}
+}
 
 func TestCanonicalFixtures(t *testing.T) {
 	t.Parallel()
@@ -119,4 +197,30 @@ func TestDecodePropagatesVisitorError(t *testing.T) {
 	if !errors.Is(err, want) {
 		t.Fatalf("error = %v, want %v", err, want)
 	}
+}
+
+func BenchmarkDecodeTenThousandEvents(b *testing.B) {
+	stream := tenThousandEventStream()
+	b.ReportAllocs()
+	b.SetBytes(int64(len(stream)))
+	b.ResetTimer()
+	for range b.N {
+		if err := Decode(bytes.NewReader(stream), nil); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func tenThousandEventStream() []byte {
+	var stream bytes.Buffer
+	stream.Grow(1 << 20)
+	stream.WriteString("{\"record_type\":\"run\",\"id\":\"run-10k\"}\n")
+	stream.WriteString("{\"record_type\":\"case\",\"id\":\"case-10k\",\"run_id\":\"run-10k\"}\n")
+	stream.WriteString("{\"record_type\":\"group\",\"id\":\"group-10k\",\"case_id\":\"case-10k\"}\n")
+	stream.WriteString("{\"record_type\":\"trajectory\",\"id\":\"trajectory-10k\",\"group_id\":\"group-10k\"}\n")
+	for i := range 10_000 {
+		fmt.Fprintf(&stream, "{\"record_type\":\"event\",\"id\":\"event-%d\",\"trajectory_id\":\"trajectory-10k\",\"sequence\":%d,\"kind\":\"log\"}\n", i, i)
+	}
+	stream.WriteString("{\"record_type\":\"complete\",\"records\":10004,\"warnings\":0}")
+	return stream.Bytes()
 }

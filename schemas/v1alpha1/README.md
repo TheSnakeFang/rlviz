@@ -20,3 +20,17 @@ the following stream constraints are also normative:
 
 All contracts are unstable until a non-alpha version is declared. A manifest
 selects this version with `api_version: rolloutviz.dev/v1alpha1`.
+
+Plugin manifests may use `kind: Adapter` with `adapter.probe` and
+`adapter.stream`, or `kind: Analyzer` with exactly `analyzer.analyze`. The
+strict external-analyzer request and output contracts are
+`analyzer-input.schema.json` and `analyzer-output.schema.json`. Valid examples
+live at `fixtures/protocol/analyzer-input.json` and
+`fixtures/protocol/analyzer-output.json`.
+
+External analyzer CLI execution is available. Use `rlviz plugin init --type
+analyzer`, explicitly trust the plugin, then run `rlviz plugin validate` with an
+analyzer input JSON file. Validation executes the trusted snapshot twice and
+requires byte-identical, schema- and runtime-valid output. See
+`docs/analyzer-protocol.md` for the execution and semantic constraints that
+JSON Schema cannot express across records or encoded byte lengths.

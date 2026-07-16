@@ -3,33 +3,49 @@ package model
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 )
 
+// MaxRecordBytes is the largest canonical NDJSON record accepted by Decoder.
+// The bound applies to the JSON bytes and excludes the trailing CRLF or LF.
+const MaxRecordBytes = 8 << 20
+
+// ErrRecordTooLarge identifies a canonical record that exceeds MaxRecordBytes.
+var ErrRecordTooLarge = errors.New("canonical record exceeds maximum size")
+
 type Decoder struct {
 	reader *bufio.Reader
 	line   int64
+	offset int64
 }
 
 func NewDecoder(r io.Reader) *Decoder {
-	return &Decoder{reader: bufio.NewReader(r)}
+	return &Decoder{reader: bufio.NewReaderSize(r, 64<<10)}
 }
 
 // Next decodes one NDJSON record without buffering the entire stream.
 func (d *Decoder) Next() (*Record, error) {
-	line, err := d.reader.ReadBytes('\n')
-	if err != nil && !errors.Is(err, io.EOF) {
+	return d.NextContext(context.Background())
+}
+
+// NextContext decodes one NDJSON record and checks ctx while reading and before
+// parsing it. Cancellation cannot interrupt an io.Reader whose Read is itself
+// blocked; callers that require that behavior should use a context-aware reader.
+func (d *Decoder) NextContext(ctx context.Context) (*Record, error) {
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if len(line) == 0 && errors.Is(err, io.EOF) {
-		return nil, io.EOF
+
+	start := d.offset
+	line, err := d.readLine(ctx)
+	if err != nil {
+		return nil, err
 	}
 	d.line++
-	line = bytes.TrimSuffix(line, []byte{'\n'})
-	line = bytes.TrimSuffix(line, []byte{'\r'})
 	if len(bytes.TrimSpace(line)) == 0 {
 		return nil, fmt.Errorf("line %d: blank records are not allowed", d.line)
 	}
@@ -74,7 +90,56 @@ func (d *Decoder) Next() (*Record, error) {
 	}
 
 	raw := append(json.RawMessage(nil), line...)
-	return &Record{Type: envelope.RecordType, Value: value, Raw: raw, Line: d.line}, nil
+	return &Record{
+		Type: envelope.RecordType, Value: value, Raw: raw, Line: d.line,
+		ByteOffset: start, ByteLength: int64(len(line)),
+	}, nil
+}
+
+func (d *Decoder) readLine(ctx context.Context) ([]byte, error) {
+	var line []byte
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		fragment, err := d.reader.ReadSlice('\n')
+		d.offset += int64(len(fragment))
+		line = append(line, fragment...)
+
+		switch {
+		case err == nil:
+			line = line[:len(line)-1]
+			if len(line) > 0 && line[len(line)-1] == '\r' {
+				line = line[:len(line)-1]
+			}
+			if len(line) > MaxRecordBytes {
+				return nil, fmt.Errorf("line %d: %w (%d > %d bytes)", d.line+1, ErrRecordTooLarge, len(line), MaxRecordBytes)
+			}
+			return line, nil
+		case errors.Is(err, bufio.ErrBufferFull):
+			// One extra byte is permitted while reading because it may be the CR
+			// in a CRLF terminator split across buffer reads.
+			if len(line) > MaxRecordBytes+1 {
+				return nil, fmt.Errorf("line %d: %w (> %d bytes)", d.line+1, ErrRecordTooLarge, MaxRecordBytes)
+			}
+			continue
+		case errors.Is(err, io.EOF):
+			if len(line) == 0 {
+				return nil, io.EOF
+			}
+			// Preserve Decode's historical handling of a final CR-terminated
+			// record even when the stream omits the following LF.
+			if line[len(line)-1] == '\r' {
+				line = line[:len(line)-1]
+			}
+			if len(line) > MaxRecordBytes {
+				return nil, fmt.Errorf("line %d: %w (%d > %d bytes)", d.line+1, ErrRecordTooLarge, len(line), MaxRecordBytes)
+			}
+			return line, nil
+		default:
+			return nil, err
+		}
+	}
 }
 
 func strictDecode(data []byte, dst any) error {
@@ -95,10 +160,16 @@ func strictDecode(data []byte, dst any) error {
 
 // Decode validates and visits a stream record by record.
 func Decode(r io.Reader, visit func(*Record) error) error {
+	return DecodeContext(context.Background(), r, visit)
+}
+
+// DecodeContext validates and visits a stream record by record until completion
+// or cancellation. Decode remains the context-free compatibility entry point.
+func DecodeContext(ctx context.Context, r io.Reader, visit func(*Record) error) error {
 	decoder := NewDecoder(r)
 	validator := NewValidator()
 	for {
-		record, err := decoder.Next()
+		record, err := decoder.NextContext(ctx)
 		if errors.Is(err, io.EOF) {
 			return validator.Finish()
 		}

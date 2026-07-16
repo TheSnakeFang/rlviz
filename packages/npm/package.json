@@ -1,0 +1,39 @@
+{
+  "name": "rolloutviz",
+  "version": "0.1.0",
+  "description": "Visualize and compare agent rollouts.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unlatch-ai/rolloutviz.git"
+  },
+  "homepage": "https://github.com/unlatch-ai/rolloutviz",
+  "bugs": "https://github.com/unlatch-ai/rolloutviz/issues",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "bin": {
+    "rlviz": "bin/rlviz",
+    "rolloutviz": "bin/rlviz"
+  },
+  "files": [
+    "bin/rlviz",
+    "install.cjs",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node install.cjs",
+    "test": "node --test install.test.cjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "agents",
+    "rollouts",
+    "trajectories",
+    "reinforcement-learning",
+    "visualization"
+  ]
+}

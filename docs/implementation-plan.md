@@ -4,7 +4,7 @@ The implementation is organized as vertical milestones. Each milestone should le
 
 ## Current delivery
 
-The repository now contains the single-trajectory vertical slice, authenticated background daemon lifecycle, and the explicit external-adapter workflow. The daemon currently uses a bounded in-memory registry; automatic plugin discovery, SQLite streaming/indexing, large-file pagination, and file watching remain Milestone 2 work. Group schemas and fixtures exist, while the group and divergence interfaces remain Milestones 4 and 5.
+Milestones 0–6 are implemented in the repository: versioned contracts and fixtures, the single-trajectory viewer, authenticated daemon lifecycle, progressive SQLite indexing, paginated and virtualized event reads, growing-file updates, trusted external adapters and analyzers, rollout-group summaries, compact behavioral paths, deterministic long-trace comparison, and cached loop/retry findings. Milestone 7 release automation and installers are implemented; publishing the first public tag, Homebrew tap, and npm package is the remaining release step.
 
 ## Milestone 0: contracts and fixtures
 
@@ -162,17 +162,12 @@ The repository now contains the single-trajectory vertical slice, authenticated 
 
 ## Near-term issue sequence
 
-1. Define `v1alpha1` canonical schemas.
-2. Add representative canonical fixtures.
-3. Implement schema validation tests.
-4. Implement canonical JSONL streaming reader.
-5. Add foreground HTTP server and embedded placeholder UI.
-6. Implement the trajectory timeline and inspector.
-7. Add keyboard navigation and artifact rendering.
-8. Add Playwright end-to-end coverage.
-9. Implement the SQLite streaming index and paginated API.
-10. Build the rollout-group summary and selection interface.
-11. Add pair alignment and first-divergence navigation.
+1. Publish `v0.1.0` native archives, checksums, attestations, and formula.
+2. Create the Homebrew tap and bootstrap the npm package/trusted publisher.
+3. Validate the clean-machine install-to-open path on macOS and Linux.
+4. Gather real adapter fixtures from environment and post-training workflows.
+5. Profile larger rollout groups and add cursors where bounded child collections are currently truncated.
+6. Extend comparison sets across sources, runs, and checkpoints after the local single-source workflow is proven.
 
 ## Quality gates
 

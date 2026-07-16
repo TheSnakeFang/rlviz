@@ -1,0 +1,119 @@
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+
+interface VirtualListProps<T> {
+  items: T[];
+  estimateSize: number;
+  overscan?: number;
+  selectedIndex?: number;
+  scrollRef: React.RefObject<HTMLElement | null>;
+  className: string;
+  itemKey: (item: T) => string;
+  renderItem: (item: T, index: number) => ReactNode;
+}
+
+interface VirtualRowProps {
+  style: CSSProperties;
+  itemId: string;
+  onSize: (itemId: string, size: number) => void;
+  children: ReactNode;
+}
+
+function lowerBound(offsets: number[], value: number) {
+  let low = 0;
+  let high = Math.max(0, offsets.length - 1);
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (offsets[middle] < value) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
+function VirtualRow({ itemId, style, onSize, children }: VirtualRowProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+    const measure = () => onSize(itemId, element.getBoundingClientRect().height);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [itemId, onSize]);
+
+  return <div ref={ref} className="virtual-row" style={style}>{children}</div>;
+}
+
+export function VirtualList<T>({ items, estimateSize, overscan = 5, selectedIndex = -1, scrollRef, className, itemKey, renderItem }: VirtualListProps<T>) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const sizesRef = useRef(new Map<string, number>());
+  const [measurementVersion, setMeasurementVersion] = useState(0);
+  const [viewport, setViewport] = useState({ offset: 0, height: 600 });
+
+  const layout = useMemo(() => {
+    const offsets = new Array<number>(items.length + 1);
+    offsets[0] = 0;
+    for (let index = 0; index < items.length; index += 1) {
+      offsets[index + 1] = offsets[index] + (sizesRef.current.get(itemKey(items[index])) || estimateSize);
+    }
+    return { offsets, total: offsets[items.length] || 0 };
+  }, [items, estimateSize, itemKey, measurementVersion]);
+
+  const updateViewport = useCallback(() => {
+    const scroller = scrollRef.current;
+    const root = rootRef.current;
+    if (!scroller || !root) return;
+    setViewport({
+      offset: Math.max(0, scroller.scrollTop - root.offsetTop),
+      height: scroller.clientHeight || 600,
+    });
+  }, [scrollRef]);
+
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    updateViewport();
+    scroller.addEventListener("scroll", updateViewport, { passive: true });
+    const observer = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(updateViewport);
+    observer?.observe(scroller);
+    return () => { scroller.removeEventListener("scroll", updateViewport); observer?.disconnect(); };
+  }, [scrollRef, updateViewport]);
+
+  useEffect(() => {
+    if (selectedIndex < 0 || selectedIndex >= items.length) return;
+    const scroller = scrollRef.current;
+    const root = rootRef.current;
+    if (!scroller || !root) return;
+    const top = root.offsetTop + layout.offsets[selectedIndex];
+    const bottom = root.offsetTop + layout.offsets[selectedIndex + 1];
+    const viewportHeight = scroller.clientHeight || 600;
+    if (top < scroller.scrollTop) scroller.scrollTop = top;
+    else if (bottom > scroller.scrollTop + viewportHeight) scroller.scrollTop = Math.max(0, bottom - viewportHeight);
+    updateViewport();
+  }, [items.length, layout, scrollRef, selectedIndex]);
+
+  const onSize = useCallback((itemId: string, size: number) => {
+    if (!size || sizesRef.current.get(itemId) === size) return;
+    sizesRef.current.set(itemId, size);
+    setMeasurementVersion((version) => version + 1);
+  }, []);
+
+  let start = Math.max(0, lowerBound(layout.offsets, viewport.offset) - 1);
+  let end = Math.min(items.length, lowerBound(layout.offsets, viewport.offset + viewport.height) + 1);
+  start = Math.max(0, start - overscan);
+  end = Math.min(items.length, end + overscan);
+  const indexes = Array.from({ length: end - start }, (_, offset) => start + offset);
+  if (selectedIndex >= 0 && !indexes.includes(selectedIndex)) indexes.push(selectedIndex);
+
+  return (
+    <div ref={rootRef} className={`${className} virtual-list`} style={{ height: layout.total }}>
+      {indexes.map((index) => (
+        <VirtualRow key={itemKey(items[index])} itemId={itemKey(items[index])} onSize={onSize} style={{ transform: `translateY(${layout.offsets[index]}px)` }}>
+          {renderItem(items[index], index)}
+        </VirtualRow>
+      ))}
+    </div>
+  );
+}

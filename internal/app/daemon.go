@@ -11,7 +11,9 @@ import (
 	"time"
 
 	"github.com/unlatch-ai/rolloutviz/internal/daemon"
+	rolloutindex "github.com/unlatch-ai/rolloutviz/internal/index"
 	"github.com/unlatch-ai/rolloutviz/internal/server"
+	"github.com/unlatch-ai/rolloutviz/internal/watch"
 )
 
 // RunDaemon serves the authenticated per-user registry until stopped through
@@ -29,8 +31,17 @@ func RunDaemon(paths daemon.Paths, version string) error {
 	if err != nil {
 		return err
 	}
+	store, err := rolloutindex.Open(paths.IndexFile)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	sourceWatcher := watch.New(500 * time.Millisecond)
+	defer sourceWatcher.Close()
+	watchContext, cancelWatches := context.WithCancel(context.Background())
+	defer cancelWatches()
+	sourceIndexer := NewSourceIndexer(watchContext, store)
 
-	registry := server.NewRegistry()
 	var httpServer *http.Server
 	stop := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -39,11 +50,28 @@ func RunDaemon(paths daemon.Paths, version string) error {
 			_ = httpServer.Shutdown(ctx)
 		}
 	}
-	loader := func(ctx context.Context, path, adapter string) (string, server.Document, error) {
-		return LoadSource(ctx, path, adapter)
+	registrar := func(ctx context.Context, path, adapter string) (server.Registration, error) {
+		indexed, err := sourceIndexer.Index(ctx, path, adapter)
+		if err != nil {
+			return server.Registration{}, err
+		}
+		source := indexed.Info.Source
+		if err := sourceWatcher.Add(watchContext, source.ID, source.Path, func(changeContext context.Context, _ watch.Change) error {
+			_, refreshErr := sourceIndexer.Index(changeContext, source.Path, adapter)
+			if refreshErr != nil {
+				fmt.Fprintf(os.Stderr, "refresh source %s: %v\n", source.Path, refreshErr)
+			}
+			return refreshErr
+		}); err != nil {
+			return server.Registration{}, fmt.Errorf("watch source: %w", err)
+		}
+		return server.Registration{
+			SourceID: source.ID, Path: source.Path,
+			URL: "/?trajectory=" + source.ID + "&indexed=1",
+		}, nil
 	}
 	httpServer = &http.Server{
-		Handler:           server.NewRegistryHandler(registry, token, loader, stop),
+		Handler:           server.NewPersistentHandler(store, token, registrar, stop),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	metadata := daemon.Metadata{

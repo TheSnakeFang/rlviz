@@ -252,8 +252,8 @@ func (m Manifest) Validate() error {
 	if m.APIVersion != APIVersion {
 		return fmt.Errorf("api_version must be %q", APIVersion)
 	}
-	if m.Kind != "Adapter" {
-		return errors.New("kind must be Adapter")
+	if m.Kind != "Adapter" && m.Kind != "Analyzer" {
+		return errors.New("kind must be Adapter or Analyzer")
 	}
 	if !pluginName.MatchString(m.Name) {
 		return errors.New("name must contain only lowercase letters, digits, '.', '_' or '-'")
@@ -269,7 +269,14 @@ func (m Manifest) Validate() error {
 			return errors.New("command items must be non-empty strings without NUL")
 		}
 	}
-	want := map[string]bool{"adapter.probe": false, "adapter.stream": false}
+	want := map[string]bool{}
+	switch m.Kind {
+	case "Adapter":
+		want["adapter.probe"] = false
+		want["adapter.stream"] = false
+	case "Analyzer":
+		want["analyzer.analyze"] = false
+	}
 	for _, capability := range m.Capabilities {
 		if _, ok := want[capability]; !ok {
 			return fmt.Errorf("unsupported capability %q", capability)

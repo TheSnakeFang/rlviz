@@ -3,10 +3,14 @@ package plugins
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/unlatch-ai/rolloutviz/internal/analyzers"
 	"github.com/unlatch-ai/rolloutviz/internal/model"
 )
 
@@ -17,6 +21,71 @@ type ValidationReport struct {
 	Records       int    `json:"records"`
 	Warnings      int64  `json:"warnings"`
 	Deterministic bool   `json:"deterministic"`
+}
+
+type AnalyzerValidationReport struct {
+	Plugin        string `json:"plugin"`
+	Digest        string `json:"digest"`
+	Findings      int    `json:"findings"`
+	Signals       int    `json:"signals"`
+	Deterministic bool   `json:"deterministic"`
+}
+
+// LoadAnalyzerInput reads one strict, bounded analyzer v1alpha1 request.
+func LoadAnalyzerInput(path string) (analyzers.Input, error) {
+	var input analyzers.Input
+	file, err := os.Open(path)
+	if err != nil {
+		return input, err
+	}
+	defer file.Close()
+	reader := io.LimitReader(file, analyzers.MaxInputBytes+1)
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return input, err
+	}
+	if len(data) > analyzers.MaxInputBytes {
+		return input, fmt.Errorf("analyzer input exceeds %d bytes", analyzers.MaxInputBytes)
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&input); err != nil {
+		return input, fmt.Errorf("invalid analyzer input: %w", err)
+	}
+	if err := ensureSingleJSON(decoder, "analyzer input"); err != nil {
+		return input, err
+	}
+	input = analyzers.NormalizeInput(input)
+	if err := analyzers.ValidateInput(input); err != nil {
+		return input, err
+	}
+	return input, nil
+}
+
+// ValidateAnalyzer executes the trusted analyzer twice and requires byte-level
+// deterministic protocol output in addition to semantic validation.
+func (h *Host) ValidateAnalyzer(ctx context.Context, plugin *Plugin, input analyzers.Input) (AnalyzerValidationReport, error) {
+	report := AnalyzerValidationReport{}
+	if plugin != nil {
+		report.Plugin, report.Digest = plugin.Manifest.Name, plugin.Digest
+	}
+	first, _, err := h.analyzeBytes(ctx, plugin, input)
+	if err != nil {
+		return report, fmt.Errorf("analyze pass 1: %w", err)
+	}
+	second, _, err := h.analyzeBytes(ctx, plugin, input)
+	if err != nil {
+		return report, fmt.Errorf("analyze pass 2: %w", err)
+	}
+	if !bytes.Equal(first, second) {
+		return report, errors.New("analyzer is nondeterministic: repeated output differs")
+	}
+	output, err := decodeAnalyzerOutput(plugin, input, first)
+	if err != nil {
+		return report, fmt.Errorf("validate analyzer output: %w", err)
+	}
+	report.Findings, report.Signals, report.Deterministic = len(output.Findings), len(output.Signals), true
+	return report, nil
 }
 
 // ValidateAdapter probes and streams the same source twice. Exact stdout

@@ -1,0 +1,9 @@
+api_version: rolloutviz.dev/v1alpha1
+kind: Analyzer
+name: example-analyzer
+version: 0.1.0
+command:
+  - python3
+  - analyzer.py
+capabilities:
+  - analyzer.analyze

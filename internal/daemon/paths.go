@@ -14,6 +14,7 @@ type Paths struct {
 	MetadataFile string
 	LockFile     string
 	LogFile      string
+	IndexFile    string
 }
 
 // DefaultPaths locates daemon state below the current user's cache directory.
@@ -37,6 +38,7 @@ func PathsAt(dir string) Paths {
 		MetadataFile: filepath.Join(dir, "daemon.json"),
 		LockFile:     filepath.Join(dir, "daemon.lock"),
 		LogFile:      filepath.Join(dir, "daemon.log"),
+		IndexFile:    filepath.Join(dir, "index.sqlite"),
 	}
 }
 

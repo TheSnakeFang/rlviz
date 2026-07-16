@@ -14,3 +14,13 @@ Do not report suspected vulnerabilities through a public issue. Use GitHub's pri
 - Trace-provided file paths do not automatically grant filesystem access.
 
 These are product invariants. Changes affecting them require explicit review and security tests.
+
+## Plugin boundary
+
+RolloutViz core opens source traces read-only and never replays recorded tools.
+External adapters and analyzers are executable programs, not data-only
+extensions. Once explicitly trusted, they run with the invoking user's operating
+system permissions; RolloutViz does not provide an OS sandbox. Review plugin code
+and dependencies before trusting it, and run untrusted community plugins inside
+your own container or sandbox. Any content change invalidates RolloutViz trust
+and requires approval again.

@@ -50,11 +50,121 @@ export interface Trajectory {
   group_id?: string;
   model?: string;
   status?: string;
+  termination?: string;
   started_at?: string;
   duration_ms?: number;
   total_reward?: number;
   metadata?: Record<string, unknown>;
   events: TrajectoryEvent[];
+  artifacts?: TrajectoryArtifact[];
+  signals?: TrajectorySignal[];
+}
+
+export interface TrajectorySignal {
+  id?: string;
+  trajectory_id: string;
+  event_id?: string;
+  name: string;
+  value: unknown;
+  unit?: string;
+}
+
+export interface TrajectoryArtifact {
+  id: string;
+  trajectory_id: string;
+  event_id?: string;
+  name?: string;
+  media_type: string;
+  path?: string;
+  text?: string;
+  json?: unknown;
+  sha256?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface GroupMetrics {
+  reward?: number;
+  pass?: boolean;
+  success?: boolean;
+  outcome?: string;
+  event_count?: number;
+  error_count?: number;
+  token_count?: number;
+  duration_ms?: number;
+  latency_ms?: number;
+  [key: string]: unknown;
+}
+
+export interface GroupTrajectorySummary {
+  trajectory: (Omit<Trajectory, "events"> & { events?: TrajectoryEvent[] }) | {
+    value?: Omit<Trajectory, "events"> & { events?: TrajectoryEvent[] };
+    [key: string]: unknown;
+  };
+  metrics?: GroupMetrics;
+  normalized_metrics?: GroupMetrics;
+  reward?: number;
+  pass?: boolean;
+  success?: boolean;
+  outcome?: string;
+  event_count?: number;
+  error_count?: number;
+  token_count?: number;
+  duration_ms?: number;
+  latency_ms?: number;
+  signal_count?: number;
+  artifact_count?: number;
+  status?: string;
+  termination?: string;
+  signals?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface GroupResponse {
+  group_id: string;
+  trajectories: GroupTrajectorySummary[];
+  aggregates?: Record<string, unknown>;
+  count?: number;
+  total?: number;
+  [key: string]: unknown;
+}
+
+export interface PathFingerprint {
+  kind: string;
+  class: string;
+  alignment_key?: string;
+  state_hash?: string;
+  digest?: string;
+  behavioral: boolean;
+}
+
+export interface GroupPathNode {
+  fingerprint: PathFingerprint;
+  count: number;
+  terminal_count: number;
+  trajectory_ids: string[];
+  trajectory_ids_truncated?: boolean;
+  narrative_event_count: number;
+  depth: number;
+  children: GroupPathNode[];
+}
+
+export interface GroupPathTree {
+  trajectory_count: number;
+  terminal_count: number;
+  narrative_only_count: number;
+  behavioral_event_count: number;
+  narrative_event_count: number;
+  root_narrative_event_count: number;
+  children: GroupPathNode[];
+}
+
+export interface GroupPathsResponse {
+  group_id: string;
+  tree: GroupPathTree;
+  source_native_branches: boolean;
+  source_native_branch_count: number;
+  count: number;
+  total_events: number;
 }
 
 export interface TrajectoryResponse {
@@ -63,8 +173,132 @@ export interface TrajectoryResponse {
   run?: { id: string; name?: string; started_at?: string; metadata?: Record<string, unknown> };
   case?: { id: string; run_id: string; name?: string; metadata?: Record<string, unknown> };
   group?: { id: string; case_id: string; name?: string; metadata?: Record<string, unknown> };
-  signals?: Array<{ trajectory_id: string; event_id?: string; name: string; value: unknown; unit?: string }>;
+  signals?: TrajectorySignal[];
+  artifacts?: TrajectoryArtifact[];
+  signal_page?: PageMetadata;
+  artifact_page?: PageMetadata;
+  source?: IndexedSource;
   id?: string;
   name?: string;
   [key: string]: unknown;
+}
+
+export interface IndexedSource {
+  id: string;
+  path?: string;
+  index_state?: "indexing" | "refreshing" | "complete" | "failed" | string;
+  index_error?: string;
+}
+
+export interface PageMetadata {
+  count: number;
+  total: number;
+  limit: number;
+  after_sequence?: number;
+  next_sequence?: number;
+  has_more: boolean;
+  offset?: number;
+  next_offset?: number;
+}
+
+export interface EventPageResponse {
+  events: TrajectoryEvent[];
+  page: PageMetadata;
+  source?: IndexedSource;
+}
+
+export interface ChildPageResponse<T> {
+  page: PageMetadata;
+  signals?: T[];
+  artifacts?: T[];
+}
+
+export type AlignmentOperation = "match" | "replace" | "delete" | "insert";
+
+export interface AlignmentFingerprint {
+  kind: string;
+  class: string;
+  alignment_key?: string;
+  state_hash?: string;
+  digest?: string;
+  behavioral: boolean;
+}
+
+export interface AlignmentStep {
+  operation: AlignmentOperation;
+  left_index?: number;
+  right_index?: number;
+  left?: AlignmentFingerprint;
+  right?: AlignmentFingerprint;
+  meaningful: boolean;
+}
+
+export interface ComparisonSide {
+  trajectory: Omit<Trajectory, "events">;
+  events: TrajectoryEvent[];
+  signals?: Array<{ name: string; value: unknown }>;
+  artifacts?: TrajectoryArtifact[];
+}
+
+export interface ValueDifference {
+  left?: unknown;
+  right?: unknown;
+  changed: boolean;
+}
+
+export interface ComparisonResponse {
+  left: ComparisonSide;
+  right: ComparisonSide;
+  alignment: {
+    steps: AlignmentStep[];
+    common_behavioral_prefix: number;
+    first_meaningful_divergence?: number;
+    later_realignment?: number;
+  };
+  differences: {
+    event_count: { left: number; right: number; delta: number };
+    status: ValueDifference;
+    termination: ValueDifference;
+    reward: ValueDifference;
+  };
+}
+
+export interface AnalyzerProvenance {
+  name: string;
+  version: string;
+  digest: string;
+  input_digest: string;
+}
+
+export interface AnalyzerFinding {
+  id: string;
+  trajectory_id: string;
+  event_ids?: string[];
+  kind: string;
+  severity: "info" | "warning" | "error";
+  title: string;
+  summary?: string;
+  fingerprint?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnalyzerSignal {
+  id: string;
+  trajectory_id: string;
+  event_id?: string;
+  name: string;
+  value: unknown;
+  unit?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AnalysisResponse {
+  analysis: {
+    api_version: string;
+    provenance: AnalyzerProvenance;
+    findings?: AnalyzerFinding[];
+    signals?: AnalyzerSignal[];
+  };
+  cached: boolean;
+  analyzed_at: string;
 }

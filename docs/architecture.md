@@ -94,7 +94,7 @@ rlviz doctor
 
 ## Canonical data model
 
-The initial canonical model includes run, case, rollout group, trajectory, event, signal, artifact, and annotation entities. Relationships use stable IDs rather than nested in-memory ownership so large collections can be streamed and indexed incrementally.
+The initial canonical model includes run, case, rollout group, trajectory, event, signal, and artifact entities. Relationships use stable IDs rather than nested in-memory ownership so large collections can be streamed and indexed incrementally.
 
 Events retain optional `parent_id`, `alignment_key`, and `state_hash` fields before the branch and comparison UIs ship.
 
@@ -127,7 +127,9 @@ The plugin protocol is public from its first release. Backward compatibility beg
 - Plugin stderr is captured for diagnostics; stdout remains protocol-only.
 - The viewer never re-executes recorded commands or tools.
 
-The current vertical slice keeps at most eight opened documents in memory and caps each canonical source or adapter output at 32 MiB. The SQLite streaming index replaces these temporary bounds in the next storage milestone.
+The background daemon stores normalized records and source provenance in a private SQLite database using WAL mode. Initially uncached canonical sources are decoded record-by-record and committed in bounded batches. Registration returns after a valid header and the first available event batch, while the same serialized per-source job tails appended NDJSON until a valid `complete` record arrives. The persisted source state is explicitly `indexing`, `complete`, `refreshing`, or `failed`, so a partial index is never presented as a fresh cache. The browser reads bounded pages and sees each committed batch through normal polling.
+
+A changed source with a prior valid cache follows a different safety path: the old generation stays queryable while the replacement is fully validated in one transaction. Invalid or canceled refreshes roll back and mark the retained cache failed/stale instead of replacing known-good records. Truncation, file replacement, and prefix/boundary changes restart an initial progressive job; duplicate requests for one source share the same job. External adapter stdout is decoded incrementally with explicit record and total-output limits before validated output is committed atomically to the index.
 
 ## Performance approach
 

@@ -1,0 +1,103 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm --prefix web ci
+      - run: make check
+      - uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        with:
+          distribution: goreleaser
+          # Keep the executable immutable in this privileged release job. Update
+          # this exact version only after reviewing and validating the release.
+          version: "v2.17.0"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4
+        with:
+          subject-checksums: dist/checksums.txt
+      - name: Build Homebrew formula
+        run: |
+          ./scripts/render_homebrew_formula.sh "${GITHUB_REF_NAME}" dist/checksums.txt dist/rolloutviz.rb
+          gh release upload "${GITHUB_REF_NAME}" dist/rolloutviz.rb --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  homebrew:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          if [ -z "${TAP_GITHUB_TOKEN}" ]; then
+            echo "TAP_GITHUB_TOKEN is not configured; formula remains attached to the release"
+            exit 0
+          fi
+          mkdir -p /tmp/formula
+          gh release download "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" --pattern rolloutviz.rb --dir /tmp/formula
+          git clone "https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/unlatch-ai/homebrew-tap.git" /tmp/homebrew-tap
+          mkdir -p /tmp/homebrew-tap/Formula
+          cp /tmp/formula/rolloutviz.rb /tmp/homebrew-tap/Formula/rolloutviz.rb
+          git -C /tmp/homebrew-tap config user.name github-actions[bot]
+          git -C /tmp/homebrew-tap config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C /tmp/homebrew-tap add Formula/rolloutviz.rb
+          if ! git -C /tmp/homebrew-tap diff --cached --quiet; then
+            git -C /tmp/homebrew-tap commit -m "rolloutviz ${GITHUB_REF_NAME}"
+            git -C /tmp/homebrew-tap push origin HEAD:main
+          fi
+  npm:
+    needs: release
+    if: ${{ vars.NPM_PUBLISH_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Synchronize package version with release tag
+        working-directory: packages/npm
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          npm version "${version}" --no-git-tag-version
+          test "$(node -p 'require("./package.json").version')" = "${version}"
+      - run: npm test
+        working-directory: packages/npm
+      - name: Inspect package contents
+        run: npm pack --dry-run
+        working-directory: packages/npm
+      - name: Publish with npm trusted publishing
+        run: npm publish --access public --provenance
+        working-directory: packages/npm

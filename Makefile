@@ -14,6 +14,9 @@ web-build:
 test:
 	go test ./...
 	npm --prefix web test
+	npm --prefix packages/npm test
+	./scripts/install_test.sh
+	./scripts/render_homebrew_formula_test.sh
 
 format:
 	gofmt -w $$(find . -name '*.go' -not -path './vendor/*')
@@ -23,7 +26,10 @@ check:
 	go vet ./...
 	go test ./...
 	npm --prefix web test
+	npm --prefix packages/npm test
 	npm --prefix web run build
+	./scripts/install_test.sh
+	./scripts/render_homebrew_formula_test.sh
 
 dev:
 	npm --prefix web run dev

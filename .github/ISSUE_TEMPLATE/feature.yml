@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose an inspection workflow or format improvement
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Research or engineering workflow
+      description: What are you inspecting, and what decision is hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: shape
+    attributes:
+      label: Desired interaction
+      description: Describe the CLI call, keybinding, or visual result you want.
+    validations:
+      required: true
+  - type: textarea
+    id: format
+    attributes:
+      label: Trace format
+      description: Describe the relevant data shape without sharing private data.

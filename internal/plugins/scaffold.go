@@ -8,13 +8,23 @@ import (
 	"strings"
 )
 
-type ScaffoldOptions struct{ Name string }
+type ScaffoldOptions struct {
+	Name string
+	Kind string
+}
 
 // ScaffoldPython writes a minimal, dependency-free adapter project. It refuses
 // to overwrite existing files so it is safe for coding agents to invoke.
 func ScaffoldPython(destination string, options ScaffoldOptions) error {
 	if !pluginName.MatchString(options.Name) {
-		return errors.New("invalid adapter name")
+		return errors.New("invalid plugin name")
+	}
+	kind := strings.ToLower(options.Kind)
+	if kind == "" {
+		kind = "adapter"
+	}
+	if kind != "adapter" && kind != "analyzer" {
+		return errors.New("plugin type must be adapter or analyzer")
 	}
 	abs, err := filepath.Abs(destination)
 	if err != nil {
@@ -23,10 +33,16 @@ func ScaffoldPython(destination string, options ScaffoldOptions) error {
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return err
 	}
-	files := map[string]string{
-		ManifestName: strings.ReplaceAll(pythonManifest, "{{NAME}}", options.Name),
-		"adapter.py": pythonAdapter,
-		"README.md":  strings.ReplaceAll(pythonReadme, "{{NAME}}", options.Name),
+	files := map[string]string{}
+	if kind == "analyzer" {
+		files[ManifestName] = strings.ReplaceAll(pythonAnalyzerManifest, "{{NAME}}", options.Name)
+		files["analyzer.py"] = pythonAnalyzer
+		files["sample-input.json"] = analyzerSampleInput
+		files["README.md"] = strings.ReplaceAll(pythonAnalyzerReadme, "{{NAME}}", options.Name)
+	} else {
+		files[ManifestName] = strings.ReplaceAll(pythonManifest, "{{NAME}}", options.Name)
+		files["adapter.py"] = pythonAdapter
+		files["README.md"] = strings.ReplaceAll(pythonReadme, "{{NAME}}", options.Name)
 	}
 	for name := range files {
 		path := filepath.Join(abs, name)
@@ -118,4 +134,71 @@ Validate it with:
 
     rlviz plugin trust .
     rlviz plugin validate . /path/to/sample
+`
+
+const pythonAnalyzerManifest = `api_version: rolloutviz.dev/v1alpha1
+kind: Analyzer
+name: {{NAME}}
+version: 0.1.0
+command:
+  - python3
+  - analyzer.py
+capabilities:
+  - analyzer.analyze
+`
+
+const pythonAnalyzer = `#!/usr/bin/env python3
+"""Dependency-free RolloutViz analyzer scaffold."""
+import argparse
+import json
+import os
+import sys
+
+API_VERSION = "rolloutviz.dev/analyzer/v1alpha1"
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("operation", choices=("analyze",))
+    parser.add_argument("--request", required=True)
+    args = parser.parse_args()
+    with open(args.request, "r", encoding="utf-8") as handle:
+        request = json.load(handle)
+    if request.get("api_version") != API_VERSION or request.get("operation") != args.operation:
+        raise ValueError("unsupported analyzer request")
+
+    # TODO: inspect request["events"] and request.get("signals", []). Findings
+    # must use stable IDs and may only reference events in this request.
+    output = {
+        "api_version": API_VERSION,
+        "provenance": {
+            "name": os.environ["ROLLOUTVIZ_ANALYZER_NAME"],
+            "version": os.environ["ROLLOUTVIZ_ANALYZER_VERSION"],
+            "digest": os.environ["ROLLOUTVIZ_ANALYZER_DIGEST"],
+            "input_digest": os.environ["ROLLOUTVIZ_ANALYZER_INPUT_DIGEST"],
+        },
+        "findings": [],
+        "signals": [],
+    }
+    print(json.dumps(output, separators=(",", ":"), ensure_ascii=False))
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as error:
+        print(str(error), file=sys.stderr)
+        raise SystemExit(1)
+`
+
+const analyzerSampleInput = `{"api_version":"rolloutviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool","input":{"name":"example"}}],"signals":[]}
+`
+
+const pythonAnalyzerReadme = `# {{NAME}}
+
+This is a local RolloutViz analyzer. It receives one normalized trajectory and
+returns supplemental findings and signals without changing source data.
+
+Validate it with:
+
+    rlviz plugin trust .
+    rlviz plugin validate . sample-input.json
 `

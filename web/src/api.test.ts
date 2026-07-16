@@ -1,9 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { daemonToken, normalizeTrajectoryResponse, trajectoryEndpoint } from "./api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { analysisEndpoint, artifactContentEndpoint, comparisonEndpoint, daemonToken, groupEndpoint, groupPathsEndpoint, loadAnalysis, loadArtifactContent, loadComparison, loadGroupPaths, normalizeTrajectoryResponse, trajectoryEndpoint } from "./api";
+
+afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"); });
 
 describe("trajectory API normalization", () => {
 	it("uses the stable trajectory ID from the viewer URL", () => {
 		expect(trajectoryEndpoint("?trajectory=abc/123")).toBe("/api/v1/trajectory?trajectory=abc%2F123");
+		expect(trajectoryEndpoint("?trajectory=abc&indexed=1&event=evt-2&view=compare&left=a&right=b&step=3")).toBe("/api/v1/indexed/trajectory?trajectory=abc&limit=200");
 		expect(trajectoryEndpoint("")).toBe("/api/v1/trajectory");
 	});
 
@@ -31,5 +34,56 @@ describe("trajectory API normalization", () => {
     expect(trajectory.case_id).toBe("case-1");
     expect(trajectory.model).toBe("checkpoint-42");
     expect(trajectory.total_reward).toBe(0.75);
+  });
+
+  it("builds a stable encoded group endpoint", () => {
+    expect(groupEndpoint("source/one", "group two")).toBe("/api/v1/indexed/group?trajectory=source%2Fone&group_id=group+two");
+    expect(groupPathsEndpoint("source/one", "group two")).toBe("/api/v1/indexed/paths?trajectory=source%2Fone&group_id=group+two");
+  });
+
+  it("requests authenticated compact group paths", async () => {
+    window.history.replaceState({}, "", "/#token=path-secret");
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({
+      group_id: "group", source_native_branches: false, source_native_branch_count: 0, count: 1, total_events: 1,
+      tree: { trajectory_count: 1, terminal_count: 0, narrative_only_count: 0, behavioral_event_count: 1, narrative_event_count: 0, root_narrative_event_count: 0, children: [] },
+    }) } as Response));
+    vi.stubGlobal("fetch", fetch);
+    await loadGroupPaths("source", "group");
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/indexed/paths?"), expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer path-secret" }) }));
+  });
+
+  it("requests authenticated built-in analysis", async () => {
+    window.history.replaceState({}, "", "/#token=analysis-secret");
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({
+      cached: true, analyzed_at: "2026-07-16T00:00:00Z",
+      analysis: { api_version: "rolloutviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] },
+    }) } as Response));
+    vi.stubGlobal("fetch", fetch);
+    await loadAnalysis("source/one", "attempt two");
+    expect(analysisEndpoint("source/one", "attempt two")).toBe("/api/v1/indexed/analysis?trajectory=source%2Fone&trajectory_id=attempt+two&analyzer=loop-retry");
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/indexed/analysis?"), expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer analysis-secret" }) }));
+  });
+
+  it("fetches path-backed artifacts with authentication", async () => {
+    window.history.replaceState({}, "", "/#token=artifact-secret");
+    const fetch = vi.fn(async () => new Response("safe text", { status: 200, headers: { "Content-Type": "text/plain" } }));
+    vi.stubGlobal("fetch", fetch);
+    const content = await loadArtifactContent("source/one", "trajectory two", "artifact/three");
+    expect(new TextDecoder().decode(content)).toBe("safe text");
+    expect(artifactContentEndpoint("source/one", "trajectory two", "artifact/three")).toBe("/api/v1/indexed/artifact/content?trajectory=source%2Fone&trajectory_id=trajectory+two&artifact_id=artifact%2Fthree");
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/indexed/artifact/content?"), expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer artifact-secret" }) }));
+  });
+
+  it("requests an authenticated, encoded pair comparison", async () => {
+    window.history.replaceState({}, "", "/#token=compare-secret");
+    const fetch = vi.fn(async () => ({ ok: true, json: async () => ({
+      left: { trajectory: { id: "left/one" }, events: [] }, right: { trajectory: { id: "right two" }, events: [] },
+      alignment: { steps: [], common_behavioral_prefix: 0 },
+      differences: { event_count: { left: 0, right: 0, delta: 0 }, status: { changed: false }, termination: { changed: false }, reward: { changed: false } },
+    }) } as Response));
+    vi.stubGlobal("fetch", fetch);
+    await loadComparison("source/one", "left/one", "right two");
+    expect(comparisonEndpoint("source/one", "left/one", "right two")).toBe("/api/v1/indexed/compare?trajectory=source%2Fone&left=left%2Fone&right=right+two");
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/indexed/compare?"), expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer compare-secret" }) }));
   });
 });

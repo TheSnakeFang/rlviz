@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rolloutviz.dev/schemas/v1alpha1/analyzer-output.schema.json",
+  "title": "RolloutViz analyzer output",
+  "description": "Supplemental findings and signals emitted by a trusted analyzer CLI.",
+  "$comment": "The host additionally enforces provenance equality, input-digest equality, global ID uniqueness, trajectory and event references, UTF-8 byte limits for finding text, and the 16 MiB encoded-size limit.",
+  "type": "object",
+  "required": ["api_version", "provenance"],
+  "properties": {
+    "api_version": { "const": "rolloutviz.dev/analyzer/v1alpha1" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "findings": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "signals": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/signal" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "required_string": { "type": "string", "minLength": 1 },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "metadata": { "type": "object" },
+    "provenance": {
+      "type": "object",
+      "required": ["name", "version", "digest", "input_digest"],
+      "properties": {
+        "name": { "$ref": "#/$defs/required_string" },
+        "version": { "$ref": "#/$defs/required_string" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "input_digest": { "$ref": "#/$defs/digest" }
+      },
+      "additionalProperties": false
+    },
+    "finding": {
+      "type": "object",
+      "required": ["id", "trajectory_id", "kind", "severity", "title"],
+      "properties": {
+        "id": { "$ref": "#/$defs/required_string" },
+        "trajectory_id": { "type": "string" },
+        "event_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string" }
+        },
+        "kind": { "$ref": "#/$defs/required_string" },
+        "severity": { "enum": ["info", "warning", "error"] },
+        "title": { "type": "string", "minLength": 1, "maxLength": 16384 },
+        "summary": { "type": "string", "maxLength": 16384 },
+        "fingerprint": { "$ref": "#/$defs/digest" },
+        "metadata": { "$ref": "#/$defs/metadata" }
+      },
+      "additionalProperties": false
+    },
+    "signal": {
+      "type": "object",
+      "required": ["record_type", "id", "trajectory_id", "name", "value"],
+      "properties": {
+        "record_type": { "const": "signal" },
+        "id": { "$ref": "#/$defs/required_string" },
+        "trajectory_id": { "type": "string" },
+        "event_id": { "type": "string" },
+        "name": { "$ref": "#/$defs/required_string" },
+        "value": { "type": ["number", "string", "boolean"] },
+        "unit": { "type": "string" },
+        "metadata": { "$ref": "#/$defs/metadata" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
