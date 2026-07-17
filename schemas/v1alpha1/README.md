@@ -38,5 +38,7 @@ JSON Schema cannot express across records or encoded byte lengths.
 `presentation-config.schema.json` defines the separate, non-executable viewer
 customization contract. Presentation files are strict, bounded JSON and never
 grant plugin trust or permission to inject HTML, CSS, JavaScript, selectors,
-URLs, or arbitrary inspector templates. Runtime validation additionally checks
+URLs, or arbitrary inspector templates. Inspector layouts may only order or
+hide fixed core-owned section IDs; selected identity and raw access remain
+invariant. Runtime validation additionally checks
 semantic color contrast, which JSON Schema alone cannot express.

@@ -1,7 +1,7 @@
 import { optionalBuiltinColumns } from "./columnLayout";
 import type { GroupColumnLayout } from "./columnLayout";
-import { presentationThemeTokens } from "./types";
-import type { PresentationConfig, PresentationFieldID, PresentationScalarFormat, PresentationThemeToken } from "./types";
+import { presentationInspectorSectionIDs, presentationThemeTokens } from "./types";
+import type { PresentationConfig, PresentationFieldID, PresentationInspectorSectionID, PresentationScalarFormat, PresentationThemeToken } from "./types";
 
 const themeProperties: Record<PresentationThemeToken, `--${string}`> = Object.fromEntries(
   presentationThemeTokens.map((token) => [token, `--${token.replaceAll("_", "-")}`]),
@@ -33,6 +33,17 @@ export function presentationDefaultLayout(config?: PresentationConfig): GroupCol
     hiddenBuiltins: optionalBuiltinColumns.filter((column) => !selected.has(column)),
     signalNames: configured.flatMap((column) => column.startsWith("signal:") ? [column.slice(7)] : []),
   };
+}
+
+const defaultInspectorSections: PresentationInspectorSectionID[] = [...presentationInspectorSectionIDs];
+const allowedInspectorSections = new Set<PresentationInspectorSectionID>(presentationInspectorSectionIDs);
+
+/** Resolve only validated, core-owned inspector primitives; malformed API data fails to defaults. */
+export function presentationInspectorSections(config?: PresentationConfig): PresentationInspectorSectionID[] {
+  const configured = config?.inspector?.sections;
+  if (!configured) return [...defaultInspectorSections];
+  if (!configured.length || configured.length > allowedInspectorSections.size || new Set(configured).size !== configured.length || configured.some((section) => !allowedInspectorSections.has(section))) return [...defaultInspectorSections];
+  return [...configured];
 }
 
 export function fieldMetadata(config: PresentationConfig | undefined, id: PresentationFieldID): { label?: string; description?: string } {

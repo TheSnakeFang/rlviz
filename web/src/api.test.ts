@@ -37,7 +37,7 @@ describe("trajectory API normalization", () => {
   });
 
   it("retains validated top-level presentation metadata", async () => {
-    const presentation = { api_version: "rlviz.dev/v1alpha1", fields: { reward: { label: "Return" } }, theme: { focus: "#8be6d0" } };
+    const presentation = { api_version: "rlviz.dev/v1alpha1", fields: { reward: { label: "Return" } }, inspector: { sections: ["analysis", "properties"] }, theme: { focus: "#8be6d0" } };
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       trajectory: { id: "presented" },
       events: [{ id: "evt", sequence: 0, kind: "message" }],

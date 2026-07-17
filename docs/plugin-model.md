@@ -8,7 +8,7 @@ RLViz has three extension layers with different trust and ownership:
 | --- | --- | --- |
 | Adapter | Source detection and canonical mapping | Trusted local process |
 | Analyzer | Deterministic derived findings and signals | Trusted local process or built in |
-| Presentation configuration | Labels, scalar formats, default columns, semantic theme tokens | Validated declarative data |
+| Presentation configuration | Labels, scalar formats, columns, inspector sections, semantic theme tokens | Validated declarative data |
 
 Core RLViz owns navigation, layout, accessibility, performance, source/raw
 provenance, and the design system.
@@ -74,9 +74,10 @@ because it cannot execute code.
 
 `schemas/v1alpha1/presentation-config.schema.json` defines the first bounded
 contract. It supports display labels and descriptions for built-in group fields
-and named signals, scalar format and unit hints, default group columns, and a
-fixed allowlist of semantic color tokens. Files are JSON-only and capped at 64
-KiB; maps and lists have independent count limits. Unknown keys fail closed.
+and named signals, scalar format and unit hints, default group columns, a fixed
+inspector section order, and a fixed allowlist of semantic color tokens. Files
+are JSON-only and capped at 64 KiB; maps and lists have independent count
+limits. Unknown keys fail closed.
 
 Field identifiers are the built-in group column names (`reward`, `pass`,
 `status`, `termination`, `events`, `errors`, `tokens`, and `latency`) or
@@ -93,6 +94,13 @@ allowlist. Runtime validation resolves partial overrides against the shipped
 dark theme and enforces minimum contrast for primary and secondary text, focus,
 and critical status colors. Primitive colors, typography, spacing, selectors,
 CSS functions, and URLs are not configurable.
+
+`inspector.sections` is an exact ordered list of one to ten core-owned section
+IDs: `properties`, `context`, `source`, `input`, `output`, `content`, `metadata`,
+`linked_artifacts`, `analysis`, and `other_artifacts`. Omitted IDs are hidden and
+sections without data remain absent. The selected-event heading and raw-record
+mode are invariant. The declaration does not disable analysis, artifact
+navigation, deep links, or other data behavior; it changes presentation only.
 
 Validate a file before using it:
 

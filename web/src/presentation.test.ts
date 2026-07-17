@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyPresentationTheme, formatPresentedScalar, presentationDefaultLayout } from "./presentation";
+import { applyPresentationTheme, formatPresentedScalar, presentationDefaultLayout, presentationInspectorSections } from "./presentation";
 import type { PresentationConfig } from "./types";
 
 describe("presentation configuration", () => {
@@ -34,5 +34,18 @@ describe("presentation configuration", () => {
       hiddenBuiltins: ["pass", "status", "termination", "events", "errors", "tokens", "latency"],
       signalNames: ["grader_score"],
     });
+  });
+
+  it("resolves exact inspector order without sharing mutable defaults", () => {
+    const configured: PresentationConfig = { api_version: "rlviz.dev/v1alpha1", inspector: { sections: ["analysis", "properties"] } };
+    expect(presentationInspectorSections(configured)).toEqual(["analysis", "properties"]);
+    const defaults = presentationInspectorSections();
+    defaults.pop();
+    expect(presentationInspectorSections()).toHaveLength(10);
+  });
+
+  it("fails malformed inspector metadata back to the core layout", () => {
+    const malformed = { api_version: "rlviz.dev/v1alpha1", inspector: { sections: ["source", "source"] } } as unknown as PresentationConfig;
+    expect(presentationInspectorSections(malformed)).toHaveLength(10);
   });
 });

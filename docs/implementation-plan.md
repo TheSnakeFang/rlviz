@@ -247,7 +247,8 @@ infrastructure shortcuts are command-registry backed. Optional metric and scalar
 signal column layouts are bounded, locally persisted, and fail safe. The first
 declarative presentation contract is wired end-to-end through explicit CLI
 flags, independent daemon validation, persistent normalized storage, and the
-trajectory API. Broader inspector and keymap customization remains.
+trajectory API. Inspector section ordering and visibility now use that same
+bounded contract. Portable keymap customization remains.
 
 ### Deliverables
 
@@ -268,8 +269,8 @@ trajectory API. Broader inspector and keymap customization remains.
 1. Validate the Inspect AI and Verifiers mappings against additional upstream
    samples as their public contracts evolve.
 2. Validate landmark density and labeling on longer real research traces.
-3. Extend safe declarative customization to inspector sections and portable
-   keymaps without allowing arbitrary viewer code.
+3. Extend safe declarative customization to portable keymaps without allowing
+   arbitrary viewer code.
 4. Validate the clean-machine install-to-open path on Linux; macOS curl,
    Homebrew, and npm paths are verified.
 

@@ -27,6 +27,7 @@ type Config struct {
 	Fields     map[string]Field        `json:"fields,omitempty"`
 	Scalars    map[string]ScalarFormat `json:"scalars,omitempty"`
 	Group      GroupDefaults           `json:"group,omitempty"`
+	Inspector  *InspectorDefaults      `json:"inspector,omitempty"`
 	Theme      map[string]string       `json:"theme,omitempty"`
 }
 
@@ -43,6 +44,15 @@ type ScalarFormat struct {
 
 type GroupDefaults struct {
 	Columns []string `json:"columns,omitempty"`
+}
+
+type InspectorDefaults struct {
+	Sections []string `json:"sections,omitempty"`
+}
+
+var inspectorSectionIDs = map[string]bool{
+	"properties": true, "context": true, "source": true, "input": true, "output": true,
+	"content": true, "metadata": true, "linked_artifacts": true, "analysis": true, "other_artifacts": true,
 }
 
 var themeDefaults = map[string]string{
@@ -157,6 +167,24 @@ func (config Config) Validate() error {
 			return fmt.Errorf("group.columns contains duplicate %q", id)
 		}
 		seen[id] = true
+	}
+	if config.Inspector != nil {
+		if config.Inspector.Sections != nil && len(config.Inspector.Sections) == 0 {
+			return errors.New("inspector.sections must contain at least one section")
+		}
+		if len(config.Inspector.Sections) > len(inspectorSectionIDs) {
+			return fmt.Errorf("inspector.sections may contain at most %d entries", len(inspectorSectionIDs))
+		}
+		seen = map[string]bool{}
+		for _, id := range config.Inspector.Sections {
+			if !inspectorSectionIDs[id] {
+				return fmt.Errorf("inspector.sections contains unsupported section %q", id)
+			}
+			if seen[id] {
+				return fmt.Errorf("inspector.sections contains duplicate %q", id)
+			}
+			seen[id] = true
+		}
 	}
 	if err := validateTheme(config.Theme); err != nil {
 		return err

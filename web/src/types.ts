@@ -156,6 +156,8 @@ export type PresentationThemeToken = typeof presentationThemeTokens[number];
 export type PresentationFieldID = "reward" | "pass" | "status" | "termination" | "events" | "errors" | "tokens" | "latency" | `signal:${string}`;
 export type PresentationScalarFieldID = Exclude<PresentationFieldID, "pass" | "status" | "termination">;
 export type PresentationScalarKind = "number" | "integer" | "percent_fraction" | "duration_ms" | "bytes" | "scientific";
+export const presentationInspectorSectionIDs = ["properties", "context", "source", "input", "output", "content", "metadata", "linked_artifacts", "analysis", "other_artifacts"] as const;
+export type PresentationInspectorSectionID = typeof presentationInspectorSectionIDs[number];
 
 export interface PresentationField {
   label?: string;
@@ -174,6 +176,7 @@ export interface PresentationConfig {
   fields?: Partial<Record<PresentationFieldID, PresentationField>>;
   scalars?: Partial<Record<PresentationScalarFieldID, PresentationScalarFormat>>;
   group?: { columns?: PresentationFieldID[] };
+  inspector?: { sections?: PresentationInspectorSectionID[] };
   theme?: Partial<Record<PresentationThemeToken, string>>;
 }
 

@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnalysisPanel } from "./AnalysisPanel";
-import { ArtifactPanel } from "./ArtifactPanel";
 import { loadAnalysis, loadChildPage, loadComparison, loadEventPage, loadGroup, loadGroupPaths, loadTrajectory } from "./api";
 import { ComparisonView } from "./ComparisonView";
 import { bindingLabel, commandIds, useCommands, useKeymapRevision } from "./commands";
-import { ContextDetails } from "./ContextDetails";
 import { ContextTrack } from "./ContextTrack";
-import { duration, eventText, json, payload, preview, time, title } from "./format";
+import { duration, eventText, payload, preview, time, title } from "./format";
 import { GroupView } from "./GroupView";
+import { Inspector } from "./Inspector";
 import { KeymapDialog } from "./KeymapDialog";
+import { Kind } from "./Kind";
 import { applyPresentationTheme } from "./presentation";
 import { deriveLandmark, deriveLandmarkRail, isContextEvent } from "./research";
 import { OutcomeView, TranscriptView } from "./ResearchViews";
@@ -20,10 +19,6 @@ import type { AnalysisResponse, ComparisonResponse, GroupPathsResponse, GroupRes
 import { VirtualList } from "./VirtualList";
 import type { VisibleRange } from "./VirtualList";
 
-const kindMark: Record<string, string> = {
-  message: "M", generation: "AI", tool: "T", environment_action: "A", observation: "O",
-  state: "S", reward: "R", grader: "G", artifact: "F", error: "!", log: "L",
-};
 const filterKinds = ["all", "generation", "tool", "observation", "reward", "grader", "error"];
 const eventKey = (event: TrajectoryEvent) => event.id;
 
@@ -46,10 +41,6 @@ function resolvedStep(value: string | null, comparison: ComparisonResponse): num
   if (!value || !/^\d+$/.test(value)) return fallback;
   const step = Number(value);
   return Number.isSafeInteger(step) && step < comparison.alignment.steps.length ? step : fallback;
-}
-
-function Kind({ kind }: { kind: string }) {
-  return <span className={`kind kind-${kind}`} aria-label={kind}>{kindMark[kind] || kind.slice(0, 2).toUpperCase()}</span>;
 }
 
 function Value({ value }: { value: unknown }) {
@@ -78,37 +69,6 @@ function TimelineCard({ event, selected, expanded, position, total, onSelect, on
         <button className="expand" onClick={(e) => { e.stopPropagation(); onExpand(); }} aria-label={`${expanded ? "Collapse" : "Expand"} event ${event.sequence}`}>{expanded ? "Collapse" : "Expand"} <kbd>{bindingLabel(commandIds.trajectory.toggleExpanded)}</kbd></button>
       </div>
     </article>
-  );
-}
-
-function Inspector({ event, raw, analysis, analysisLoading, analysisError, onRetryAnalysis, onJump, artifacts, sourceId, trajectoryId, selectedArtifactId, onSelectArtifact }: { event: TrajectoryEvent; raw: boolean; analysis: AnalysisResponse | null; analysisLoading: boolean; analysisError: string; onRetryAnalysis: () => void; onJump: (id: string) => void; artifacts: TrajectoryArtifact[]; sourceId: string; trajectoryId: string; selectedArtifactId: string; onSelectArtifact: (artifact: TrajectoryArtifact) => void }) {
-  const landmark = deriveLandmark(event);
-  const linkedArtifacts = artifacts.filter((artifact) => artifact.event_id === event.id);
-  const trajectoryArtifacts = artifacts.filter((artifact) => artifact.event_id !== event.id);
-  const entries = [
-    ["Event ID", event.id], ["Sequence", event.sequence], ["Kind", event.kind], ["Time", event.timestamp],
-    ["Duration", event.duration_ms === undefined ? undefined : duration(event.duration_ms)], ["Tokens", event.token_count],
-    ["Reward", event.reward], ["Parent", event.parent_id], ["Alignment", event.alignment_key], ["State hash", event.state_hash],
-  ].filter((entry) => entry[1] !== undefined) as [string, unknown][];
-  return (
-    <aside className="inspector">
-      <div className="panel-heading"><span>Details</span><span className="panel-hint">{bindingLabel(commandIds.trajectory.toggleRaw)} raw</span></div>
-      <div className="selected-heading"><Kind kind={event.kind} /><div><h3>{landmark.label}</h3><span>event {event.sequence}</span></div></div>
-      <div className="inspector-scroll">
-        {raw ? <section><h4>Raw normalized record</h4><pre className="raw-json">{json(event.raw ?? event)}</pre></section> : <>
-          <section><h4>Properties</h4><dl>{entries.map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{String(value)}</dd></div>)}</dl></section>
-          <ContextDetails event={event} onJump={onJump} />
-          {event.source && <section><h4>Source</h4><div className="source-path">{event.source.path || "Unknown source"}</div><div className="source-detail">{event.source.line && `line ${event.source.line}`}{(event.source.byte_offset ?? event.source.byte_start) !== undefined && ` · bytes ${event.source.byte_offset ?? event.source.byte_start}–${event.source.byte_length !== undefined ? (event.source.byte_offset ?? 0) + event.source.byte_length : (event.source.byte_end ?? "?")}`}</div></section>}
-          {event.input !== undefined && <section><h4>Input</h4><pre className="raw-json compact">{json(event.input)}</pre></section>}
-          {event.output !== undefined && <section><h4>Output</h4><pre className="raw-json compact">{json(event.output)}</pre></section>}
-          {(event.content ?? event.data) !== undefined && <section><h4>Content</h4><pre className="raw-json compact">{typeof (event.content ?? event.data) === "string" ? String(event.content ?? event.data) : json(event.content ?? event.data)}</pre></section>}
-          {event.metadata && <section><h4>Metadata</h4><pre className="raw-json compact">{json(event.metadata)}</pre></section>}
-        </>}
-        <ArtifactPanel artifacts={linkedArtifacts} sourceId={sourceId} trajectoryId={trajectoryId} selectedId={selectedArtifactId} onSelect={onSelectArtifact} label="Linked artifacts" />
-        <AnalysisPanel analysis={analysis} loading={analysisLoading} error={analysisError} onRetry={onRetryAnalysis} onJump={onJump} />
-        <ArtifactPanel artifacts={trajectoryArtifacts} sourceId={sourceId} trajectoryId={trajectoryId} selectedId={selectedArtifactId} onSelect={onSelectArtifact} label="Other artifacts" />
-      </div>
-    </aside>
   );
 }
 
@@ -454,7 +414,7 @@ export function App({ initialTrajectory }: { initialTrajectory?: Trajectory }) {
           {surface === "timeline" && <VirtualList items={visible} estimateSize={118} overscan={4} selectedIndex={selectedVisibleIndex} scrollRef={timelineRef} className="timeline-events" itemKey={eventKey} renderItem={(event, index) => <TimelineCard event={event} selected={selected.id === event.id} expanded={expanded.has(event.id)} position={index + 1} total={visible.length} onSelect={() => selectEvent(event.id)} onExpand={() => toggleExpand(event.id)} />} onVisibleRangeChange={setVisibleRange} />}
           {surface === "outcome" && <OutcomeView trajectory={trajectory} onSelect={(id) => { selectEvent(id); openSurface("transcript"); }} />}
         </main>
-        <Inspector event={selected} raw={raw} analysis={analysis} analysisLoading={analysisLoading} analysisError={analysisError} onRetryAnalysis={() => setAnalysisVersion((version) => version + 1)} onJump={jumpToEvent} artifacts={trajectory.artifacts ?? []} sourceId={sourceId} trajectoryId={trajectory.id} selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact} />
+        <Inspector event={selected} raw={raw} presentation={presentation} analysis={analysis} analysisLoading={analysisLoading} analysisError={analysisError} onRetryAnalysis={() => setAnalysisVersion((version) => version + 1)} onJump={jumpToEvent} artifacts={trajectory.artifacts ?? []} sourceId={sourceId} trajectoryId={trajectory.id} selectedArtifactId={selectedArtifactId} onSelectArtifact={selectArtifact} />
       </div>
       <TrajectoryOverview events={trajectory.events} eventTotal={eventTotal} visibleEvents={visible} selectedId={selected.id} visibleRange={surface === "outcome" ? undefined : visibleRange} onSelect={selectEvent} />
       <footer className="keybar"><span><kbd>{bindingLabel(commandIds.trajectory.next)}</kbd><kbd>{bindingLabel(commandIds.trajectory.previous)}</kbd> navigate</span>{surface === "timeline" && <span><kbd>{bindingLabel(commandIds.trajectory.toggleExpanded)}</kbd> expand</span>}{trajectory.group_id && <span><kbd>{bindingLabel(commandIds.trajectory.openGroup)}</kbd> group</span>}{analysisEventIds.length > 0 && <span><kbd>{bindingLabel(commandIds.trajectory.nextFinding)}</kbd> finding</span>}{(trajectory.artifacts?.length ?? 0) > 0 && <span><kbd>{bindingLabel(commandIds.trajectory.nextArtifact)}</kbd> artifact</span>}{trajectory.events.some(isContextEvent) && <span><kbd>{bindingLabel(commandIds.trajectory.nextContext)}</kbd> context</span>}<span><kbd>{bindingLabel(commandIds.trajectory.nextError)}</kbd> error</span><span><kbd>{bindingLabel(commandIds.trajectory.nextReward)}</kbd> reward</span><span><kbd>{bindingLabel(commandIds.trajectory.toggleRaw)}</kbd> raw</span><span><kbd>{bindingLabel(commandIds.trajectory.toggleHelp)}</kbd> shortcuts</span></footer>

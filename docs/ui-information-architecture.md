@@ -230,6 +230,11 @@ RLViz owns layout and interaction. Customization may declare fields, labels,
 signal formats, badges, artifact media types, inspector sections, themes, and
 keymaps. Arbitrary plugin JavaScript or CSS is not allowed in the core viewer.
 
+Inspector ordering and visibility are implemented as an exact list of fixed
+core sections. Selected-event identity and raw normalized access remain fixed;
+presentation configuration cannot inject markup or disable underlying data and
+keyboard behavior.
+
 Group-table layouts follow the same boundary. Trajectory identity, comparison
 selection, and the open action are fixed; researchers can hide optional metrics
 and choose up to eight scalar canonical signals from a bounded discovery list.

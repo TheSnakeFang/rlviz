@@ -88,8 +88,9 @@ rlviz open ./path/to/rollout
 Recognized sources open normally. Unsupported sources return the existing
 structured diagnostic and an adapter scaffold command.
 
-If a team wants stable labels, scalar formatting, cohort columns, or semantic
-theme tokens, pass an explicit declarative configuration:
+If a team wants stable labels, scalar formatting, cohort columns, inspector
+section order, or semantic theme tokens, pass an explicit declarative
+configuration:
 
 ```bash
 rlviz presentation validate ./presentation.json

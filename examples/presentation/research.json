@@ -28,6 +28,20 @@
       "signal:reward.policy_compliance"
     ]
   },
+  "inspector": {
+    "sections": [
+      "properties",
+      "context",
+      "analysis",
+      "linked_artifacts",
+      "source",
+      "input",
+      "output",
+      "content",
+      "metadata",
+      "other_artifacts"
+    ]
+  },
   "theme": {
     "context_change": "#b49cff"
   }

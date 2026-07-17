@@ -17,6 +17,7 @@ func TestLoadValidPresentation(t *testing.T) {
   "fields":{"signal:grader_score":{"label":"Grader","description":"Customer verifier score"}},
   "scalars":{"signal:grader_score":{"format":"percent_fraction","precision":2,"unit":"pass"}},
   "group":{"columns":["pass","reward","signal:grader_score"]},
+  "inspector":{"sections":["properties","analysis","source"]},
   "theme":{"focus":"#8be6d0"}
 }`))
 	if err != nil {
@@ -24,6 +25,9 @@ func TestLoadValidPresentation(t *testing.T) {
 	}
 	if config.Scalars["signal:grader_score"].Precision == nil || *config.Scalars["signal:grader_score"].Precision != precision {
 		t.Fatalf("unexpected config: %#v", config)
+	}
+	if config.Inspector == nil || strings.Join(config.Inspector.Sections, ",") != "properties,analysis,source" {
+		t.Fatalf("unexpected inspector order: %#v", config.Inspector.Sections)
 	}
 }
 
@@ -38,12 +42,30 @@ func TestLoadRejectsExecutableOrUnboundedSurfaces(t *testing.T) {
 		"duplicate column":       `{"api_version":"rlviz.dev/v1alpha1","group":{"columns":["reward","reward"]}}`,
 		"nonnumeric scalar":      `{"api_version":"rlviz.dev/v1alpha1","scalars":{"pass":{"format":"integer"}}}`,
 		"unknown format":         `{"api_version":"rlviz.dev/v1alpha1","scalars":{"reward":{"format":"template"}}}`,
+		"empty inspector":        `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":[]}}`,
+		"unknown inspector":      `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["properties","html"]}}`,
+		"duplicate inspector":    `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["source","source"]}}`,
+		"too many inspector":     `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["properties","context","source","input","output","content","metadata","linked_artifacts","analysis","other_artifacts","properties"]}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := Load(strings.NewReader(document)); err == nil {
 				t.Fatal("expected rejection")
 			}
 		})
+	}
+}
+
+func TestNormalizePreservesInspectorOrder(t *testing.T) {
+	config, err := Load(strings.NewReader(`{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["analysis","source","properties"]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := Normalize(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(data, []byte(`"sections":["analysis","source","properties"]`)) {
+		t.Fatalf("inspector order was not preserved: %s", data)
 	}
 }
 
@@ -61,7 +83,7 @@ func TestLoadIsBounded(t *testing.T) {
 }
 
 func TestSchemaAcceptsRuntimeValidDocument(t *testing.T) {
-	data := []byte(`{"api_version":"rlviz.dev/v1alpha1","fields":{"reward":{"label":"Return"}},"group":{"columns":["reward"]},"theme":{"focus":"#8be6d0"}}`)
+	data := []byte(`{"api_version":"rlviz.dev/v1alpha1","fields":{"pass":{"label":"Passed"}},"group":{"columns":["reward"]},"inspector":{"sections":["analysis","properties"]},"theme":{"focus":"#8be6d0"}}`)
 	schemaData, err := os.ReadFile(filepath.Join("..", "..", "schemas", "v1alpha1", "presentation-config.schema.json"))
 	if err != nil {
 		t.Fatal(err)
@@ -88,6 +110,37 @@ func TestSchemaAcceptsRuntimeValidDocument(t *testing.T) {
 	}
 	if _, err := Load(bytes.NewReader(data)); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSchemaAndRuntimeRejectNonnumericScalar(t *testing.T) {
+	data := []byte(`{"api_version":"rlviz.dev/v1alpha1","scalars":{"pass":{"format":"integer"}}}`)
+	schemaData, err := os.ReadFile(filepath.Join("..", "..", "schemas", "v1alpha1", "presentation-config.schema.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := jsonschema.UnmarshalJSON(bytes.NewReader(schemaData))
+	if err != nil {
+		t.Fatal(err)
+	}
+	compiler := jsonschema.NewCompiler()
+	location := "https://rlviz.dev/schemas/v1alpha1/presentation-config.schema.json"
+	if err := compiler.AddResource(location, document); err != nil {
+		t.Fatal(err)
+	}
+	schema, err := compiler.Compile(location)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance, err := jsonschema.UnmarshalJSON(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := schema.Validate(instance); err == nil {
+		t.Fatal("schema accepted nonnumeric scalar")
+	}
+	if _, err := Load(bytes.NewReader(data)); err == nil {
+		t.Fatal("runtime accepted nonnumeric scalar")
 	}
 }
 

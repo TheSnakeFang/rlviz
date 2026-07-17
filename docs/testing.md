@@ -60,6 +60,9 @@ reported viewport independent from overscan and forced selected-row rendering.
 Landmark-rail tests assert stable reason precedence, no premature endpoint for
 partial indexes, bounded rendering on 10,000 events, raw-event keyboard
 navigation, and pinned selection when filters exclude the current event.
+Presentation tests keep JSON Schema, Go validation, and TypeScript mirrors
+aligned. Inspector tests assert exact declarative ordering, omission, and the
+invariant raw-record escape hatch.
 
 ### Real-browser end-to-end tests
 

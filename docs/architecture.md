@@ -162,6 +162,8 @@ The React application has three levels of research surfaces:
   argument/result differences without executing or interpreting payloads
 - `AnalysisPanel.tsx` and `ArtifactPanel.tsx`: derived findings and artifacts
 
+`Inspector.tsx` renders a validated order of fixed, core-owned sections while
+keeping selected-event identity and raw normalized access invariant.
 `research.ts` derives conservative, provenance-labeled display semantics from
 canonical records. Its pure `deriveLandmarkRail` selector keeps only source-backed
 turns, prompts, context changes, failures, evaluations, artifacts, analyzer
