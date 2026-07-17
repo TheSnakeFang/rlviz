@@ -63,7 +63,7 @@ func (v *Validator) Add(record *Record) error {
 			return errors.New("record_type must be case")
 		}
 		if !v.hasRun(value.RunID) {
-			return fmt.Errorf("case %q references unknown or later run %q", value.ID, value.RunID)
+			return validationField("run_id", fmt.Errorf("case %q references unknown or later run %q", value.ID, value.RunID))
 		}
 		v.cases[value.ID] = value.RunID
 	case *Group:
@@ -74,7 +74,7 @@ func (v *Validator) Add(record *Record) error {
 			return errors.New("record_type must be group")
 		}
 		if _, ok := v.cases[value.CaseID]; !ok {
-			return fmt.Errorf("group %q references unknown or later case %q", value.ID, value.CaseID)
+			return validationField("case_id", fmt.Errorf("group %q references unknown or later case %q", value.ID, value.CaseID))
 		}
 		v.groups[value.ID] = value.CaseID
 	case *Trajectory:
@@ -85,12 +85,12 @@ func (v *Validator) Add(record *Record) error {
 			return errors.New("record_type must be trajectory")
 		}
 		if _, ok := v.groups[value.GroupID]; !ok {
-			return fmt.Errorf("trajectory %q references unknown or later group %q", value.ID, value.GroupID)
+			return validationField("group_id", fmt.Errorf("trajectory %q references unknown or later group %q", value.ID, value.GroupID))
 		}
 		if value.ParentID != "" {
 			parentGroup, ok := v.trajectories[value.ParentID]
 			if !ok {
-				return fmt.Errorf("trajectory %q references unknown or later parent %q", value.ID, value.ParentID)
+				return validationField("parent_id", fmt.Errorf("trajectory %q references unknown or later parent %q", value.ID, value.ParentID))
 			}
 			if parentGroup != value.GroupID {
 				return fmt.Errorf("trajectory %q parent %q belongs to another group", value.ID, value.ParentID)
@@ -105,21 +105,21 @@ func (v *Validator) Add(record *Record) error {
 			return errors.New("record_type must be event")
 		}
 		if _, ok := v.trajectories[value.TrajectoryID]; !ok {
-			return fmt.Errorf("event %q references unknown or later trajectory %q", value.ID, value.TrajectoryID)
+			return validationField("trajectory_id", fmt.Errorf("event %q references unknown or later trajectory %q", value.ID, value.TrajectoryID))
 		}
 		if value.Sequence < 0 {
-			return fmt.Errorf("event %q sequence must be non-negative", value.ID)
+			return validationField("sequence", fmt.Errorf("event %q sequence must be non-negative", value.ID))
 		}
 		if previous, ok := v.lastSequence[value.TrajectoryID]; ok && value.Sequence <= previous {
-			return fmt.Errorf("event %q sequence %d is not greater than prior sequence %d", value.ID, value.Sequence, previous)
+			return validationField("sequence", fmt.Errorf("event %q sequence %d is not greater than prior sequence %d", value.ID, value.Sequence, previous))
 		}
 		if _, ok := eventKinds[value.Kind]; !ok {
-			return fmt.Errorf("event %q has unsupported kind %q", value.ID, value.Kind)
+			return validationField("kind", fmt.Errorf("event %q has unsupported kind %q", value.ID, value.Kind))
 		}
 		if value.ParentID != "" {
 			parentTrajectory, ok := v.events[value.ParentID]
 			if !ok {
-				return fmt.Errorf("event %q references unknown or later parent %q", value.ID, value.ParentID)
+				return validationField("parent_id", fmt.Errorf("event %q references unknown or later parent %q", value.ID, value.ParentID))
 			}
 			if parentTrajectory != value.TrajectoryID {
 				return fmt.Errorf("event %q parent %q belongs to another trajectory", value.ID, value.ParentID)
@@ -127,10 +127,16 @@ func (v *Validator) Add(record *Record) error {
 		}
 		if value.Source != nil {
 			if value.Source.Path == "" {
-				return fmt.Errorf("event %q source.path is required", value.ID)
+				return validationField("source.path", fmt.Errorf("event %q source.path is required", value.ID))
 			}
-			if negative(value.Source.Line) || negative(value.Source.ByteOffset) || negative(value.Source.ByteLength) {
-				return fmt.Errorf("event %q source offsets must be non-negative", value.ID)
+			if negative(value.Source.Line) {
+				return validationField("source.line", fmt.Errorf("event %q source line must be non-negative", value.ID))
+			}
+			if negative(value.Source.ByteOffset) {
+				return validationField("source.byte_offset", fmt.Errorf("event %q source byte offset must be non-negative", value.ID))
+			}
+			if negative(value.Source.ByteLength) {
+				return validationField("source.byte_length", fmt.Errorf("event %q source byte length must be non-negative", value.ID))
 			}
 		}
 		v.events[value.ID] = value.TrajectoryID
@@ -143,22 +149,22 @@ func (v *Validator) Add(record *Record) error {
 			return errors.New("record_type must be signal")
 		}
 		if _, ok := v.trajectories[value.TrajectoryID]; !ok {
-			return fmt.Errorf("signal %q references unknown or later trajectory %q", value.ID, value.TrajectoryID)
+			return validationField("trajectory_id", fmt.Errorf("signal %q references unknown or later trajectory %q", value.ID, value.TrajectoryID))
 		}
 		if value.Name == "" {
-			return fmt.Errorf("signal %q name is required", value.ID)
+			return validationField("name", fmt.Errorf("signal %q name is required", value.ID))
 		}
 		if value.EventID != "" {
 			t, ok := v.events[value.EventID]
 			if !ok {
-				return fmt.Errorf("signal %q references unknown or later event %q", value.ID, value.EventID)
+				return validationField("event_id", fmt.Errorf("signal %q references unknown or later event %q", value.ID, value.EventID))
 			}
 			if t != value.TrajectoryID {
 				return fmt.Errorf("signal %q event belongs to another trajectory", value.ID)
 			}
 		}
 		if err := validateSignalValue(value.Value); err != nil {
-			return fmt.Errorf("signal %q value: %w", value.ID, err)
+			return validationField("value", fmt.Errorf("signal %q value: %w", value.ID, err))
 		}
 	case *Artifact:
 		if err := v.addID(value.ID, RecordArtifact); err != nil {
@@ -168,15 +174,15 @@ func (v *Validator) Add(record *Record) error {
 			return errors.New("record_type must be artifact")
 		}
 		if _, ok := v.trajectories[value.TrajectoryID]; !ok {
-			return fmt.Errorf("artifact %q references unknown or later trajectory %q", value.ID, value.TrajectoryID)
+			return validationField("trajectory_id", fmt.Errorf("artifact %q references unknown or later trajectory %q", value.ID, value.TrajectoryID))
 		}
 		if value.MediaType == "" {
-			return fmt.Errorf("artifact %q media_type is required", value.ID)
+			return validationField("media_type", fmt.Errorf("artifact %q media_type is required", value.ID))
 		}
 		if value.EventID != "" {
 			t, ok := v.events[value.EventID]
 			if !ok {
-				return fmt.Errorf("artifact %q references unknown or later event %q", value.ID, value.EventID)
+				return validationField("event_id", fmt.Errorf("artifact %q references unknown or later event %q", value.ID, value.EventID))
 			}
 			if t != value.TrajectoryID {
 				return fmt.Errorf("artifact %q event belongs to another trajectory", value.ID)
@@ -196,17 +202,20 @@ func (v *Validator) Add(record *Record) error {
 			return fmt.Errorf("artifact %q must provide exactly one of path, text, or json", value.ID)
 		}
 		if value.SHA256 != "" && (len(value.SHA256) != 64 || strings.Trim(value.SHA256, "0123456789abcdef") != "") {
-			return fmt.Errorf("artifact %q sha256 must be 64 lowercase hex characters", value.ID)
+			return validationField("sha256", fmt.Errorf("artifact %q sha256 must be 64 lowercase hex characters", value.ID))
 		}
 	case *Complete:
 		if value.RecordType != RecordComplete {
 			return errors.New("record_type must be complete")
 		}
-		if value.Records < 0 || value.Warnings < 0 {
-			return errors.New("complete counts must be non-negative")
+		if value.Records < 0 {
+			return validationField("records", errors.New("complete records must be non-negative"))
+		}
+		if value.Warnings < 0 {
+			return validationField("warnings", errors.New("complete warnings must be non-negative"))
 		}
 		if value.Records != v.records {
-			return fmt.Errorf("complete reports %d records, decoded %d", value.Records, v.records)
+			return validationField("records", fmt.Errorf("complete reports %d records, decoded %d", value.Records, v.records))
 		}
 		v.complete = true
 	default:
@@ -224,13 +233,17 @@ func (v *Validator) Finish() error {
 
 func (v *Validator) addID(id string, kind RecordType) error {
 	if id == "" {
-		return fmt.Errorf("%s id is required", kind)
+		return validationField("id", fmt.Errorf("%s id is required", kind))
 	}
 	if previous, ok := v.ids[id]; ok {
-		return fmt.Errorf("duplicate id %q (already used by %s)", id, previous)
+		return validationField("id", fmt.Errorf("duplicate id %q (already used by %s)", id, previous))
 	}
 	v.ids[id] = kind
 	return nil
+}
+
+func validationField(field string, err error) error {
+	return &FieldValidationError{Field: field, Err: err}
 }
 
 func (v *Validator) hasRun(id string) bool { _, ok := v.runs[id]; return ok }

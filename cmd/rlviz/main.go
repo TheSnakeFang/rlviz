@@ -684,12 +684,25 @@ func writeError(command string, jsonOutput bool, err error) {
 		}
 	} else if errors.Is(err, plugins.ErrUntrusted) {
 		details["code"] = "plugin_untrusted"
+		addDiagnosticFields(details, err)
+	} else {
+		addDiagnosticFields(details, err)
 	}
 	if jsonOutput {
 		_ = json.NewEncoder(os.Stderr).Encode(details)
 		return
 	}
 	fmt.Fprintf(os.Stderr, "%s: %v\n", command, err)
+}
+
+func addDiagnosticFields(target map[string]any, err error) {
+	var diagnostic interface{ DiagnosticFields() map[string]any }
+	if !errors.As(err, &diagnostic) {
+		return
+	}
+	for key, value := range diagnostic.DiagnosticFields() {
+		target[key] = value
+	}
 }
 
 func openBrowser(value string) error {

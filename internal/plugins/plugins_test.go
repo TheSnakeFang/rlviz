@@ -582,6 +582,11 @@ func TestProbeRequiresSchemaFields(t *testing.T) {
 	if _, _, err := host.Probe(context.Background(), p, req); err == nil || !strings.Contains(err.Error(), "requires supported and confidence") {
 		t.Fatalf("error=%v", err)
 	}
+	_, err := host.ValidateAdapter(context.Background(), p, source, "")
+	var failure *AdapterValidationError
+	if !errors.As(err, &failure) || failure.Phase != ValidationPhaseProbe || failure.Kind != ValidationKindProtocol || failure.Pass != 1 {
+		t.Fatalf("failure=%#v error=%v", failure, err)
+	}
 }
 
 func TestHostTimeoutAndNondeterminism(t *testing.T) {
@@ -604,6 +609,76 @@ func TestHostTimeoutAndNondeterminism(t *testing.T) {
 	host = NewHost(store)
 	if _, err := host.ValidateAdapter(context.Background(), p, source, ""); err == nil || !strings.Contains(err.Error(), "nondeterministic") {
 		t.Fatalf("error=%v", err)
+	} else {
+		var failure *AdapterValidationError
+		if !errors.As(err, &failure) || failure.Phase != ValidationPhaseProbe || failure.Kind != ValidationKindNondeterministic {
+			t.Fatalf("failure=%#v error=%v", failure, err)
+		}
+	}
+}
+
+func TestAdapterValidationPreservesUntrustedIdentity(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	t.Parallel()
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	plugin, err := Load(newPlugin(t, stableScript))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &TrustStore{Path: filepath.Join(t.TempDir(), "trust.json")}
+	_, err = NewHost(store).ValidateAdapter(context.Background(), plugin, source, "")
+	if !errors.Is(err, ErrUntrusted) {
+		t.Fatalf("error=%v, want ErrUntrusted", err)
+	}
+	var failure *AdapterValidationError
+	if !errors.As(err, &failure) || failure.Phase != ValidationPhaseProbe || failure.Kind != ValidationKindExecution || failure.Pass != 1 {
+		t.Fatalf("failure=%#v error=%v", failure, err)
+	}
+}
+
+func TestAdapterValidationErrorPreservesPhaseAndRecord(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	t.Parallel()
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	dir := newPlugin(t, invalidCanonicalScript)
+	plugin, store := loadAndTrust(t, dir)
+	_, err := NewHost(store).ValidateAdapter(context.Background(), plugin, source, "")
+	var failure *AdapterValidationError
+	if !errors.As(err, &failure) {
+		t.Fatalf("error=%v, want AdapterValidationError", err)
+	}
+	if failure.Phase != "stream" || failure.Kind != "protocol" || failure.Pass != 1 || failure.Line != 5 || failure.RecordType != model.RecordEvent || failure.RecordID != "event" || failure.Field != "sequence" {
+		t.Fatalf("failure=%#v", failure)
+	}
+	details := failure.DiagnosticFields()
+	if details["phase"] != "stream" || details["kind"] != "protocol" || details["pass"] != 1 || details["record_type"] != model.RecordEvent || details["record_id"] != "event" || details["field"] != "sequence" {
+		t.Fatalf("details=%#v", details)
+	}
+}
+
+func TestAdapterValidationClassifiesMalformedSecondPassBeforeNondeterminism(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("shell fixture")
+	}
+	t.Parallel()
+	source := filepath.Join(t.TempDir(), "trace")
+	writeFile(t, source, "x")
+	counter := filepath.Join(t.TempDir(), "stream-count")
+	dir := newPlugin(t, malformedSecondStreamScript(counter))
+	plugin, store := loadAndTrust(t, dir)
+	_, err := NewHost(store).ValidateAdapter(context.Background(), plugin, source, "")
+	var failure *AdapterValidationError
+	if !errors.As(err, &failure) {
+		t.Fatalf("error=%v, want AdapterValidationError", err)
+	}
+	if failure.Phase != ValidationPhaseStream || failure.Kind != ValidationKindProtocol || failure.Pass != 2 {
+		t.Fatalf("failure=%#v error=%v", failure, err)
 	}
 }
 
@@ -642,6 +717,11 @@ func TestSourceRootAndScaffold(t *testing.T) {
 		probe, _, err := NewHost(store).Probe(context.Background(), plugin, request)
 		if err != nil || probe.Supported || !strings.Contains(probe.Reason, "implement format detection") {
 			t.Fatalf("generated probe=%#v err=%v", probe, err)
+		}
+		_, err = NewHost(store).ValidateAdapter(context.Background(), plugin, outside, "")
+		var failure *AdapterValidationError
+		if !errors.As(err, &failure) || failure.Phase != ValidationPhaseProbe || failure.Kind != ValidationKindUnsupported {
+			t.Fatalf("generated validation failure=%#v err=%v", failure, err)
 		}
 	}
 	if _, err := ScaffoldPython(destination, ScaffoldOptions{Name: "customer-x"}); err == nil {
@@ -739,3 +819,36 @@ else
   echo '{"record_type":"complete","records":0,"warnings":0}'
 fi
 `
+const invalidCanonicalScript = `#!/bin/sh
+if [ "$1" = probe ]; then
+  printf '%s\n' '{"supported":true,"confidence":1,"format":"invalid-v1","reason":"fixture"}'
+else
+  printf '%s\n' \
+    '{"record_type":"run","id":"run"}' \
+    '{"record_type":"case","id":"case","run_id":"run"}' \
+    '{"record_type":"group","id":"group","case_id":"case"}' \
+    '{"record_type":"trajectory","id":"trajectory","group_id":"group"}' \
+    '{"record_type":"event","id":"event","trajectory_id":"trajectory","sequence":-1,"kind":"message"}' \
+    '{"record_type":"complete","records":5,"warnings":0}'
+fi
+`
+
+func malformedSecondStreamScript(counter string) string {
+	counter = strings.ReplaceAll(counter, "'", "'\"'\"'")
+	return `#!/bin/sh
+if [ "$1" = probe ]; then
+  printf '%s\n' '{"supported":true,"confidence":1,"format":"second-pass-v1","reason":"fixture"}'
+else
+  counter='` + counter + `'
+  count=0
+  if [ -f "$counter" ]; then read count < "$counter"; fi
+  count=$((count + 1))
+  printf '%s\n' "$count" > "$counter"
+  if [ "$count" -eq 1 ]; then
+    printf '%s\n' '{"record_type":"complete","records":0,"warnings":0}'
+  else
+    printf '%s\n' 'not-json'
+  fi
+fi
+`
+}

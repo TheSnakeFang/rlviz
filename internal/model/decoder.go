@@ -177,7 +177,12 @@ func DecodeContext(ctx context.Context, r io.Reader, visit func(*Record) error) 
 			return err
 		}
 		if err := validator.Add(record); err != nil {
-			return fmt.Errorf("line %d: %w", record.Line, err)
+			recordError := &RecordValidationError{Line: record.Line, RecordType: record.Type, RecordID: RecordID(record), Err: err}
+			var fieldError *FieldValidationError
+			if errors.As(err, &fieldError) {
+				recordError.Field = fieldError.Field
+			}
+			return recordError
 		}
 		if visit != nil {
 			if err := visit(record); err != nil {

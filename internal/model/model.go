@@ -1,7 +1,10 @@
 // Package model defines RLViz's versioned canonical rollout records.
 package model
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 const APIVersion = "rlviz.dev/v1alpha1"
 
@@ -121,4 +124,54 @@ type Record struct {
 	Line       int64
 	ByteOffset int64
 	ByteLength int64
+}
+
+// RecordValidationError preserves stable record context for callers that need
+// machine-readable diagnostics while retaining the existing human error text.
+type RecordValidationError struct {
+	Line       int64
+	RecordType RecordType
+	RecordID   string
+	Field      string
+	Err        error
+}
+
+func (err *RecordValidationError) Error() string {
+	return fmt.Sprintf("line %d: %v", err.Line, err.Err)
+}
+
+func (err *RecordValidationError) Unwrap() error { return err.Err }
+
+// FieldValidationError marks a canonical schema field at the validation
+// origin. Multi-field invariants intentionally omit it.
+type FieldValidationError struct {
+	Field string
+	Err   error
+}
+
+func (err *FieldValidationError) Error() string { return err.Err.Error() }
+func (err *FieldValidationError) Unwrap() error { return err.Err }
+
+func RecordID(record *Record) string {
+	if record == nil {
+		return ""
+	}
+	switch value := record.Value.(type) {
+	case *Run:
+		return value.ID
+	case *Case:
+		return value.ID
+	case *Group:
+		return value.ID
+	case *Trajectory:
+		return value.ID
+	case *Event:
+		return value.ID
+	case *Signal:
+		return value.ID
+	case *Artifact:
+		return value.ID
+	default:
+		return ""
+	}
 }

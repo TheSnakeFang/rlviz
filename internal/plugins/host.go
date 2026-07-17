@@ -51,6 +51,15 @@ type Result struct {
 	Stderr string
 }
 
+type adapterProtocolError struct{ err error }
+
+func (err *adapterProtocolError) Error() string { return err.err.Error() }
+func (err *adapterProtocolError) Unwrap() error { return err.err }
+
+func protocolError(err error) error {
+	return &adapterProtocolError{err: err}
+}
+
 type preparedCommand struct {
 	cmd     *exec.Cmd
 	plugin  *Plugin
@@ -214,20 +223,20 @@ func (h *Host) Probe(ctx context.Context, plugin *Plugin, request Request) (Prob
 	dec := json.NewDecoder(bytes.NewReader(result.Stdout))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&wire); err != nil {
-		return ProbeResponse{}, result.Stderr, fmt.Errorf("invalid probe response: %w", err)
+		return ProbeResponse{}, result.Stderr, protocolError(fmt.Errorf("invalid probe response: %w", err))
 	}
 	if err := ensureEOF(dec); err != nil {
-		return ProbeResponse{}, result.Stderr, err
+		return ProbeResponse{}, result.Stderr, protocolError(err)
 	}
 	if wire.Supported == nil || wire.Confidence == nil {
-		return ProbeResponse{}, result.Stderr, errors.New("probe response requires supported and confidence")
+		return ProbeResponse{}, result.Stderr, protocolError(errors.New("probe response requires supported and confidence"))
 	}
 	response := ProbeResponse{Supported: *wire.Supported, Confidence: *wire.Confidence, Format: wire.Format, Reason: wire.Reason}
 	if math.IsNaN(response.Confidence) || math.IsInf(response.Confidence, 0) || response.Confidence < 0 || response.Confidence > 1 {
-		return response, result.Stderr, errors.New("probe confidence must be between 0 and 1")
+		return response, result.Stderr, protocolError(errors.New("probe confidence must be between 0 and 1"))
 	}
 	if response.Supported && response.Format == "" {
-		return response, result.Stderr, errors.New("supported probe response requires format")
+		return response, result.Stderr, protocolError(errors.New("supported probe response requires format"))
 	}
 	return response, result.Stderr, nil
 }

@@ -1,11 +1,14 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/unlatch-ai/rlviz/internal/plugins"
 )
 
 func TestInitPluginFromSourceReturnsAgentReadyPlan(t *testing.T) {
@@ -32,6 +35,14 @@ func TestInitPluginFromSourceReturnsAgentReadyPlan(t *testing.T) {
 	}
 	if len(result.NextCommands) != 3 || !strings.Contains(result.NextCommands[1], "plugin validate --json") || !strings.Contains(result.NextCommands[1], "'"+resolvedSource+"'") {
 		t.Fatalf("next commands=%#v", result.NextCommands)
+	}
+}
+
+func TestAddDiagnosticFieldsUsesStructuredPluginFailure(t *testing.T) {
+	target := map[string]any{"code": "plugin_validate_failed"}
+	addDiagnosticFields(target, &plugins.AdapterValidationError{Phase: "stream", Kind: "protocol", Pass: 2, RecordID: "event-7", Field: "sequence", Err: errors.New("bad sequence")})
+	if target["phase"] != "stream" || target["kind"] != "protocol" || target["pass"] != 2 || target["record_id"] != "event-7" || target["field"] != "sequence" {
+		t.Fatalf("details=%#v", target)
 	}
 }
 

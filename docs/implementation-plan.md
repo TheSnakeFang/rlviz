@@ -257,8 +257,9 @@ trajectory API. Broader inspector and keymap customization remains.
 
 ## Near-term issue sequence
 
-1. Add structured adapter-validation findings so agents can repair a mapping by
-   stable phase, pass, record, and field rather than parsing error prose.
+1. Gather representative adapter-validation failures and extend structured
+   fields only where the validation origin can identify them without parsing
+   error prose.
 2. Gather at least two representative real adapter fixtures and use them to
    satisfy the context evidence gate in `context-semantics.md`, then validate
    message, tool-span, verifier, and context semantics.

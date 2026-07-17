@@ -46,6 +46,30 @@ the location and field in each structured finding, then review the change and
 get approval to trust its new digest before validating again. Do not edit the
 trace to make a finding disappear.
 
+Adapter mapping failures from `plugin validate --json` keep the stable top-level
+`code: plugin_validate_failed` and add an adapter diagnostic taxonomy:
+
+```json
+{
+  "code": "plugin_validate_failed",
+  "phase": "stream",
+  "kind": "protocol",
+  "pass": 1,
+  "line": 5,
+  "record_type": "event",
+  "record_id": "evt-7",
+  "field": "sequence",
+  "error": "line 5: event sequence must be non-negative"
+}
+```
+
+`phase` is `source`, `probe`, or `stream`. `kind` is `execution`,
+`protocol`, `unsupported`, `nondeterministic`, or `provenance`. `pass`, `line`,
+`record_type`, `record_id`, and `field` are included only when that context is
+known without parsing error prose. RLViz validates both stream passes before
+comparing bytes, so a malformed second pass is reported as pass 2 protocol
+failure rather than being mislabeled as nondeterminism.
+
 Trust is bound to an absolute path and content digest. Committing an adapter does
 not make it trusted on another machine.
 

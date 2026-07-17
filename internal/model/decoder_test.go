@@ -190,6 +190,23 @@ func TestDecodeRequiresComplete(t *testing.T) {
 	}
 }
 
+func TestDecodePreservesInvalidRecordContext(t *testing.T) {
+	t.Parallel()
+	stream := strings.Join([]string{
+		`{"record_type":"run","id":"run"}`,
+		`{"record_type":"case","id":"case","run_id":"missing"}`,
+		"",
+	}, "\n")
+	err := Decode(strings.NewReader(stream), nil)
+	var recordError *RecordValidationError
+	if !errors.As(err, &recordError) {
+		t.Fatalf("error=%v, want RecordValidationError", err)
+	}
+	if recordError.Line != 2 || recordError.RecordType != RecordCase || recordError.RecordID != "case" || recordError.Field != "run_id" {
+		t.Fatalf("record error=%#v", recordError)
+	}
+}
+
 func TestDecodePropagatesVisitorError(t *testing.T) {
 	t.Parallel()
 	want := errors.New("stop")
