@@ -71,7 +71,7 @@ On macOS or Linux with Homebrew:
 brew install unlatch-ai/tap/rolloutviz
 ```
 
-For Node-based environments and coding-agent sandboxes, the same native binary is packaged for npm. npm publication is being bootstrapped; until it is live, use Homebrew or the verified curl installer above.
+For Node-based environments and coding-agent sandboxes, the same native binary is available through npm:
 
 ```bash
 npm install --global rolloutviz

@@ -17,12 +17,12 @@ The source, native archives, and other installation options are at
 
 ## Publishing setup
 
-Tag releases include an npm publication job, but it is skipped until the
-repository variable `NPM_PUBLISH_ENABLED` is set to `true`. This keeps native
-GitHub releases working before registry ownership is configured.
+Tag releases publish through npm trusted publishing (OIDC) with provenance.
+The `rolloutviz` package is linked to `unlatch-ai/rolloutviz` and the repository
+variable `NPM_PUBLISH_ENABLED` is enabled.
 
-Publishing uses npm trusted publishing (OIDC) and provenance. It deliberately
-does not accept a long-lived `NPM_TOKEN`. Before enabling it:
+The workflow deliberately does not accept a long-lived `NPM_TOKEN`. If the
+package or trusted publisher ever needs to be recreated:
 
 1. With `NPM_PUBLISH_ENABLED` still unset, create the matching GitHub release
    first (for example `v0.1.0`), then claim the package using an npm account with
