@@ -187,21 +187,12 @@ func runDoctor(arguments []string) {
 	flags := flag.NewFlagSet("doctor", flag.ExitOnError)
 	jsonOutput := flags.Bool("json", false, "print machine-readable output")
 	_ = flags.Parse(arguments)
-	paths, err := daemon.DefaultPaths()
+	dependencies, err := defaultDoctorDependencies()
 	if err != nil {
 		fatalError("doctor", *jsonOutput, err)
 	}
-	runtimeErr := paths.EnsureRuntimeDir()
-	checks := []map[string]any{{"name": "runtime_directory", "ok": runtimeErr == nil, "path": paths.RuntimeDir}}
-	_, pythonErr := exec.LookPath("python3")
-	checks = append(checks, map[string]any{"name": "python3", "ok": pythonErr == nil})
-	status := "ok"
-	human := "RLViz doctor: all checks passed"
-	if runtimeErr != nil || pythonErr != nil {
-		status = "degraded"
-		human = "RLViz doctor: one or more checks failed"
-	}
-	writeOutput(map[string]any{"status": status, "checks": checks}, *jsonOutput, human)
+	report := collectDoctorReport(context.Background(), dependencies)
+	writeOutput(report, *jsonOutput, formatDoctorReport(report))
 }
 
 type cacheStatusResult struct {

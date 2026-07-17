@@ -21,9 +21,11 @@ rlviz doctor
 rlviz version
 ```
 
-`doctor` should report the binary version, platform, cache/runtime locations,
-daemon state, browser-open capability, discovered plugins, and actionable
-problems without reading rollout contents.
+`doctor` reports a versioned local-readiness snapshot: binary and platform,
+cache/runtime/index locations, live/stopped/degraded daemon state,
+browser-launch and Python availability, trusted plugin paths, and actionable
+problems. It does not start the daemon, open a browser, execute plugins, or read
+rollout contents. Use `rlviz doctor --json` for stable agent-readable output.
 
 ### 2. Learn on a rich synthetic rollout
 
