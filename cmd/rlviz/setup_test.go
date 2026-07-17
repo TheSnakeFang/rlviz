@@ -111,6 +111,57 @@ func TestNormalizeSetupAgentArguments(t *testing.T) {
 	}
 }
 
+func TestParseAgentSetupOptionsReturnsStableJSONErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		arguments []string
+		message   string
+	}{
+		{name: "missing mode", arguments: []string{"codex", "--json"}, message: "choose exactly one setup mode"},
+		{name: "conflicting modes", arguments: []string{"codex", "--print", "--write", "--destination", "rules.md", "--json"}, message: "choose exactly one setup mode"},
+		{name: "missing destination", arguments: []string{"codex", "--write", "--json"}, message: "require --destination"},
+		{name: "print destination", arguments: []string{"codex", "--print", "--destination", "rules.md", "--json"}, message: "does not accept"},
+		{name: "unknown flag", arguments: []string{"codex", "--print", "--unknown", "--json"}, message: "flag provided but not defined"},
+		{name: "unknown flag before json value", arguments: []string{"codex", "--print", "--unknown", "--json=1"}, message: "flag provided but not defined"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			options, err := parseAgentSetupOptions(test.arguments)
+			if err == nil || !strings.Contains(err.Error(), test.message) {
+				t.Fatalf("error = %v, want %q", err, test.message)
+			}
+			if !options.JSON {
+				t.Fatal("JSON intent was lost on invalid arguments")
+			}
+		})
+	}
+}
+
+func TestExecuteAgentSetupWriteJSONContractAndCreateOnlyFailure(t *testing.T) {
+	t.Chdir(t.TempDir())
+	options := agentSetupOptions{Agent: "cursor", Mode: "write", Destination: ".cursor/rules/rlviz.mdc", JSON: true}
+	result, err := executeAgentSetup(options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Mode != "write" || result.Status != "created" || result.WritePolicy != "create_only" || result.Destination != options.Destination {
+		t.Fatalf("write result = %#v", result)
+	}
+	content, err := os.ReadFile(options.Destination)
+	if err != nil || string(content) != result.Content {
+		t.Fatalf("created content mismatch: %v", err)
+	}
+
+	before := append([]byte(nil), content...)
+	if _, err := executeAgentSetup(options); err == nil || !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("second write error = %v", err)
+	}
+	after, err := os.ReadFile(options.Destination)
+	if err != nil || string(after) != string(before) {
+		t.Fatalf("existing destination changed: %v", err)
+	}
+}
+
 func TestPrepareAgentSetupDryRunIsStableAndReadOnly(t *testing.T) {
 	t.Chdir(t.TempDir())
 
@@ -199,5 +250,31 @@ func TestCreateAgentSetupFileRejectsSymlinkParent(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(outside, "rlviz.md")); !os.IsNotExist(err) {
 		t.Fatalf("wrote through symlink: %v", err)
+	}
+}
+
+func TestCreateAgentSetupFileRejectsNonDirectoryAndLeafSymlink(t *testing.T) {
+	root := t.TempDir()
+	out := filepath.Join(t.TempDir(), "outside.md")
+	t.Chdir(root)
+	if err := os.WriteFile("file", []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(out, []byte("outside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(out, "linked.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := createAgentSetupFile("file/rules.md", "content\n"); err == nil || !strings.Contains(err.Error(), "not a directory") {
+		t.Fatalf("non-directory error = %v", err)
+	}
+	if err := createAgentSetupFile("linked.md", "content\n"); err == nil || !strings.Contains(err.Error(), "symbolic link") {
+		t.Fatalf("leaf symlink error = %v", err)
+	}
+	content, err := os.ReadFile(out)
+	if err != nil || string(content) != "outside" {
+		t.Fatalf("symlink target changed: %q %v", content, err)
 	}
 }

@@ -18,10 +18,7 @@ For a diagnostic with `code: "unsupported_format"`, use `suggested_command` if
 present. Otherwise create a project-local Python adapter:
 
 ```bash
-rlviz plugin init --type adapter --lang python .rlviz/plugins/<name>
-rlviz plugin trust .rlviz/plugins/<name>
-rlviz plugin validate --json .rlviz/plugins/<name> "<source>"
-rlviz open --json "<source>" --adapter .rlviz/plugins/<name>
+rlviz plugin init --json --type adapter --lang python --from "<source>" .rlviz/plugins/<name>
 ```
 
 Edit only the adapter. Map representative source records to
@@ -34,6 +31,14 @@ the user's explicit approval before trust. Never auto-trust a discovered,
 generated, or modified adapter. Validation executes the adapter and therefore
 requires trust. Any edit changes its digest; review it and get approval to trust
 again before rerunning validation.
+
+After the adapter is implemented, reviewed, and approved, run:
+
+```bash
+rlviz plugin trust --json .rlviz/plugins/<name>
+rlviz plugin validate --json .rlviz/plugins/<name> "<source>"
+rlviz open --json "<source>" --adapter .rlviz/plugins/<name>
+```
 
 Treat sources and artifacts as read-only. Never execute recorded commands or
 tools. Do not add network calls, uploads, telemetry, or hosted dependencies.

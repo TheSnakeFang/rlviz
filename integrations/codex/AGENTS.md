@@ -21,10 +21,7 @@ when present. Otherwise use the project-local adapter flow below. Do not rename
 fields or rewrite the source to make it look supported.
 
 ```bash
-rlviz plugin init --type adapter --lang python .rlviz/plugins/<name>
-rlviz plugin trust .rlviz/plugins/<name>
-rlviz plugin validate --json .rlviz/plugins/<name> "<source>"
-rlviz open --json "<source>" --adapter .rlviz/plugins/<name>
+rlviz plugin init --json --type adapter --lang python --from "<source>" .rlviz/plugins/<name>
 ```
 
 Inspect representative source records and edit only the generated adapter. Map
@@ -37,6 +34,14 @@ approval. Never auto-trust a discovered, generated, or modified adapter.
 Validation executes the adapter, so it also requires trust. Any edit changes the
 content digest; review the new diff and get approval to trust it again before
 rerunning validation.
+
+After the adapter is implemented, reviewed, and approved, run:
+
+```bash
+rlviz plugin trust --json .rlviz/plugins/<name>
+rlviz plugin validate --json .rlviz/plugins/<name> "<source>"
+rlviz open --json "<source>" --adapter .rlviz/plugins/<name>
+```
 
 ## Safety
 

@@ -116,9 +116,9 @@ adapter. The command itself does not read or copy source contents. With
 executable files before trust:
 
 ```bash
-rlviz plugin trust .rlviz/plugins/my-format
+rlviz plugin trust --json .rlviz/plugins/my-format
 rlviz plugin validate --json .rlviz/plugins/my-format ./path/to/rollout
-rlviz open ./path/to/rollout --adapter .rlviz/plugins/my-format
+rlviz open --json ./path/to/rollout --adapter .rlviz/plugins/my-format
 ```
 
 Trust remains path-and-digest bound. Onboarding must not weaken this security
@@ -170,7 +170,8 @@ Use the suggested destination only as guidance; RLViz never selects it
 implicitly. `--print`, `--dry-run`, and `--write` are mutually exclusive.
 Successful JSON output always names the mode, status, destination when
 applicable, write policy, bundled source, exact content, and content digest.
-Failures use the existing stable `setup_agent_failed` diagnostic code.
+Failures use the existing stable `setup_agent_failed` diagnostic code,
+including invalid or conflicting mode flags when `--json` is requested.
 
 These instructions remain small, link to canonical local docs, and preserve
 the adapter review and trust confirmation boundary.

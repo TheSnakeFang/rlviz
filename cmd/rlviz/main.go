@@ -490,9 +490,9 @@ func initPlugin(destination, name, kind, from string) (pluginInitResult, error) 
 	}
 	if result.Source != nil {
 		result.NextCommands = []string{
-			shellCommand("rlviz", "plugin", "trust", result.Path),
+			shellCommand("rlviz", "plugin", "trust", "--json", result.Path),
 			shellCommand("rlviz", "plugin", "validate", "--json", result.Path, result.Source.Path),
-			shellCommand("rlviz", "open", "--adapter", result.Path, result.Source.Path),
+			shellCommand("rlviz", "open", "--json", "--adapter", result.Path, result.Source.Path),
 		}
 	}
 	return result, nil

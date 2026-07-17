@@ -36,7 +36,7 @@ adapter is local code with the user's permissions. Summarize what it reads and
 emits, then get the user's explicit approval before trusting the reviewed digest:
 
 ```bash
-rlviz plugin trust .rlviz/plugins/customer-x
+rlviz plugin trust --json .rlviz/plugins/customer-x
 rlviz plugin validate --json .rlviz/plugins/customer-x ./artifacts/task-184.trace
 rlviz open --json ./artifacts/task-184.trace --adapter .rlviz/plugins/customer-x
 ```

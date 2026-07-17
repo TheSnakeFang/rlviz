@@ -33,7 +33,12 @@ func TestInitPluginFromSourceReturnsAgentReadyPlan(t *testing.T) {
 	if result.Source == nil || result.Source.Path != resolvedSource || result.Source.Kind != "file" || result.Source.SizeBytes != 3 {
 		t.Fatalf("source=%#v", result.Source)
 	}
-	if len(result.NextCommands) != 3 || !strings.Contains(result.NextCommands[1], "plugin validate --json") || !strings.Contains(result.NextCommands[1], "'"+resolvedSource+"'") {
+	wantCommands := []string{
+		shellCommand("rlviz", "plugin", "trust", "--json", result.Path),
+		shellCommand("rlviz", "plugin", "validate", "--json", result.Path, resolvedSource),
+		shellCommand("rlviz", "open", "--json", "--adapter", result.Path, resolvedSource),
+	}
+	if !reflect.DeepEqual(result.NextCommands, wantCommands) {
 		t.Fatalf("next commands=%#v", result.NextCommands)
 	}
 }

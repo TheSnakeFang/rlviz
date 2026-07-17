@@ -2,8 +2,10 @@ package main
 
 import (
 	"crypto/sha256"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,13 +29,25 @@ type agentSetupResult struct {
 	Content              string `json:"content"`
 }
 
+type agentSetupOptions struct {
+	Agent       string
+	Mode        string
+	Destination string
+	JSON        bool
+}
+
 func runSetup(arguments []string) {
 	if len(arguments) == 0 || arguments[0] == "help" || arguments[0] == "-h" || arguments[0] == "--help" {
 		printSetupHelp()
 		return
 	}
 	if arguments[0] != "agent" {
-		fmt.Fprintf(os.Stderr, "unknown setup command %q\n", arguments[0])
+		err := fmt.Errorf("unknown setup command %q", arguments[0])
+		if setupJSONRequested(arguments) {
+			writeError("setup_agent", true, err)
+			os.Exit(2)
+		}
+		fmt.Fprintln(os.Stderr, err)
 		printSetupHelpTo(os.Stderr)
 		os.Exit(2)
 	}
@@ -41,36 +55,22 @@ func runSetup(arguments []string) {
 }
 
 func runSetupAgent(arguments []string) {
-	flags := flag.NewFlagSet("setup agent", flag.ContinueOnError)
-	flags.SetOutput(os.Stderr)
-	printOutput := flags.Bool("print", false, "print bundled instructions without writing files")
-	dryRun := flags.Bool("dry-run", false, "validate a create-only write without changing files")
-	write := flags.Bool("write", false, "create the destination file; never replace an existing file")
-	destination := flags.String("destination", "", "project-relative destination for --dry-run or --write")
-	jsonOutput := flags.Bool("json", false, "print machine-readable output")
-	flags.Usage = func() {
-		fmt.Fprintln(flags.Output(), "Usage: rlviz setup agent <codex|claude-code|cursor> (--print | --dry-run --destination PATH | --write --destination PATH) [--json]")
-	}
-	if err := flags.Parse(normalizeSetupAgentArguments(arguments)); err != nil {
-		os.Exit(2)
-	}
-	modeCount := boolCount(*printOutput, *dryRun, *write)
-	if flags.NArg() != 1 || modeCount != 1 || (*printOutput && *destination != "") || (!*printOutput && *destination == "") {
-		flags.Usage()
+	options, err := parseAgentSetupOptions(arguments)
+	if err != nil {
+		if options.JSON {
+			writeError("setup_agent", true, err)
+		} else {
+			fmt.Fprintln(os.Stderr, err)
+			printSetupAgentUsage(os.Stderr)
+		}
 		os.Exit(2)
 	}
 
-	result, err := prepareAgentSetup(flags.Arg(0), setupMode(*printOutput, *dryRun), *destination)
+	result, err := executeAgentSetup(options)
 	if err != nil {
-		fatalError("setup_agent", *jsonOutput, err)
+		fatalError("setup_agent", options.JSON, err)
 	}
-	if *write {
-		if err := createAgentSetupFile(result.Destination, result.Content); err != nil {
-			fatalError("setup_agent", *jsonOutput, err)
-		}
-		result.Status = "created"
-	}
-	if *jsonOutput {
+	if options.JSON {
 		writeOutput(result, true, "")
 		return
 	}
@@ -82,6 +82,62 @@ func runSetupAgent(arguments []string) {
 	case "write":
 		fmt.Printf("Created %s\n", result.Destination)
 	}
+}
+
+func executeAgentSetup(options agentSetupOptions) (agentSetupResult, error) {
+	result, err := prepareAgentSetup(options.Agent, options.Mode, options.Destination)
+	if err != nil {
+		return agentSetupResult{}, err
+	}
+	if options.Mode == "write" {
+		if err := createAgentSetupFile(result.Destination, result.Content); err != nil {
+			return agentSetupResult{}, err
+		}
+		result.Status = "created"
+	}
+	return result, nil
+}
+
+func parseAgentSetupOptions(arguments []string) (agentSetupOptions, error) {
+	options := agentSetupOptions{JSON: setupJSONRequested(arguments)}
+	flags := flag.NewFlagSet("setup agent", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	printOutput := flags.Bool("print", false, "print bundled instructions without writing files")
+	dryRun := flags.Bool("dry-run", false, "validate a create-only write without changing files")
+	write := flags.Bool("write", false, "create the destination file; never replace an existing file")
+	destination := flags.String("destination", "", "project-relative destination for --dry-run or --write")
+	jsonOutput := flags.Bool("json", false, "print machine-readable output")
+	if err := flags.Parse(normalizeSetupAgentArguments(arguments)); err != nil {
+		return options, err
+	}
+	options.JSON = *jsonOutput
+	modeCount := boolCount(*printOutput, *dryRun, *write)
+	if flags.NArg() != 1 || modeCount != 1 || (*printOutput && *destination != "") || (!*printOutput && *destination == "") {
+		return options, errors.New("choose exactly one setup mode; --dry-run and --write require --destination, while --print does not accept it")
+	}
+	options.Agent = flags.Arg(0)
+	options.Mode = setupMode(*printOutput, *dryRun)
+	options.Destination = *destination
+	return options, nil
+}
+
+func setupJSONRequested(arguments []string) bool {
+	for _, argument := range arguments {
+		if argument == "--json" || argument == "-json" {
+			return true
+		}
+		for _, prefix := range []string{"--json=", "-json="} {
+			if strings.HasPrefix(argument, prefix) {
+				value := strings.TrimPrefix(argument, prefix)
+				return value != "false" && value != "0"
+			}
+		}
+	}
+	return false
+}
+
+func printSetupAgentUsage(output io.Writer) {
+	fmt.Fprintln(output, "Usage: rlviz setup agent <codex|claude-code|cursor> (--print | --dry-run --destination PATH | --write --destination PATH) [--json]")
 }
 
 func loadAgentSetup(name string) (agentSetupResult, error) {
@@ -270,7 +326,7 @@ func normalizeSetupAgentArguments(arguments []string) []string {
 				index++
 				flags = append(flags, arguments[index])
 			}
-		} else if argument == "--print" || argument == "--dry-run" || argument == "--write" || argument == "--json" || strings.HasPrefix(argument, "--print=") || strings.HasPrefix(argument, "--dry-run=") || strings.HasPrefix(argument, "--write=") || strings.HasPrefix(argument, "--json=") || strings.HasPrefix(argument, "--destination=") {
+		} else if strings.HasPrefix(argument, "-") {
 			flags = append(flags, argument)
 		} else {
 			positional = append(positional, argument)

@@ -34,9 +34,10 @@ Each integration gives the agent the same workflow:
 
 1. Locate the source without changing it.
 2. Try `rlviz open --json`.
-3. If the format is unsupported, scaffold a project-local Python adapter.
-4. Review the adapter and get explicit approval before trusting it.
-5. Validate the trusted adapter, then open the source with its explicit path.
+3. If the format is unsupported, scaffold a source-aware project-local Python adapter.
+4. Inspect the source and implement the generated adapter.
+5. Review the completed adapter and get explicit approval before trusting it.
+6. Validate the trusted adapter, then open the source with its explicit path.
 
 The command surface is documented in
 [`docs/adapter-authoring.md`](../docs/adapter-authoring.md).

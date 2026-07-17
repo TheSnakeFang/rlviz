@@ -186,7 +186,10 @@ additional representative real-format fixtures remain ongoing quality work.
 Status: rich demo, format inventory, bounded inspection, and version-matched
 agent setup are implemented for Codex, Claude Code, and Cursor. Setup writes
 are explicit and create-only. Source-aware adapter scaffolding now returns a
-versioned review plan without reading or copying trace contents.
+versioned review plan without reading or copying trace contents. Bundled agent
+instructions enforce implementation and explicit review before trust, retain
+the source-aware `--from` handoff, and use JSON for every machine-operated
+command. JSON-mode setup usage errors use the stable diagnostic envelope.
 
 ### Deliverables
 
@@ -257,17 +260,13 @@ trajectory API. Broader inspector and keymap customization remains.
 
 ## Near-term issue sequence
 
-1. Gather representative adapter-validation failures and extend structured
-   fields only where the validation origin can identify them without parsing
-   error prose.
+1. Build a bounded, value-free source structure profile and adapter work order
+   so an agent starts from field/type evidence rather than an empty scaffold.
 2. Validate the Inspect AI and Verifiers mappings against additional upstream
    samples as their public contracts evolve.
-3. Design the smallest canonical context contract and migration from the now
-   documented two-format evidence, then build the context-usage track and
-   minimap only from structured observations.
-4. Apply the trajectory design system to richer cohort distributions,
+3. Apply the trajectory design system to richer cohort distributions,
    structured pair diffs, and safe declarative customization.
-5. Validate the clean-machine install-to-open path on Linux; macOS curl,
+4. Validate the clean-machine install-to-open path on Linux; macOS curl,
    Homebrew, and npm paths are verified.
 
 ## Quality gates
