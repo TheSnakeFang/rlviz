@@ -328,10 +328,19 @@ func optionalIntegerDifferenceValue(left int64, leftOK bool, right int64, rightO
 
 func contextEventCounts(events []*model.Event) (contextEvents, compactions int) {
 	for _, event := range events {
-		if event == nil || !strings.HasPrefix(event.AlignmentKey, "context:") {
+		if event == nil {
 			continue
 		}
-		contextEvents++
+		if event.Context != nil {
+			contextEvents++
+			if event.Context.Operation == "compaction" {
+				compactions++
+			}
+			continue
+		}
+		if strings.HasPrefix(event.AlignmentKey, "context:") {
+			contextEvents++
+		}
 		if event.AlignmentKey == "context:compaction" {
 			compactions++
 		}

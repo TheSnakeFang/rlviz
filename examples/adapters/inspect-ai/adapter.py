@@ -169,6 +169,12 @@ def normalize_event(event, trajectory_id, sequence, path, parent_id):
             "after_tokens": event.get("tokens_after"),
             "source": event.get("source"),
         }
+        context = {"operation": operation, "provenance": "source_native"}
+        if isinstance(event.get("tokens_after"), int) and not isinstance(event.get("tokens_after"), bool):
+            context["input_tokens"] = event["tokens_after"]
+        if isinstance(event.get("tokens_before"), int) and not isinstance(event.get("tokens_before"), bool):
+            context["input_tokens_before"] = event["tokens_before"]
+        record["context"] = context
         record["metadata"] = event_metadata(event, {"inspect_event": event_type})
     elif event_type == "score":
         record["kind"] = "grader"

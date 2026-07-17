@@ -20,6 +20,23 @@ export interface SourceLocation {
   byte_end?: number;
 }
 
+export type ContextOperation = "compaction" | "truncation" | "injection" | "restore";
+export type ContextProvenance = "source_native" | "adapter_derived";
+
+/** Explicit context-window evidence carried by a canonical event. */
+export interface EventContext {
+  operation?: ContextOperation;
+  input_tokens?: number;
+  input_tokens_before?: number;
+  capacity?: number;
+  retained_event_ids?: string[];
+  dropped_event_ids?: string[];
+  summarized_event_ids?: string[];
+  summary?: string;
+  provenance: ContextProvenance;
+  derivation?: string;
+}
+
 export interface TrajectoryEvent {
   id: string;
   sequence: number;
@@ -38,6 +55,7 @@ export interface TrajectoryEvent {
   reward?: number;
   parent_id?: string;
   alignment_key?: string;
+  context?: EventContext;
   state_hash?: string;
   raw?: unknown;
 }

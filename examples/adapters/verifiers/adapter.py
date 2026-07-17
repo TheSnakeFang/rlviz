@@ -156,6 +156,12 @@ def stream(request):
                 "raw": step,
                 "metadata": {"context_provenance": "adapter_derived_from_prompt_mask"},
             }
+            if prompt_tokens is not None:
+                event["context"] = {
+                    "input_tokens": prompt_tokens,
+                    "provenance": "adapter_derived",
+                    "derivation": "count of non-zero entries in TrajectoryStep.tokens.prompt_mask",
+                }
             if parent_id:
                 event["parent_id"] = parent_id
             records.append(event)

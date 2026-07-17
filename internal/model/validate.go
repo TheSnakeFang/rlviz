@@ -14,6 +14,10 @@ var eventKinds = map[string]struct{}{
 	"artifact": {}, "error": {}, "log": {},
 }
 
+var contextOperations = map[string]struct{}{
+	"compaction": {}, "truncation": {}, "injection": {}, "restore": {},
+}
+
 type Validator struct {
 	ids          map[string]RecordType
 	runs         map[string]struct{}
@@ -139,6 +143,11 @@ func (v *Validator) Add(record *Record) error {
 				return validationField("source.byte_length", fmt.Errorf("event %q source byte length must be non-negative", value.ID))
 			}
 		}
+		if value.Context != nil {
+			if err := v.validateContext(value); err != nil {
+				return err
+			}
+		}
 		v.events[value.ID] = value.TrajectoryID
 		v.lastSequence[value.TrajectoryID] = value.Sequence
 	case *Signal:
@@ -244,6 +253,63 @@ func (v *Validator) addID(id string, kind RecordType) error {
 
 func validationField(field string, err error) error {
 	return &FieldValidationError{Field: field, Err: err}
+}
+
+func (v *Validator) validateContext(event *Event) error {
+	observation := event.Context
+	if observation.Provenance != "source_native" && observation.Provenance != "adapter_derived" {
+		return validationField("context.provenance", errors.New("context provenance must be source_native or adapter_derived"))
+	}
+	if observation.Provenance == "adapter_derived" && strings.TrimSpace(observation.Derivation) == "" {
+		return validationField("context.derivation", errors.New("adapter-derived context requires derivation"))
+	}
+	if observation.Operation != "" {
+		if _, ok := contextOperations[observation.Operation]; !ok {
+			return validationField("context.operation", fmt.Errorf("unsupported context operation %q", observation.Operation))
+		}
+	} else if observation.InputTokensBefore != nil {
+		return validationField("context.input_tokens_before", errors.New("context input_tokens_before requires an operation"))
+	}
+	if negative(observation.InputTokens) {
+		return validationField("context.input_tokens", errors.New("context input_tokens must be non-negative"))
+	}
+	if negative(observation.InputTokensBefore) {
+		return validationField("context.input_tokens_before", errors.New("context input_tokens_before must be non-negative"))
+	}
+	if observation.Capacity != nil && *observation.Capacity <= 0 {
+		return validationField("context.capacity", errors.New("context capacity must be positive"))
+	}
+	if observation.Operation == "" && observation.InputTokens == nil && observation.Capacity == nil && len(observation.RetainedEventIDs) == 0 && len(observation.DroppedEventIDs) == 0 && len(observation.SummarizedEventIDs) == 0 && strings.TrimSpace(observation.Summary) == "" {
+		return validationField("context", errors.New("context must contain an observation or lifecycle fact"))
+	}
+	seen := make(map[string]string)
+	referenceGroups := []struct {
+		field string
+		ids   []string
+	}{
+		{field: "context.retained_event_ids", ids: observation.RetainedEventIDs},
+		{field: "context.dropped_event_ids", ids: observation.DroppedEventIDs},
+		{field: "context.summarized_event_ids", ids: observation.SummarizedEventIDs},
+	}
+	for _, group := range referenceGroups {
+		for _, id := range group.ids {
+			if strings.TrimSpace(id) == "" {
+				return validationField(group.field, errors.New("context event references must be non-empty"))
+			}
+			if previous, ok := seen[id]; ok {
+				return validationField(group.field, fmt.Errorf("context event %q is already listed in %s", id, previous))
+			}
+			trajectoryID, ok := v.events[id]
+			if !ok {
+				return validationField(group.field, fmt.Errorf("context references unknown or later event %q", id))
+			}
+			if trajectoryID != event.TrajectoryID {
+				return validationField(group.field, fmt.Errorf("context event %q belongs to another trajectory", id))
+			}
+			seen[id] = group.field
+		}
+	}
+	return nil
 }
 
 func (v *Validator) hasRun(id string) bool { _, ok := v.runs[id]; return ok }

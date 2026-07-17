@@ -3,9 +3,9 @@
 ## Current contract
 
 Canonical v1alpha1 defines run, case, group, trajectory, event, signal,
-artifact, and complete records. Events are deliberately generic: kind, ordered
-sequence, parent/branch and alignment hints, input/output/data, source location,
-raw record, and metadata.
+artifact, and complete records. Events carry kind, ordered sequence,
+parent/branch and alignment hints, input/output/data, an optional structured
+context observation, source location, raw record, and metadata.
 
 That envelope supports lossless basic viewing and deterministic alignment, but
 free-form metadata is not enough for consistent research UX across formats.
@@ -29,9 +29,8 @@ Candidate concepts:
 - final answer and termination provenance
 - source-native versus adapter-derived versus analyzer-inferred status
 
-The evidence gate and smallest candidate context contract are specified in
-`context-semantics.md`. Do not implement a context-usage track from the
-synthetic compaction fixture alone.
+The evidence gate, implemented context contract, and real-format mappings are
+specified in `context-semantics.md`.
 
 ## Modeling rules
 
@@ -56,9 +55,12 @@ The indexed pair-comparison response adds conservative summaries under
 - `token_count` uses the first non-negative integer `token_count`, then
   `total_tokens`, then `tokens`. `delta` is present only when both sides have a
   total, and is `right - left`.
-- `context_event_count` counts events with an explicit `context:*`
-  `alignment_key`; `compaction_count` counts the exact
-  `context:compaction` key. Event kind or free-form data is never guessed.
+- `context_event_count` counts events with structured `context`. For events
+  without it, an explicit `context:*` `alignment_key` is the compatibility
+  fallback. `compaction_count` uses the structured operation first and the
+  exact legacy `context:compaction` key only as fallback. An event containing
+  both representations is counted once. Event kind or free-form data is never
+  guessed.
 - `verifier_results` contains canonical `grader` event output with `event_id`,
   `sequence`, and optional `alignment_key`. The output remains source-shaped;
   RLViz does not reinterpret a domain grader as a common verdict. Its `changed`

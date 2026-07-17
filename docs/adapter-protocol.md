@@ -104,6 +104,21 @@ Adapters may provide:
 
 These fields enrich comparison but are not required for single-trajectory viewing.
 
+## Optional context observations
+
+An event may include structured `context` when the source records model-input
+occupancy or an explicit context lifecycle change. Supported operations are
+`compaction`, `truncation`, `injection`, and `restore`. Token fields describe
+input occupancy at that event, not cumulative billing usage. Membership arrays
+may reference only earlier events in the same trajectory and must come from
+explicit source evidence.
+
+Every context object declares `provenance` as `source_native` or
+`adapter_derived`. Derived observations also require a stable human-readable
+`derivation`. Missing facts stay omitted; adapters must not infer retained or
+dropped messages from token differences. See `context-semantics.md` for the
+field mapping and evidence rules.
+
 ## Validation
 
 ```bash

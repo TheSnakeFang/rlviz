@@ -6,7 +6,7 @@ import type {
   TrajectorySignal,
 } from "./types";
 
-export type SemanticProvenance = "source-native" | "inferred";
+export type SemanticProvenance = "source-native" | "adapter-derived" | "inferred";
 
 export interface DerivedValue<T> {
   value: T;
@@ -140,10 +140,25 @@ export function deriveTool(event: TrajectoryEvent): ResearchTool | undefined {
 }
 
 export function isContextEvent(event: TrajectoryEvent): boolean {
-  return event.alignment_key?.startsWith("context:") === true;
+  return event.context !== undefined || event.alignment_key?.startsWith("context:") === true;
+}
+
+const contextOperationLabels = {
+  compaction: "Context compacted",
+  truncation: "Context truncated",
+  injection: "Context injected",
+  restore: "Context restored",
+} as const;
+
+function contextLandmarkProvenance(event: TrajectoryEvent): SemanticProvenance {
+  if (event.context?.provenance === "source_native") return "source-native";
+  if (event.context?.provenance === "adapter_derived") return "adapter-derived";
+  if (event.title?.trim() || event.summary?.trim()) return "source-native";
+  return "inferred";
 }
 
 function defaultLandmarkLabel(event: TrajectoryEvent, category: LandmarkCategory): string {
+  if (event.context) return event.context.operation ? contextOperationLabels[event.context.operation] : "Context observation";
   const message = deriveMessage(event);
   const tool = deriveTool(event);
   if (tool?.name) return tool.name.value;
@@ -169,7 +184,7 @@ export function deriveLandmark(event: TrajectoryEvent): SemanticLandmark {
     sequence: event.sequence,
     category,
     label: nativeLabel || defaultLandmarkLabel(event, category),
-    provenance: nativeLabel ? "source-native" : "inferred",
+    provenance: category === "context" ? contextLandmarkProvenance(event) : nativeLabel ? "source-native" : "inferred",
   };
 }
 

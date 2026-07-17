@@ -172,7 +172,7 @@ func TestIndexedCompareReturnsDivergenceRealignmentAndDifferences(t *testing.T) 
 func TestCompareDifferencesReportsExplicitContextAndVerifierData(t *testing.T) {
 	left := comparisonSide{
 		Events: []*model.Event{
-			{ID: "left-compact", Sequence: 2, Kind: "state", AlignmentKey: "context:compaction"},
+			{ID: "left-compact", Sequence: 2, Kind: "state", AlignmentKey: "context:compaction", Context: &model.Context{Operation: "compaction", Provenance: "source_native"}},
 			{ID: "left-restore", Sequence: 3, Kind: "state", AlignmentKey: "context:restore"},
 			{ID: "left-grader", Sequence: 4, Kind: "grader", AlignmentKey: "grader:suite", Output: map[string]any{"verdict": "fail", "score": json.Number("0")}},
 		},
@@ -210,6 +210,22 @@ func TestCompareDifferencesReportsExplicitContextAndVerifierData(t *testing.T) {
 	}
 	if !differences.VerifierResults.Changed {
 		t.Fatal("verifier results should differ")
+	}
+}
+
+func TestContextEventCountsPrefersStructuredContextAndFallsBackToLegacyKeys(t *testing.T) {
+	events := []*model.Event{
+		{ID: "structured-both", Context: &model.Context{Operation: "compaction", Provenance: "source_native"}, AlignmentKey: "context:compaction"},
+		{ID: "structured-observation", Context: &model.Context{Provenance: "adapter_derived"}},
+		{ID: "structured-truncation", Context: &model.Context{Operation: "truncation", Provenance: "source_native"}, AlignmentKey: "context:compaction"},
+		{ID: "legacy-compaction", AlignmentKey: "context:compaction"},
+		{ID: "legacy-restore", AlignmentKey: "context:restore"},
+		{ID: "unrelated", Data: map[string]any{"operation": "compaction"}},
+	}
+
+	contextEvents, compactions := contextEventCounts(events)
+	if contextEvents != 5 || compactions != 2 {
+		t.Fatalf("context counts = %d, %d; want 5, 2", contextEvents, compactions)
 	}
 }
 

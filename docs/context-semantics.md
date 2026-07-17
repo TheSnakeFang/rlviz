@@ -16,10 +16,12 @@ The redistributable fixtures contain synthetic values, but the field mappings
 come from the public source contracts. The adapters remain examples rather than
 built-in support.
 
-The viewer still treats `context:*` alignment keys conservatively as
-source-provided landmarks. It can jump to them, render their raw payload, and
-count them in comparisons. It does not infer context membership, interpolate
-window usage, or treat cumulative billing tokens as prompt occupancy.
+RLViz now accepts an optional structured `context` observation on canonical
+events. The reference adapters map only facts supported by their source
+contracts. Legacy `context:*` alignment keys remain navigation and comparison
+fallbacks when an event does not contain structured context. RLViz does not
+infer context membership, interpolate window usage, or treat cumulative
+billing tokens as prompt occupancy.
 
 ## Evidence gate
 
@@ -55,10 +57,9 @@ an exact per-step count but do not say which earlier semantic messages were
 retained or removed. Both adapters preserve the source-shaped values so a later
 canonical migration remains auditable.
 
-## Smallest candidate contract
+## Canonical context contract
 
-The smallest useful extension is an optional `context` object on an ordered
-canonical event. It should support:
+The optional `context` object on an ordered canonical event supports:
 
 - an optional lifecycle operation: `compaction`, `truncation`, `injection`, or
   `restore`
@@ -78,19 +79,16 @@ cached, and cumulative token totals must not be mapped into input occupancy.
 
 ## Compatibility and implementation sequence
 
-Once the evidence gate is met:
+The protocol and reference-adapter portion is implemented. Remaining viewer
+work is intentionally sequenced after the contract:
 
-1. Write the two format mappings and provenance table.
-2. Add the Go, JSON Schema, and TypeScript contract plus malformed fixtures.
-3. Validate reference ordering, trajectory ownership, uniqueness, and overlap.
-4. Index structured context observations for bounded sparse queries.
-5. Return structured events through the existing trajectory API.
-6. Prefer structured context in comparison while retaining legacy
-   `context:*` landmarks as a compatibility fallback.
-7. Add a context surface that shows observations and unknown gaps without
+1. Index structured context observations for bounded sparse queries.
+2. Add a context surface that shows observations and unknown gaps without
    interpolation.
-8. Add long-run, pagination, keyboard, provenance, and source-link tests.
+3. Add long-run, pagination, keyboard, provenance, and source-link tests.
 
-The canonical stream is currently pre-stable and strict readers reject unknown
-fields. Adding `context` therefore requires an explicit compatibility note or a
-new negotiated protocol version before the contract is described as stable.
+The canonical stream remains pre-stable. New RLViz readers accept streams that
+omit `context`, and database storage retains the raw event envelope. Older
+strict readers reject the new field, so streams containing structured context
+require a RLViz release that includes this contract. This additive change does
+not imply a stable v1 protocol guarantee.

@@ -66,6 +66,21 @@ type SourceLocation struct {
 	ByteLength *int64 `json:"byte_length,omitempty"`
 }
 
+// Context records a source-backed model-input observation or lifecycle change.
+// Missing values remain unknown; token deltas never imply message membership.
+type Context struct {
+	Operation          string   `json:"operation,omitempty"`
+	InputTokens        *int64   `json:"input_tokens,omitempty"`
+	InputTokensBefore  *int64   `json:"input_tokens_before,omitempty"`
+	Capacity           *int64   `json:"capacity,omitempty"`
+	RetainedEventIDs   []string `json:"retained_event_ids,omitempty"`
+	DroppedEventIDs    []string `json:"dropped_event_ids,omitempty"`
+	SummarizedEventIDs []string `json:"summarized_event_ids,omitempty"`
+	Summary            string   `json:"summary,omitempty"`
+	Provenance         string   `json:"provenance"`
+	Derivation         string   `json:"derivation,omitempty"`
+}
+
 type Event struct {
 	RecordType   RecordType      `json:"record_type"`
 	ID           string          `json:"id"`
@@ -80,6 +95,7 @@ type Event struct {
 	Input        any             `json:"input,omitempty"`
 	Output       any             `json:"output,omitempty"`
 	Data         any             `json:"data,omitempty"`
+	Context      *Context        `json:"context,omitempty"`
 	Source       *SourceLocation `json:"source,omitempty"`
 	Raw          json.RawMessage `json:"raw,omitempty"`
 	Metadata     Metadata        `json:"metadata,omitempty"`

@@ -85,6 +85,7 @@ func inspectInspectAIRecords(t *testing.T, records []*model.Record) {
 			if !ok || data["before_tokens"] != json.Number("8120") || data["after_tokens"] != json.Number("2140") || data["type"] != "summary" {
 				t.Fatalf("compaction data=%#v", event.Data)
 			}
+			assertContext(t, event.Context, "compaction", "source_native", "", 2140, 8120)
 			if event.Metadata["provenance"] != "source_native" {
 				t.Fatalf("compaction metadata=%#v", event.Metadata)
 			}
@@ -95,6 +96,7 @@ func inspectInspectAIRecords(t *testing.T, records []*model.Record) {
 			if !ok || data["operation"] != "truncation" || data["type"] != "trim" {
 				t.Fatalf("truncation data=%#v", event.Data)
 			}
+			assertContext(t, event.Context, "truncation", "source_native", "", 4096, 7900)
 			foundTruncation = true
 		}
 		if event.Kind == "grader" && event.AlignmentKey == "grader:policy_correctness" {
@@ -108,19 +110,66 @@ func inspectInspectAIRecords(t *testing.T, records []*model.Record) {
 
 func inspectVerifiersRecords(t *testing.T, records []*model.Record) {
 	t.Helper()
+	wantInputTokens := map[int64]bool{3: false, 6: false}
 	for _, record := range records {
 		event, ok := record.Value.(*model.Event)
 		if !ok || event.Kind != "generation" {
 			continue
 		}
 		data, ok := event.Data.(map[string]any)
-		if !ok || data["prompt_tokens_from_mask"] != json.Number("3") {
+		if !ok {
 			t.Fatalf("generation data=%#v", event.Data)
 		}
+		inputTokens, ok := data["prompt_tokens_from_mask"].(json.Number)
+		if !ok {
+			t.Fatalf("prompt token count=%#v", data["prompt_tokens_from_mask"])
+		}
+		parsedInputTokens, err := inputTokens.Int64()
+		if err != nil {
+			t.Fatalf("parse prompt token count: %v", err)
+		}
+		if _, ok := wantInputTokens[parsedInputTokens]; !ok {
+			t.Fatalf("unexpected prompt token count %d", parsedInputTokens)
+		}
+		assertContext(
+			t,
+			event.Context,
+			"",
+			"adapter_derived",
+			"count of non-zero entries in TrajectoryStep.tokens.prompt_mask",
+			parsedInputTokens,
+			-1,
+		)
 		if event.Metadata["context_provenance"] != "adapter_derived_from_prompt_mask" {
 			t.Fatalf("generation metadata=%#v", event.Metadata)
 		}
+		wantInputTokens[parsedInputTokens] = true
+	}
+	for inputTokens, found := range wantInputTokens {
+		if !found {
+			t.Fatalf("no mapped Verifiers generation event with %d input tokens", inputTokens)
+		}
+	}
+}
+
+func assertContext(t *testing.T, context *model.Context, operation, provenance, derivation string, inputTokens, inputTokensBefore int64) {
+	t.Helper()
+	if context == nil {
+		t.Fatal("context is nil")
+	}
+	if context.Operation != operation || context.Provenance != provenance || context.Derivation != derivation {
+		t.Fatalf("context=%#v", context)
+	}
+	if context.InputTokens == nil || *context.InputTokens != inputTokens {
+		t.Fatalf("context input_tokens=%v, want %d", context.InputTokens, inputTokens)
+	}
+	if inputTokensBefore < 0 {
+		if context.InputTokensBefore != nil {
+			t.Fatalf("context input_tokens_before=%d, want absent", *context.InputTokensBefore)
+		}
 		return
 	}
-	t.Fatal("no mapped Verifiers generation event")
+	if context.InputTokensBefore == nil || *context.InputTokensBefore != inputTokensBefore {
+		t.Fatalf("context input_tokens_before=%v, want %d", context.InputTokensBefore, inputTokensBefore)
+	}
 }

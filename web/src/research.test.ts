@@ -35,6 +35,45 @@ describe("research view derivation", () => {
     expect(deriveLandmark(compaction)).toMatchObject({ category: "context", label: "Context compacted", provenance: "source-native" });
   });
 
+  it("prefers structured context semantics while retaining legacy landmarks", () => {
+    const sourceNative: TrajectoryEvent = {
+      id: "structured",
+      sequence: 4,
+      kind: "state",
+      context: { operation: "compaction", input_tokens_before: 8000, input_tokens: 2000, provenance: "source_native" },
+    };
+    expect(isContextEvent(sourceNative)).toBe(true);
+    expect(deriveLandmark(sourceNative)).toEqual({
+      eventId: "structured",
+      sequence: 4,
+      category: "context",
+      label: "Context compacted",
+      provenance: "source-native",
+    });
+
+    const adapterDerived: TrajectoryEvent = {
+      id: "derived",
+      sequence: 5,
+      kind: "state",
+      alignment_key: "context:compaction",
+      context: { operation: "truncation", input_tokens: 4096, provenance: "adapter_derived", derivation: "tokenizer count" },
+      title: "Prompt occupancy",
+    };
+    expect(deriveLandmark(adapterDerived)).toMatchObject({ label: "Prompt occupancy", provenance: "adapter-derived" });
+
+    const observation: TrajectoryEvent = {
+      id: "observation",
+      sequence: 6,
+      kind: "state",
+      context: { input_tokens: 1024, provenance: "source_native" },
+    };
+    expect(deriveLandmark(observation)).toMatchObject({ category: "context", label: "Context observation", provenance: "source-native" });
+
+    const legacy: TrajectoryEvent = { id: "legacy", sequence: 7, kind: "state", alignment_key: "context:truncation" };
+    expect(isContextEvent(legacy)).toBe(true);
+    expect(deriveLandmark(legacy)).toMatchObject({ category: "context", label: "context", provenance: "inferred" });
+  });
+
   it("forms stable inferred turns from explicit user anchors", () => {
     const events: TrajectoryEvent[] = [
       { id: "answer", sequence: 30, kind: "generation", output: { role: "assistant", content: "a" } },

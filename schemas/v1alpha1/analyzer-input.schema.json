@@ -35,6 +35,32 @@
       },
       "additionalProperties": false
     },
+    "context": {
+      "type": "object",
+      "required": ["provenance"],
+      "properties": {
+        "operation": { "enum": ["compaction", "truncation", "injection", "restore"] },
+        "input_tokens": { "type": "integer", "minimum": 0 },
+        "input_tokens_before": { "type": "integer", "minimum": 0 },
+        "capacity": { "type": "integer", "minimum": 1 },
+        "retained_event_ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/required_string" }, "uniqueItems": true },
+        "dropped_event_ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/required_string" }, "uniqueItems": true },
+        "summarized_event_ids": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/required_string" }, "uniqueItems": true },
+        "summary": { "$ref": "#/$defs/required_string" },
+        "provenance": { "enum": ["source_native", "adapter_derived"] },
+        "derivation": { "$ref": "#/$defs/required_string" }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        { "if": { "required": ["input_tokens_before"] }, "then": { "required": ["operation"] } },
+        { "if": { "properties": { "provenance": { "const": "adapter_derived" } }, "required": ["provenance"] }, "then": { "required": ["derivation"] } }
+      ],
+      "anyOf": [
+        { "required": ["operation"] }, { "required": ["input_tokens"] }, { "required": ["capacity"] },
+        { "required": ["retained_event_ids"] }, { "required": ["dropped_event_ids"] },
+        { "required": ["summarized_event_ids"] }, { "required": ["summary"] }
+      ]
+    },
     "event": {
       "type": "object",
       "required": ["record_type", "id", "trajectory_id", "sequence", "kind"],
@@ -52,6 +78,7 @@
         "input": true,
         "output": true,
         "data": true,
+        "context": { "$ref": "#/$defs/context" },
         "source": { "$ref": "#/$defs/source_location" },
         "raw": true,
         "metadata": { "$ref": "#/$defs/metadata" }
