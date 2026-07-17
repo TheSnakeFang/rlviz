@@ -1,21 +1,20 @@
 {
-  "name": "rolloutviz",
+  "name": "rlviz",
   "version": "0.1.0",
   "description": "Visualize and compare agent rollouts.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/unlatch-ai/rolloutviz.git"
+    "url": "git+https://github.com/unlatch-ai/rlviz.git"
   },
-  "homepage": "https://github.com/unlatch-ai/rolloutviz",
-  "bugs": "https://github.com/unlatch-ai/rolloutviz/issues",
+  "homepage": "https://github.com/unlatch-ai/rlviz",
+  "bugs": "https://github.com/unlatch-ai/rlviz/issues",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
   "bin": {
-    "rlviz": "bin/rlviz",
-    "rolloutviz": "bin/rlviz"
+    "rlviz": "bin/rlviz"
   },
   "files": [
     "bin/rlviz",

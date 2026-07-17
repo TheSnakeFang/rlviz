@@ -4,9 +4,9 @@
 
 | Field | Value |
 | --- | --- |
-| Name | RolloutViz |
-| npm package | `rolloutviz` |
-| CLI | `rlviz` (`rolloutviz` compatibility alias) |
+| Name | RLViz |
+| npm package | `rlviz` |
+| CLI | `rlviz` |
 | Tagline | Visualize and compare agent rollouts. |
 
 ## Problem
@@ -25,7 +25,7 @@ The immediate use case is simpler. An engineer is debugging an environment with 
 
 ## Product boundary
 
-RolloutViz provides visualization, navigation, comparison, and a plugin boundary. It does not provide an LLM, execute the agent, train the model, or require a hosted control plane.
+RLViz provides visualization, navigation, comparison, and a plugin boundary. It does not provide an LLM, execute the agent, train the model, or require a hosted control plane.
 
 Coding agents act as operators and extension authors:
 
@@ -98,7 +98,7 @@ A viewer-created selection of trajectories, potentially across runs, checkpoints
 Users download a release binary or install it through a package manager.
 
 ```bash
-brew install <tap>/rolloutviz
+brew install <tap>/rlviz
 ```
 
 ### Open a supported trajectory
@@ -124,7 +124,7 @@ The CLI returns a machine-readable diagnostic and scaffold command:
 {
   "code": "unsupported_format",
   "path": "/absolute/path/trajectory.jsonl",
-  "suggested_command": "rlviz plugin init --type adapter --lang python .rolloutviz/plugins/local-adapter"
+  "suggested_command": "rlviz plugin init --type adapter --lang python .rlviz/plugins/local-adapter"
 }
 ```
 
@@ -188,7 +188,7 @@ The first group view includes:
 
 ## Divergence
 
-RolloutViz distinguishes textual difference from behavioral divergence. Different reasoning text that leads to the same action should not automatically be treated as the first meaningful divergence.
+RLViz distinguishes textual difference from behavioral divergence. Different reasoning text that leads to the same action should not automatically be treated as the first meaningful divergence.
 
 The deterministic baseline algorithm will:
 
@@ -203,7 +203,7 @@ Adapters may provide optional alignment keys and state hashes. Domain-specific a
 
 ## Compact path aggregation
 
-For independent trajectories in a group, RolloutViz may aggregate equal behavioral prefixes into a compact path tree. This is a derived visualization, not a claim that the source execution literally branched.
+For independent trajectories in a group, RLViz may aggregate equal behavioral prefixes into a compact path tree. This is a derived visualization, not a claim that the source execution literally branched.
 
 Real parent-child branches recorded by a harness remain separate and preserve source-native relationships.
 

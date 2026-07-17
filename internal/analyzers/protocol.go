@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 var canonicalEventKinds = map[string]struct{}{
@@ -21,7 +21,7 @@ var canonicalEventKinds = map[string]struct{}{
 }
 
 const (
-	APIVersion       = "rolloutviz.dev/analyzer/v1alpha1"
+	APIVersion       = "rlviz.dev/analyzer/v1alpha1"
 	OperationAnalyze = "analyze"
 
 	MaxInputEvents   = 100_000

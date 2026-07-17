@@ -1,24 +1,23 @@
-# rolloutviz
+# rlviz
 
-Install the native RolloutViz CLI through npm:
+Install the native RLViz CLI through npm:
 
 ```bash
-npm install --global rolloutviz
+npm install --global rlviz
 rlviz open ./trajectory.ndjson
 ```
 
 The package downloads the matching macOS or Linux release archive, verifies its
-published SHA-256 checksum, and installs the native `rlviz` binary. It also
-provides the `rolloutviz` command alias. Normal viewing is local and makes no
-outbound network requests.
+published SHA-256 checksum, and installs the native `rlviz` binary. Normal
+viewing is local and makes no outbound network requests.
 
 The source, native archives, and other installation options are at
-<https://github.com/unlatch-ai/rolloutviz>.
+<https://github.com/unlatch-ai/rlviz>.
 
 ## Publishing setup
 
 Tag releases publish through npm trusted publishing (OIDC) with provenance.
-The `rolloutviz` package is linked to `unlatch-ai/rolloutviz` and the repository
+The `rlviz` package is linked to `unlatch-ai/rlviz` and the repository
 variable `NPM_PUBLISH_ENABLED` is enabled.
 
 The workflow deliberately does not accept a long-lived `NPM_TOKEN`. If the
@@ -38,12 +37,12 @@ package or trusted publisher ever needs to be recreated:
    cannot be attached until the package exists. Subsequent CI publishes always
    require provenance.
 2. In the package's npm settings, add a GitHub Actions trusted publisher for
-   organization `unlatch-ai`, repository `rolloutviz`, workflow `release.yml`,
+   organization `unlatch-ai`, repository `rlviz`, workflow `release.yml`,
    and allow `npm publish`. With npm 11.5.1+, the equivalent authenticated CLI
    command is:
 
    ```sh
-   npm trust github rolloutviz --repo unlatch-ai/rolloutviz --file release.yml --allow-publish
+   npm trust github rlviz --repo unlatch-ai/rlviz --file release.yml --allow-publish
    ```
 3. Prefer "Require two-factor authentication and disallow tokens" under npm
    publishing access after OIDC is working.

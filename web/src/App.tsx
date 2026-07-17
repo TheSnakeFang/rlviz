@@ -367,18 +367,18 @@ export function App({ initialTrajectory }: { initialTrajectory?: Trajectory }) {
   });
 
   if (comparison) return <div className="app-shell group-shell comparison-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">RV</span><span>RolloutViz</span></div><div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>comparison</strong></div></header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">RV</span><span>RLViz</span></div><div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>comparison</strong></div></header>
     <ComparisonView comparison={comparison} initialStep={comparisonStep} onStepChange={(step) => { setComparisonStep(step); replaceParams((params) => params.set("step", String(step))); }} onClose={() => { setComparison(null); replaceParams((params) => { params.set("view", "group"); for (const key of ["left", "right", "step"]) params.delete(key); }); }} />
   </div>;
   if (group) return <div className="app-shell group-shell">
-    <header className="topbar"><div className="brand"><span className="brand-mark">RV</span><span>RolloutViz</span></div><div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>{group.group_id}</strong></div>{groupError && <div className="top-actions"><span className="group-error">{groupError}</span></div>}</header>
+    <header className="topbar"><div className="brand"><span className="brand-mark">RV</span><span>RLViz</span></div><div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>{group.group_id}</strong></div>{groupError && <div className="top-actions"><span className="group-error">{groupError}</span></div>}</header>
     <GroupView group={group} paths={groupPaths} pathsError={groupPathsError} onClose={() => { setGroup(null); replaceParams((params) => viewerKeys.forEach((key) => params.delete(key))); }} onOpen={openGroupTrajectory} onCompare={(left, right) => void openComparison(left, right)} />
   </div>;
   if (!selected) return <main className="empty">No events in this trajectory.</main>;
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark">RV</span><span>RolloutViz</span></div>
+        <div className="brand"><span className="brand-mark">RV</span><span>RLViz</span></div>
         <div className="crumb"><span>{trajectory.run_id || "local run"}</span><b>/</b><strong>{trajectory.name || trajectory.id}</strong></div>
         <div className="top-actions">{groupError && <span className="group-error">{groupError}</span>}{indexSource?.index_state === "failed" && <span className="index-state failed" title={indexSource.index_error}>Index failed{indexSource.index_error ? `: ${indexSource.index_error}` : ""}</span>}{(indexSource?.index_state === "indexing" || indexSource?.index_state === "refreshing") && <span className="index-state"><i></i>{indexSource.index_state === "refreshing" ? "Refreshing" : "Indexing"}</span>}{loading && <span className="loading">Connecting…</span>}{isSample && !loading && <span className="demo-pill" title="The local API was unavailable">Sample data</span>}<button onClick={() => setHelp(true)} className="icon-button" aria-label="Keyboard shortcuts">?</button></div>
       </header>

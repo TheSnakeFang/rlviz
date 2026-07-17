@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func TestLoopRetryDetectsRetryIgnoringResultsAndObservations(t *testing.T) {

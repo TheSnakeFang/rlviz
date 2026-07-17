@@ -1,5 +1,5 @@
 // Package index provides the persistent, local SQLite index for canonical
-// RolloutViz streams. It deliberately has no dependency on the HTTP server.
+// RLViz streams. It deliberately has no dependency on the HTTP server.
 package index
 
 import (

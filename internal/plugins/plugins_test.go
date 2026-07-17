@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
-const validManifest = `api_version: rolloutviz.dev/v1alpha1
+const validManifest = `api_version: rlviz.dev/v1alpha1
 kind: Adapter
 name: test-adapter
 version: 0.1.0
@@ -37,7 +37,7 @@ func TestParseManifestDocumentedYAMLAndJSON(t *testing.T) {
 	if m.Command[1] != "adapter.sh" {
 		t.Fatalf("command = %v", m.Command)
 	}
-	jsonManifest := `{"api_version":"rolloutviz.dev/v1alpha1","kind":"Adapter","name":"json","version":"1.0.0","command":["adapter"],"capabilities":["adapter.probe","adapter.stream"]}`
+	jsonManifest := `{"api_version":"rlviz.dev/v1alpha1","kind":"Adapter","name":"json","version":"1.0.0","command":["adapter"],"capabilities":["adapter.probe","adapter.stream"]}`
 	m, err = ParseManifest([]byte(jsonManifest))
 	if err != nil {
 		t.Fatal(err)

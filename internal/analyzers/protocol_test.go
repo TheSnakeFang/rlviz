@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func TestInputDigestIsCanonicalAndDoesNotMutateInput(t *testing.T) {

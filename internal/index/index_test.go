@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func openTestIndex(t *testing.T) *Index {

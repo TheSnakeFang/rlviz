@@ -3,7 +3,7 @@ package alignment
 import (
 	"sort"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 const MaxSampleTrajectoryIDs = 32

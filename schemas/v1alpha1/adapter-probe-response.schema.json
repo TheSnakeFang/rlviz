@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rolloutviz.dev/schemas/v1alpha1/adapter-probe-response.schema.json",
-  "title": "RolloutViz adapter probe response",
+  "$id": "https://rlviz.dev/schemas/v1alpha1/adapter-probe-response.schema.json",
+  "title": "RLViz adapter probe response",
   "type": "object",
   "required": ["supported", "confidence"],
   "properties": {

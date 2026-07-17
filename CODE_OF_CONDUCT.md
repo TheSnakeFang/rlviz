@@ -1,6 +1,6 @@
 # Code of conduct
 
-RolloutViz should be a useful, rigorous place to work on open tooling. Treat
+RLViz should be a useful, rigorous place to work on open tooling. Treat
 contributors with respect, critique ideas and code rather than people, and make
 room for different backgrounds and levels of experience.
 

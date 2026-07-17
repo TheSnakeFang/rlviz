@@ -12,7 +12,7 @@ import (
 // directory and reloads it there. Execution never reads the mutable trusted
 // source tree after this snapshot has been verified against its trusted digest.
 func snapshotPlugin(plugin *Plugin) (*Plugin, func(), error) {
-	destination, err := os.MkdirTemp("", "rolloutviz-plugin-*")
+	destination, err := os.MkdirTemp("", "rlviz-plugin-*")
 	if err != nil {
 		return nil, func() {}, err
 	}

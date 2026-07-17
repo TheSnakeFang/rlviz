@@ -1,4 +1,4 @@
-api_version: rolloutviz.dev/v1alpha1
+api_version: rlviz.dev/v1alpha1
 kind: Analyzer
 name: example-analyzer
 version: 0.1.0

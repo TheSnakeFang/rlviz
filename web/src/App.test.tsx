@@ -98,7 +98,7 @@ describe("trajectory navigation", () => {
     window.history.replaceState({}, "", "/?trajectory=source&indexed=1#token=secret");
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       if (String(input).includes("/artifact/content?")) return new Response("trusted output", { status: 200 });
-      return new Response(JSON.stringify({ cached: true, analysis: { api_version: "rolloutviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }), { status: 200 });
+      return new Response(JSON.stringify({ cached: true, analysis: { api_version: "rlviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }), { status: 200 });
     });
     vi.stubGlobal("fetch", fetch);
     const withPath: Trajectory = {
@@ -127,7 +127,7 @@ describe("trajectory navigation", () => {
     const fetch = vi.fn(async () => ({ ok: true, json: async () => ({
       cached: true, analyzed_at: "2026-07-16T12:30:00Z",
       analysis: {
-        api_version: "rolloutviz.dev/analyzer/v1alpha1",
+        api_version: "rlviz.dev/analyzer/v1alpha1",
         provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" },
         findings: [{ id: "retry", trajectory_id: sampleTrajectory.id, event_ids: ["evt-003", "evt-005"], kind: "retry", severity: "warning", title: "Repeated identical action" }],
         signals: [],
@@ -147,7 +147,7 @@ describe("trajectory navigation", () => {
     window.history.replaceState({}, "", "/?trajectory=source&indexed=1#token=secret");
     const fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("/analysis?")) return new Response(JSON.stringify({ cached: false, analysis: { api_version: "rolloutviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }), { status: 200 });
+      if (url.includes("/analysis?")) return new Response(JSON.stringify({ cached: false, analysis: { api_version: "rlviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }), { status: 200 });
       return new Response(JSON.stringify({ trajectory: { ...sampleTrajectory, events: undefined }, events: sampleTrajectory.events, source: { id: "source", index_state: "complete" }, page: { count: sampleTrajectory.events.length, total: sampleTrajectory.events.length, limit: 200, has_more: false } }), { status: 200 });
     });
     vi.stubGlobal("fetch", fetch);
@@ -165,7 +165,7 @@ describe("trajectory navigation", () => {
       const url = String(input);
       if (url.includes("/indexed/signals?")) return new Response(JSON.stringify({ signals: [{ id: "signal-2", trajectory_id: sampleTrajectory.id, name: "ReWaRd", value: 0.9 }], page: { count: 1, total: 2, limit: 200, offset: 1, has_more: false } }));
       if (url.includes("/indexed/artifacts?")) return new Response(JSON.stringify({ artifacts: [secondArtifact], page: { count: 1, total: 2, limit: 200, offset: 1, has_more: false } }));
-      if (url.includes("/analysis?")) return new Response(JSON.stringify({ cached: false, analysis: { api_version: "rolloutviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }));
+      if (url.includes("/analysis?")) return new Response(JSON.stringify({ cached: false, analysis: { api_version: "rlviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }));
       return new Response(JSON.stringify({
         trajectory: { ...sampleTrajectory, events: undefined }, events: [sampleTrajectory.events[0]], artifacts: [firstArtifact],
         signals: [{ id: "signal-1", trajectory_id: sampleTrajectory.id, name: "score", value: 1 }],
@@ -193,7 +193,7 @@ describe("trajectory navigation", () => {
       if (url.includes("/indexed/events?")) return new Response(JSON.stringify({ events: [nextEvent], source: { id: "source", index_state: "complete" }, page: { count: 1, total: 2, limit: 200, has_more: false } }), { status: 200 });
       if (url.includes("/analysis?")) {
         analysisCalls += 1;
-        return new Response(JSON.stringify({ cached: false, analysis: { api_version: "rolloutviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }), { status: 200 });
+        return new Response(JSON.stringify({ cached: false, analysis: { api_version: "rlviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] } }), { status: 200 });
       }
       return new Response(JSON.stringify({ trajectory: { ...sampleTrajectory, events: undefined }, events: [firstEvent], source: { id: "source", index_state: "indexing" }, page: { count: 1, total: 1, limit: 200, has_more: false } }), { status: 200 });
     });

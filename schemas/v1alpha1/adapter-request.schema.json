@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rolloutviz.dev/schemas/v1alpha1/adapter-request.schema.json",
-  "title": "RolloutViz adapter operation request",
+  "$id": "https://rlviz.dev/schemas/v1alpha1/adapter-request.schema.json",
+  "title": "RLViz adapter operation request",
   "type": "object",
   "required": ["api_version", "operation", "source"],
   "properties": {
-    "api_version": { "const": "rolloutviz.dev/v1alpha1" },
+    "api_version": { "const": "rlviz.dev/v1alpha1" },
     "operation": { "enum": ["probe", "stream"] },
     "source": {
       "type": "object",

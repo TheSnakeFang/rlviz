@@ -1,4 +1,4 @@
-# RolloutViz v1alpha1 contracts
+# RLViz v1alpha1 contracts
 
 Adapters emit UTF-8 NDJSON: one object matching
 `canonical-record.schema.json` per line. The schema validates individual records;
@@ -19,7 +19,7 @@ the following stream constraints are also normative:
   policy.
 
 All contracts are unstable until a non-alpha version is declared. A manifest
-selects this version with `api_version: rolloutviz.dev/v1alpha1`.
+selects this version with `api_version: rlviz.dev/v1alpha1`.
 
 Plugin manifests may use `kind: Adapter` with `adapter.probe` and
 `adapter.stream`, or `kind: Analyzer` with exactly `analyzer.analyze`. The

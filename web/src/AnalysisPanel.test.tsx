@@ -6,7 +6,7 @@ import type { AnalysisResponse } from "./types";
 const result: AnalysisResponse = {
   cached: true, analyzed_at: "2026-07-16T12:30:00Z",
   analysis: {
-    api_version: "rolloutviz.dev/analyzer/v1alpha1",
+    api_version: "rlviz.dev/analyzer/v1alpha1",
     provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:analyzer", input_digest: "sha256:input" },
     findings: [{ id: "finding", trajectory_id: "trajectory", event_ids: ["event-a", "event-b", "event-c"], kind: "retry", severity: "warning", title: "Repeated identical action", summary: "The same action repeated three times." }],
     signals: [{ id: "signal", trajectory_id: "trajectory", event_id: "event-c", name: "analyzer.loop_retry.detected", value: true }],

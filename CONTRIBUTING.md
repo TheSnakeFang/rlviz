@@ -1,6 +1,6 @@
 # Contributing
 
-RolloutViz is early. Issues and focused pull requests are welcome, especially around real trajectory formats and inspection workflows.
+RLViz is early. Issues and focused pull requests are welcome, especially around real trajectory formats and inspection workflows.
 
 Before starting a larger change, open an issue describing the user workflow and the source format or behavior involved.
 

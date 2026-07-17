@@ -1,9 +1,9 @@
-// Package model defines RolloutViz's versioned canonical rollout records.
+// Package model defines RLViz's versioned canonical rollout records.
 package model
 
 import "encoding/json"
 
-const APIVersion = "rolloutviz.dev/v1alpha1"
+const APIVersion = "rlviz.dev/v1alpha1"
 
 type RecordType string
 

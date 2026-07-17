@@ -17,15 +17,15 @@ test("maps supported release targets", () => {
 
 test("builds the GoReleaser archive URL", () => {
   assert.deepEqual(releaseURLs("v0.1.0", { os: "linux", arch: "arm64" }, "https://example.test/releases/"), {
-    archive: "rolloutviz_0.1.0_linux_arm64.tar.gz",
-    archiveURL: "https://example.test/releases/v0.1.0/rolloutviz_0.1.0_linux_arm64.tar.gz",
+    archive: "rlviz_0.1.0_linux_arm64.tar.gz",
+    archiveURL: "https://example.test/releases/v0.1.0/rlviz_0.1.0_linux_arm64.tar.gz",
     checksumsURL: "https://example.test/releases/v0.1.0/checksums.txt",
   });
-  assert.throws(() => releaseURLs("../../bad", { os: "linux", arch: "arm64" }), /invalid rolloutviz package version/);
+  assert.throws(() => releaseURLs("../../bad", { os: "linux", arch: "arm64" }), /invalid rlviz package version/);
 });
 
 function fixtureArchive(t, entry = "file") {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "rolloutviz-npm-test-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "rlviz-npm-test-"));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const payload = path.join(root, "payload");
   const packageDirectory = path.join(root, "package");
@@ -34,7 +34,7 @@ function fixtureArchive(t, entry = "file") {
   if (entry === "symlink") fs.symlinkSync("/bin/sh", path.join(payload, "rlviz"));
   else fs.writeFileSync(path.join(payload, "rlviz"), "#!/bin/sh\necho native-fixture\n", { mode: 0o755 });
   fs.writeFileSync(path.join(payload, "ignored"), "must not be extracted");
-  const archive = "rolloutviz_1.2.3_linux_x86_64.tar.gz";
+  const archive = "rlviz_1.2.3_linux_x86_64.tar.gz";
   const archivePath = path.join(root, archive);
   const packed = spawnSync("tar", ["-czf", archivePath, "-C", payload, "rlviz", "ignored"], { encoding: "utf8" });
   assert.equal(packed.status, 0, packed.stderr);
@@ -78,8 +78,8 @@ test("rejects a symlink in place of the native binary", async (t) => {
 
 test("selects an exact checksum entry", () => {
   const digest = "a".repeat(64);
-  assert.equal(expectedChecksum(`${"b".repeat(64)}  other.tar.gz\n${digest}  rolloutviz.tar.gz\n`, "rolloutviz.tar.gz"), digest);
-  assert.throws(() => expectedChecksum(`${digest}  other.tar.gz\n`, "rolloutviz.tar.gz"), /not found/);
+  assert.equal(expectedChecksum(`${"b".repeat(64)}  other.tar.gz\n${digest}  rlviz.tar.gz\n`, "rlviz.tar.gz"), digest);
+  assert.throws(() => expectedChecksum(`${digest}  other.tar.gz\n`, "rlviz.tar.gz"), /not found/);
 });
 
 test("refuses insecure downloads and oversized injected responses", async (t) => {

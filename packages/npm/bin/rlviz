@@ -1,3 +1,3 @@
 #!/usr/bin/env node
-console.error("rolloutviz: native binary was not installed; reinstall the package and inspect the postinstall error");
+console.error("rlviz: native binary was not installed; reinstall the package and inspect the postinstall error");
 process.exit(1);

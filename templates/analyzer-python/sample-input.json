@@ -1,1 +1,1 @@
-{"api_version":"rolloutviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool","input":{"name":"example"}}],"signals":[]}
+{"api_version":"rlviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool","input":{"name":"example"}}],"signals":[]}

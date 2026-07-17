@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
-	"github.com/unlatch-ai/rolloutviz/internal/plugins"
-	"github.com/unlatch-ai/rolloutviz/internal/server"
+	"github.com/unlatch-ai/rlviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/plugins"
+	"github.com/unlatch-ai/rlviz/internal/server"
 )
 
 type UnsupportedFormatError struct {
@@ -26,7 +26,7 @@ func (err *UnsupportedFormatError) DiagnosticCode() string { return "unsupported
 func (err *UnsupportedFormatError) DiagnosticFields() map[string]any {
 	return map[string]any{
 		"path":              err.Path,
-		"suggested_command": "rlviz plugin init --type adapter --lang python .rolloutviz/plugins/local-adapter",
+		"suggested_command": "rlviz plugin init --type adapter --lang python .rlviz/plugins/local-adapter",
 	}
 }
 

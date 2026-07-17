@@ -1,6 +1,6 @@
 # Adapter authoring
 
-Adapters let RolloutViz open a trace format without changing RolloutViz or the
+Adapters let RLViz open a trace format without changing RLViz or the
 source data. They are small local programs that translate source records into a
 canonical NDJSON stream.
 
@@ -19,7 +19,7 @@ An unsupported source returns a structured diagnostic similar to:
 {
   "code": "unsupported_format",
   "path": "/workspace/artifacts/task-184.trace",
-  "suggested_command": "rlviz plugin init --type adapter --lang python .rolloutviz/plugins/task-184"
+  "suggested_command": "rlviz plugin init --type adapter --lang python .rlviz/plugins/task-184"
 }
 ```
 
@@ -28,7 +28,7 @@ suggested command when present, then inspect a small representative sample of th
 source and implement the generated mapping.
 
 ```bash
-rlviz plugin init --type adapter --lang python .rolloutviz/plugins/customer-x
+rlviz plugin init --type adapter --lang python .rlviz/plugins/customer-x
 ```
 
 Review the manifest and every executable file in the generated directory. The
@@ -36,9 +36,9 @@ adapter is local code with the user's permissions. Summarize what it reads and
 emits, then get the user's explicit approval before trusting the reviewed digest:
 
 ```bash
-rlviz plugin trust .rolloutviz/plugins/customer-x
-rlviz plugin validate --json .rolloutviz/plugins/customer-x ./artifacts/task-184.trace
-rlviz open --json ./artifacts/task-184.trace --adapter .rolloutviz/plugins/customer-x
+rlviz plugin trust .rlviz/plugins/customer-x
+rlviz plugin validate --json .rlviz/plugins/customer-x ./artifacts/task-184.trace
+rlviz open --json ./artifacts/task-184.trace --adapter .rlviz/plugins/customer-x
 ```
 
 Validation executes adapter code, so it requires trust. Fix adapter code using
@@ -54,10 +54,10 @@ not make it trusted on another machine.
 Keep source-specific adapters next to the code that produces the source format:
 
 ```text
-.rolloutviz/
+.rlviz/
   plugins/
     customer-x/
-      rolloutviz-plugin.yaml
+      rlviz-plugin.yaml
       adapter.py
       testdata/
         sample.trace
@@ -70,7 +70,7 @@ test an adapter.
 A manifest declares the versioned protocol and executable entrypoint:
 
 ```yaml
-api_version: rolloutviz.dev/v1alpha1
+api_version: rlviz.dev/v1alpha1
 kind: Adapter
 name: customer-x
 version: 0.1.0
@@ -88,7 +88,7 @@ on source detection and record mapping.
 
 Keep plugin-local command paths such as `adapter.py` relative to the manifest.
 External interpreters such as `python3` or `/usr/bin/python3` may be bare or
-absolute. Relative plugin paths let RolloutViz execute the approved code from a
+absolute. Relative plugin paths let RLViz execute the approved code from a
 private verified snapshot.
 
 ## Implement `probe`
@@ -153,7 +153,7 @@ narrow and reviewable:
   annotate them in place.
 - Make no network requests. Do not upload traces, fetch schemas, or emit
   telemetry during probing, validation, or viewing.
-- Resolve only files inside the source root supplied by RolloutViz. Reject path
+- Resolve only files inside the source root supplied by RLViz. Reject path
   traversal and unexpected symlink escapes.
 - Treat trace strings as data. Never pass recorded commands, tool calls, HTML,
   or paths to a shell.

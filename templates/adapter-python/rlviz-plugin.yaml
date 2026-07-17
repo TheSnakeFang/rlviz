@@ -1,6 +1,6 @@
-api_version: rolloutviz.dev/v1alpha1
+api_version: rlviz.dev/v1alpha1
 kind: Adapter
-name: simple-jsonl
+name: example-adapter
 version: 0.1.0
 command:
   - python3

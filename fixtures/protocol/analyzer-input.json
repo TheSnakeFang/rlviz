@@ -1,5 +1,5 @@
 {
-  "api_version": "rolloutviz.dev/analyzer/v1alpha1",
+  "api_version": "rlviz.dev/analyzer/v1alpha1",
   "operation": "analyze",
   "trajectory_id": "trajectory-protocol",
   "events": [

@@ -56,7 +56,7 @@ describe("trajectory API normalization", () => {
     window.history.replaceState({}, "", "/#token=analysis-secret");
     const fetch = vi.fn(async () => ({ ok: true, json: async () => ({
       cached: true, analyzed_at: "2026-07-16T00:00:00Z",
-      analysis: { api_version: "rolloutviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] },
+      analysis: { api_version: "rlviz.dev/analyzer/v1alpha1", provenance: { name: "builtin.loop-retry", version: "0.1.0", digest: "sha256:a", input_digest: "sha256:b" }, findings: [], signals: [] },
     }) } as Response));
     vi.stubGlobal("fetch", fetch);
     await loadAnalysis("source/one", "attempt two");

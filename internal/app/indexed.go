@@ -8,10 +8,10 @@ import (
 	"io"
 	"os"
 
-	rolloutindex "github.com/unlatch-ai/rolloutviz/internal/index"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
-	"github.com/unlatch-ai/rolloutviz/internal/plugins"
-	"github.com/unlatch-ai/rolloutviz/internal/server"
+	rolloutindex "github.com/unlatch-ai/rlviz/internal/index"
+	"github.com/unlatch-ai/rlviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/plugins"
+	"github.com/unlatch-ai/rlviz/internal/server"
 )
 
 type IndexedSource struct {
@@ -89,7 +89,7 @@ func IndexSource(ctx context.Context, store *rolloutindex.Index, path, adapterPa
 		return IndexedSource{Info: cached}, nil
 	}
 
-	temporary, err := os.CreateTemp("", "rolloutviz-adapter-stream-*.ndjson")
+	temporary, err := os.CreateTemp("", "rlviz-adapter-stream-*.ndjson")
 	if err != nil {
 		return IndexedSource{}, err
 	}

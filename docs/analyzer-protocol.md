@@ -1,6 +1,6 @@
 # Analyzer protocol
 
-RolloutViz analyzers inspect canonical events and signals and return findings and
+RLViz analyzers inspect canonical events and signals and return findings and
 derived signals. They do not call a language model. Analysis is a pure operation:
 the same analyzer digest and normalized input must produce byte-equivalent JSON.
 
@@ -21,7 +21,7 @@ digest, explicit trust, immutable execution snapshot, timeout, output limit, and
 process-tree termination rules as an adapter.
 
 ```yaml
-api_version: rolloutviz.dev/v1alpha1
+api_version: rlviz.dev/v1alpha1
 kind: Analyzer
 name: repeated-actions
 version: 0.1.0
@@ -48,7 +48,7 @@ The request contains one trajectory's canonical events and signals:
 
 ```json
 {
-  "api_version": "rolloutviz.dev/analyzer/v1alpha1",
+  "api_version": "rlviz.dev/analyzer/v1alpha1",
   "operation": "analyze",
   "trajectory_id": "trajectory-1",
   "events": [
@@ -79,7 +79,7 @@ The analyzer writes one JSON value to stdout:
 
 ```json
 {
-  "api_version": "rolloutviz.dev/analyzer/v1alpha1",
+  "api_version": "rlviz.dev/analyzer/v1alpha1",
   "provenance": {
     "name": "repeated-actions",
     "version": "0.1.0",
@@ -118,9 +118,9 @@ title/summary fields are limited to 16 KiB each. Output is capped at 1,000
 findings, 1,000 signals, and 16 MiB encoded JSON. Analyzer output is supplemental:
 it never changes the source canonical stream.
 
-The host supplies `ROLLOUTVIZ_ANALYZER_NAME`,
-`ROLLOUTVIZ_ANALYZER_VERSION`, `ROLLOUTVIZ_ANALYZER_DIGEST`, and
-`ROLLOUTVIZ_ANALYZER_INPUT_DIGEST` so the process can populate provenance
+The host supplies `RLVIZ_ANALYZER_NAME`,
+`RLVIZ_ANALYZER_VERSION`, `RLVIZ_ANALYZER_DIGEST`, and
+`RLVIZ_ANALYZER_INPUT_DIGEST` so the process can populate provenance
 without hard-coding its own content digest. Stdout must contain exactly one JSON
 object and no diagnostics. Stderr is bounded to 1 MiB. Cancellation or the
 default 10-second timeout terminates the analyzer process tree.

@@ -1,10 +1,10 @@
 {
-  "api_version": "rolloutviz.dev/analyzer/v1alpha1",
+  "api_version": "rlviz.dev/analyzer/v1alpha1",
   "provenance": {
     "name": "fixture.repeated-actions",
     "version": "0.1.0",
     "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "input_digest": "sha256:ed4d7eaa480bdc30b6002cef7ff1fe3a7eb7ada7d6e01e11a37b9d5528d082bb"
+    "input_digest": "sha256:b4c6b075c3bea1cc645320fed530dda4bf0c5bc927368c2cff11228a73069867"
   },
   "findings": [
     {

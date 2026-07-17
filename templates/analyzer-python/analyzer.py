@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Dependency-free RolloutViz analyzer template."""
+"""Dependency-free RLViz analyzer template."""
 import argparse
 import json
 import os
 import sys
 
-API_VERSION = "rolloutviz.dev/analyzer/v1alpha1"
+API_VERSION = "rlviz.dev/analyzer/v1alpha1"
 
 
 def main():
@@ -21,10 +21,10 @@ def main():
     output = {
         "api_version": API_VERSION,
         "provenance": {
-            "name": os.environ["ROLLOUTVIZ_ANALYZER_NAME"],
-            "version": os.environ["ROLLOUTVIZ_ANALYZER_VERSION"],
-            "digest": os.environ["ROLLOUTVIZ_ANALYZER_DIGEST"],
-            "input_digest": os.environ["ROLLOUTVIZ_ANALYZER_INPUT_DIGEST"],
+            "name": os.environ["RLVIZ_ANALYZER_NAME"],
+            "version": os.environ["RLVIZ_ANALYZER_VERSION"],
+            "digest": os.environ["RLVIZ_ANALYZER_DIGEST"],
+            "input_digest": os.environ["RLVIZ_ANALYZER_INPUT_DIGEST"],
         },
         "findings": [],
         "signals": [],

@@ -1,4 +1,4 @@
-module github.com/unlatch-ai/rolloutviz
+module github.com/unlatch-ai/rlviz
 
 go 1.24.0
 

@@ -9,9 +9,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/unlatch-ai/rolloutviz/internal/alignment"
-	rolloutindex "github.com/unlatch-ai/rolloutviz/internal/index"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/alignment"
+	rolloutindex "github.com/unlatch-ai/rlviz/internal/index"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 const (

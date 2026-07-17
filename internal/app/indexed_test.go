@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	rolloutindex "github.com/unlatch-ai/rolloutviz/internal/index"
-	"github.com/unlatch-ai/rolloutviz/internal/plugins"
+	rolloutindex "github.com/unlatch-ai/rlviz/internal/index"
+	"github.com/unlatch-ai/rlviz/internal/plugins"
 )
 
 func TestIndexSourceCanonicalCachesWholeGroup(t *testing.T) {
@@ -46,7 +46,7 @@ func TestIndexSourceAdapterRequiresTrustAndIndexes(t *testing.T) {
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 is unavailable")
 	}
-	t.Setenv("ROLLOUTVIZ_CONFIG_DIR", t.TempDir())
+	t.Setenv("RLVIZ_CONFIG_DIR", t.TempDir())
 	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "index.sqlite"))
 	if err != nil {
 		t.Fatal(err)

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/analyzers"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/analyzers"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func TestAnalyzerHostTrustedSnapshotValidation(t *testing.T) {
@@ -77,7 +77,7 @@ func TestAnalyzerHostBoundsCancelsAndValidatesProtocol(t *testing.T) {
 		}
 	})
 	t.Run("provenance", func(t *testing.T) {
-		script := strings.Replace(validAnalyzerScript, `"$ROLLOUTVIZ_ANALYZER_NAME"`, `"wrong"`, 1)
+		script := strings.Replace(validAnalyzerScript, `"$RLVIZ_ANALYZER_NAME"`, `"wrong"`, 1)
 		plugin, store := analyzerPlugin(t, script, true)
 		if _, _, err := NewHost(store).Analyze(context.Background(), plugin, analyzerInput()); err == nil || !strings.Contains(err.Error(), "provenance") {
 			t.Fatalf("error=%v", err)
@@ -95,7 +95,7 @@ func TestAnalyzerHostBoundsCancelsAndValidatesProtocol(t *testing.T) {
 
 func TestAnalyzerInputAndScaffold(t *testing.T) {
 	inputPath := filepath.Join(t.TempDir(), "input.json")
-	data := `{"api_version":"rolloutviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool"}]}`
+	data := `{"api_version":"rlviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool"}]}`
 	if err := os.WriteFile(inputPath, []byte(data), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -140,7 +140,7 @@ func analyzerInput() analyzers.Input {
 func analyzerPlugin(t *testing.T, script string, trust bool) (*Plugin, *TrustStore) {
 	t.Helper()
 	dir := t.TempDir()
-	manifest := `api_version: rolloutviz.dev/v1alpha1
+	manifest := `api_version: rlviz.dev/v1alpha1
 kind: Analyzer
 name: test-analyzer
 version: 1.2.3
@@ -167,5 +167,5 @@ capabilities: ["analyzer.analyze"]
 }
 
 const validAnalyzerScript = `#!/bin/sh
-printf '{"api_version":"rolloutviz.dev/analyzer/v1alpha1","provenance":{"name":"%s","version":"%s","digest":"%s","input_digest":"%s"},"findings":[{"id":"finding-1","trajectory_id":"trajectory-1","event_ids":["event-1"],"kind":"example","severity":"info","title":"Example"}],"signals":[]}' "$ROLLOUTVIZ_ANALYZER_NAME" "$ROLLOUTVIZ_ANALYZER_VERSION" "$ROLLOUTVIZ_ANALYZER_DIGEST" "$ROLLOUTVIZ_ANALYZER_INPUT_DIGEST"
+printf '{"api_version":"rlviz.dev/analyzer/v1alpha1","provenance":{"name":"%s","version":"%s","digest":"%s","input_digest":"%s"},"findings":[{"id":"finding-1","trajectory_id":"trajectory-1","event_ids":["event-1"],"kind":"example","severity":"info","title":"Example"}],"signals":[]}' "$RLVIZ_ANALYZER_NAME" "$RLVIZ_ANALYZER_VERSION" "$RLVIZ_ANALYZER_DIGEST" "$RLVIZ_ANALYZER_INPUT_DIGEST"
 `

@@ -1,6 +1,6 @@
-# Releasing RolloutViz
+# Releasing RLViz
 
-RolloutViz releases are built from versioned Git tags by
+RLViz releases are built from versioned Git tags by
 `.github/workflows/release.yml`. The workflow runs the full checks, builds four
 native archives with GoReleaser, publishes SHA-256 checksums, creates GitHub
 artifact attestations, and attaches a generated Homebrew formula.
@@ -9,10 +9,10 @@ artifact attestations, and attaches a generated Homebrew formula.
 
 ### Homebrew
 
-The public `unlatch-ai/homebrew-tap` repository polls the latest RolloutViz
+The public `unlatch-ai/homebrew-tap` repository polls the latest RLViz
 release hourly and commits an updated attached formula with its repository-local
 `GITHUB_TOKEN`. No cross-repository token is required. A maintainer can also run
-the tap's `sync rolloutviz` workflow manually after a release.
+the tap's `sync rlviz` workflow manually after a release.
 
 ### npm
 
@@ -36,12 +36,12 @@ re-bootstrap steps live in
 4. Create and push the tag:
 
    ```bash
-   git tag -a v0.1.0 -m "rolloutviz v0.1.0"
+   git tag -a v0.1.0 -m "rlviz v0.1.0"
    git push origin v0.1.0
    ```
 
 5. Verify the GitHub release contains four archives, `checksums.txt`, and
-   `rolloutviz.rb`, and that the attestation step passed.
+   `rlviz.rb`, and that the attestation step passed.
 6. On a clean machine, exercise one native archive, the curl installer, the
    Homebrew formula when enabled, and the npm package when enabled.
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-RolloutViz ships as one Go binary with an embedded browser UI.
+RLViz ships as one Go binary with an embedded browser UI.
 
 ```text
 CLI
@@ -50,7 +50,7 @@ Adapters and analyzers run as subprocesses over a versioned JSON/NDJSON protocol
 ## Proposed repository structure
 
 ```text
-cmd/rolloutviz/        CLI entrypoint
+cmd/rlviz/        CLI entrypoint
 internal/app/          command orchestration
 internal/cli/          arguments and output contracts
 internal/daemon/       background-process lifecycle

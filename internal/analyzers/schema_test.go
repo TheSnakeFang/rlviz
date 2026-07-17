@@ -103,7 +103,7 @@ func compileAnalyzerSchema(t *testing.T, name string) *jsonschema.Schema {
 	}
 	document := decodeSchemaJSON(t, data)
 	compiler := jsonschema.NewCompiler()
-	location := "https://rolloutviz.dev/schemas/v1alpha1/" + name
+	location := "https://rlviz.dev/schemas/v1alpha1/" + name
 	if err := compiler.AddResource(location, document); err != nil {
 		t.Fatal(err)
 	}

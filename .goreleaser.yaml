@@ -1,10 +1,10 @@
 version: 2
 
-project_name: rolloutviz
+project_name: rlviz
 
 builds:
-  - id: rolloutviz
-    main: ./cmd/rolloutviz
+  - id: rlviz
+    main: ./cmd/rlviz
     binary: rlviz
     env:
       - CGO_ENABLED=0
@@ -20,9 +20,9 @@ builds:
 archives:
   - id: release
     ids:
-      - rolloutviz
+      - rlviz
     name_template: >-
-      rolloutviz_{{ .Version }}_{{ .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
+      rlviz_{{ .Version }}_{{ .Os }}_{{ if eq .Arch "amd64" }}x86_64{{ else }}{{ .Arch }}{{ end }}
     files:
       - LICENSE
       - README.md

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dependency-free RolloutViz adapter template."""
+"""Dependency-free RLViz adapter template."""
 import argparse
 import json
 import sys

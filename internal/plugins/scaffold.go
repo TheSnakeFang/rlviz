@@ -69,7 +69,7 @@ func ScaffoldPython(destination string, options ScaffoldOptions) error {
 	return nil
 }
 
-const pythonManifest = `api_version: rolloutviz.dev/v1alpha1
+const pythonManifest = `api_version: rlviz.dev/v1alpha1
 kind: Adapter
 name: {{NAME}}
 version: 0.1.0
@@ -82,7 +82,7 @@ capabilities:
 `
 
 const pythonAdapter = `#!/usr/bin/env python3
-"""Dependency-free RolloutViz adapter scaffold."""
+"""Dependency-free RLViz adapter scaffold."""
 import argparse
 import json
 import sys
@@ -90,7 +90,7 @@ import sys
 def load_request(path):
     with open(path, "r", encoding="utf-8") as handle:
         request = json.load(handle)
-    if request.get("api_version") != "rolloutviz.dev/v1alpha1":
+    if request.get("api_version") != "rlviz.dev/v1alpha1":
         raise ValueError("unsupported api_version")
     return request
 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
 const pythonReadme = `# {{NAME}}
 
-This is a local RolloutViz adapter. Implement bounded format detection in
+This is a local RLViz adapter. Implement bounded format detection in
 probe and canonical NDJSON emission in stream.
 
 Validate it with:
@@ -136,7 +136,7 @@ Validate it with:
     rlviz plugin validate . /path/to/sample
 `
 
-const pythonAnalyzerManifest = `api_version: rolloutviz.dev/v1alpha1
+const pythonAnalyzerManifest = `api_version: rlviz.dev/v1alpha1
 kind: Analyzer
 name: {{NAME}}
 version: 0.1.0
@@ -148,13 +148,13 @@ capabilities:
 `
 
 const pythonAnalyzer = `#!/usr/bin/env python3
-"""Dependency-free RolloutViz analyzer scaffold."""
+"""Dependency-free RLViz analyzer scaffold."""
 import argparse
 import json
 import os
 import sys
 
-API_VERSION = "rolloutviz.dev/analyzer/v1alpha1"
+API_VERSION = "rlviz.dev/analyzer/v1alpha1"
 
 def main():
     parser = argparse.ArgumentParser()
@@ -171,10 +171,10 @@ def main():
     output = {
         "api_version": API_VERSION,
         "provenance": {
-            "name": os.environ["ROLLOUTVIZ_ANALYZER_NAME"],
-            "version": os.environ["ROLLOUTVIZ_ANALYZER_VERSION"],
-            "digest": os.environ["ROLLOUTVIZ_ANALYZER_DIGEST"],
-            "input_digest": os.environ["ROLLOUTVIZ_ANALYZER_INPUT_DIGEST"],
+            "name": os.environ["RLVIZ_ANALYZER_NAME"],
+            "version": os.environ["RLVIZ_ANALYZER_VERSION"],
+            "digest": os.environ["RLVIZ_ANALYZER_DIGEST"],
+            "input_digest": os.environ["RLVIZ_ANALYZER_INPUT_DIGEST"],
         },
         "findings": [],
         "signals": [],
@@ -189,12 +189,12 @@ if __name__ == "__main__":
         raise SystemExit(1)
 `
 
-const analyzerSampleInput = `{"api_version":"rolloutviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool","input":{"name":"example"}}],"signals":[]}
+const analyzerSampleInput = `{"api_version":"rlviz.dev/analyzer/v1alpha1","operation":"analyze","trajectory_id":"trajectory-1","events":[{"record_type":"event","id":"event-1","trajectory_id":"trajectory-1","sequence":0,"kind":"tool","input":{"name":"example"}}],"signals":[]}
 `
 
 const pythonAnalyzerReadme = `# {{NAME}}
 
-This is a local RolloutViz analyzer. It receives one normalized trajectory and
+This is a local RLViz analyzer. It receives one normalized trajectory and
 returns supplemental findings and signals without changing source data.
 
 Validate it with:

@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/app"
-	"github.com/unlatch-ai/rolloutviz/internal/daemon"
-	"github.com/unlatch-ai/rolloutviz/internal/plugins"
+	"github.com/unlatch-ai/rlviz/internal/app"
+	"github.com/unlatch-ai/rlviz/internal/daemon"
+	"github.com/unlatch-ai/rlviz/internal/plugins"
 )
 
 var version = "0.0.0-dev"
@@ -154,7 +154,7 @@ func runServe(arguments []string) {
 		fatalError("serve", *jsonOutput, err)
 	}
 	output := openResult{URL: viewer.URL, Path: viewer.SourcePath, Command: "serve", Mode: "foreground"}
-	writeOutput(output, *jsonOutput, fmt.Sprintf("RolloutViz is serving %s at %s (foreground; press Ctrl-C to stop)", output.Path, output.URL))
+	writeOutput(output, *jsonOutput, fmt.Sprintf("RLViz is serving %s at %s (foreground; press Ctrl-C to stop)", output.Path, output.URL))
 	if *open {
 		if err := openBrowser(viewer.URL); err != nil {
 			fmt.Fprintf(os.Stderr, "open browser: %v\n", err)
@@ -178,12 +178,12 @@ func runStatus(arguments []string) {
 	metadata, err := daemon.LoadLiveMetadata(ctx, paths, daemon.Client{})
 	if err != nil {
 		if errors.Is(err, daemon.ErrNoMetadata) || errors.Is(err, daemon.ErrDaemonUnavailable) {
-			writeOutput(map[string]any{"status": "stopped"}, *jsonOutput, "RolloutViz daemon is stopped")
+			writeOutput(map[string]any{"status": "stopped"}, *jsonOutput, "RLViz daemon is stopped")
 			return
 		}
 		fatalError("status", *jsonOutput, err)
 	}
-	writeOutput(map[string]any{"status": "running", "pid": metadata.PID, "address": metadata.Address, "version": metadata.Version}, *jsonOutput, fmt.Sprintf("RolloutViz daemon is running at http://%s (pid %d)", metadata.Address, metadata.PID))
+	writeOutput(map[string]any{"status": "running", "pid": metadata.PID, "address": metadata.Address, "version": metadata.Version}, *jsonOutput, fmt.Sprintf("RLViz daemon is running at http://%s (pid %d)", metadata.Address, metadata.PID))
 }
 
 func runStop(arguments []string) {
@@ -198,7 +198,7 @@ func runStop(arguments []string) {
 	defer cancel()
 	metadata, err := daemon.LoadLiveMetadata(ctx, paths, daemon.Client{})
 	if errors.Is(err, daemon.ErrNoMetadata) || errors.Is(err, daemon.ErrDaemonUnavailable) {
-		writeOutput(map[string]string{"status": "stopped"}, *jsonOutput, "RolloutViz daemon is already stopped")
+		writeOutput(map[string]string{"status": "stopped"}, *jsonOutput, "RLViz daemon is already stopped")
 		return
 	}
 	if err != nil {
@@ -207,7 +207,7 @@ func runStop(arguments []string) {
 	if err := (daemon.Client{}).Stop(ctx, metadata); err != nil {
 		fatalError("stop", *jsonOutput, err)
 	}
-	writeOutput(map[string]string{"status": "stopping"}, *jsonOutput, "RolloutViz daemon is stopping")
+	writeOutput(map[string]string{"status": "stopping"}, *jsonOutput, "RLViz daemon is stopping")
 }
 
 func runDoctor(arguments []string) {
@@ -223,10 +223,10 @@ func runDoctor(arguments []string) {
 	_, pythonErr := exec.LookPath("python3")
 	checks = append(checks, map[string]any{"name": "python3", "ok": pythonErr == nil})
 	status := "ok"
-	human := "RolloutViz doctor: all checks passed"
+	human := "RLViz doctor: all checks passed"
 	if runtimeErr != nil || pythonErr != nil {
 		status = "degraded"
-		human = "RolloutViz doctor: one or more checks failed"
+		human = "RLViz doctor: one or more checks failed"
 	}
 	writeOutput(map[string]any{"status": status, "checks": checks}, *jsonOutput, human)
 }
@@ -282,9 +282,9 @@ func runCacheStatus(arguments []string) {
 	if err != nil {
 		fatalError("cache_status", *jsonOutput, err)
 	}
-	human := fmt.Sprintf("RolloutViz cache is absent at %s (daemon stopped)", status.Path)
+	human := fmt.Sprintf("RLViz cache is absent at %s (daemon stopped)", status.Path)
 	if status.Status == "present" {
-		human = fmt.Sprintf("RolloutViz cache is present at %s (%d bytes; daemon stopped)", status.Path, status.SizeBytes)
+		human = fmt.Sprintf("RLViz cache is present at %s (%d bytes; daemon stopped)", status.Path, status.SizeBytes)
 	}
 	if status.DaemonRunning {
 		human = strings.Replace(human, "daemon stopped", "daemon running", 1)
@@ -312,9 +312,9 @@ func runCacheClean(arguments []string) {
 	if err != nil {
 		fatalError("cache_clean", *jsonOutput, err)
 	}
-	human := "RolloutViz cache is already clean"
+	human := "RLViz cache is already clean"
 	if len(result.Removed) > 0 {
-		human = fmt.Sprintf("Removed RolloutViz cache at %s", result.Path)
+		human = fmt.Sprintf("Removed RLViz cache at %s", result.Path)
 	}
 	writeOutput(result, *jsonOutput, human)
 }
@@ -528,7 +528,7 @@ func runPluginList(arguments []string) {
 	for _, entry := range entries {
 		lines = append(lines, fmt.Sprintf("%s  %s", entry.Digest, entry.Path))
 	}
-	human := "No trusted RolloutViz plugins"
+	human := "No trusted RLViz plugins"
 	if len(lines) > 0 {
 		human = strings.Join(lines, "\n")
 	}
@@ -634,7 +634,7 @@ func writeError(command string, jsonOutput bool, err error) {
 	} else if errors.As(err, &unsupported) {
 		details["code"] = "unsupported_format"
 		details["path"] = unsupported.Path
-		details["suggested_command"] = "rlviz plugin init --type adapter --lang python .rolloutviz/plugins/local-adapter"
+		details["suggested_command"] = "rlviz plugin init --type adapter --lang python .rlviz/plugins/local-adapter"
 	} else if errors.Is(err, plugins.ErrUntrusted) {
 		details["code"] = "plugin_untrusted"
 	}
@@ -664,7 +664,7 @@ func printVersion(jsonOutput bool) {
 }
 
 func printHelp() {
-	fmt.Print(`RolloutViz
+	fmt.Print(`RLViz
 
 Visualize and compare agent rollouts.
 
@@ -682,7 +682,7 @@ Usage:
 }
 
 func printCacheHelp() {
-	fmt.Print(`RolloutViz cache
+	fmt.Print(`RLViz cache
 
 Usage:
   rlviz cache status [--json]
@@ -691,7 +691,7 @@ Usage:
 }
 
 func printPluginHelp() {
-	fmt.Print(`RolloutViz plugins
+	fmt.Print(`RLViz plugins
 
 Usage:
   rlviz plugin init --type adapter|analyzer --lang python [--name NAME] DIR

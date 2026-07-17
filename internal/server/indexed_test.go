@@ -12,13 +12,13 @@ import (
 	"testing"
 	"time"
 
-	rolloutindex "github.com/unlatch-ai/rolloutviz/internal/index"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	rolloutindex "github.com/unlatch-ai/rlviz/internal/index"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func testIndexedHandler(t *testing.T) http.Handler {
 	t.Helper()
-	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "rolloutviz.db"))
+	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "rlviz.db"))
 	if err != nil {
 		t.Fatal(err)
 	}

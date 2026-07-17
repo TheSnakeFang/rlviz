@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rolloutviz.dev/schemas/v1alpha1/analyzer-output.schema.json",
-  "title": "RolloutViz analyzer output",
+  "$id": "https://rlviz.dev/schemas/v1alpha1/analyzer-output.schema.json",
+  "title": "RLViz analyzer output",
   "description": "Supplemental findings and signals emitted by a trusted analyzer CLI.",
   "$comment": "The host additionally enforces provenance equality, input-digest equality, global ID uniqueness, trajectory and event references, UTF-8 byte limits for finding text, and the 16 MiB encoded-size limit.",
   "type": "object",
   "required": ["api_version", "provenance"],
   "properties": {
-    "api_version": { "const": "rolloutviz.dev/analyzer/v1alpha1" },
+    "api_version": { "const": "rlviz.dev/analyzer/v1alpha1" },
     "provenance": { "$ref": "#/$defs/provenance" },
     "findings": {
       "type": "array",

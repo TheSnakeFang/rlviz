@@ -1,5 +1,5 @@
 {
-  "api_version": "rolloutviz.dev/v1alpha1",
+  "api_version": "rlviz.dev/v1alpha1",
   "operation": "probe",
   "source": {
     "path": "/workspace/traces/task-184.jsonl",

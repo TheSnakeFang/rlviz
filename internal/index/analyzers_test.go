@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/unlatch-ai/rolloutviz/internal/analyzers"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/analyzers"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func TestLoopRetryAnalysisCachesByAnalyzerAndInputDigest(t *testing.T) {

@@ -1,6 +1,6 @@
 # Security policy
 
-RolloutViz reads traces that may contain private code, prompts, credentials, customer data, and local filesystem paths.
+RLViz reads traces that may contain private code, prompts, credentials, customer data, and local filesystem paths.
 
 Do not report suspected vulnerabilities through a public issue. Use GitHub's private vulnerability reporting for this repository.
 
@@ -17,10 +17,10 @@ These are product invariants. Changes affecting them require explicit review and
 
 ## Plugin boundary
 
-RolloutViz core opens source traces read-only and never replays recorded tools.
+RLViz core opens source traces read-only and never replays recorded tools.
 External adapters and analyzers are executable programs, not data-only
 extensions. Once explicitly trusted, they run with the invoking user's operating
-system permissions; RolloutViz does not provide an OS sandbox. Review plugin code
+system permissions; RLViz does not provide an OS sandbox. Review plugin code
 and dependencies before trusting it, and run untrusted community plugins inside
-your own container or sandbox. Any content change invalidates RolloutViz trust
+your own container or sandbox. Any content change invalidates RLViz trust
 and requires approval again.

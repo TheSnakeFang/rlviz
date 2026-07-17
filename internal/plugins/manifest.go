@@ -1,4 +1,4 @@
-// Package plugins implements the external RolloutViz adapter boundary.
+// Package plugins implements the external RLViz adapter boundary.
 package plugins
 
 import (
@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	APIVersion   = "rolloutviz.dev/v1alpha1"
-	ManifestName = "rolloutviz-plugin.yaml"
+	APIVersion   = "rlviz.dev/v1alpha1"
+	ManifestName = "rlviz-plugin.yaml"
 )
 
 var (
@@ -98,7 +98,7 @@ func Load(path string) (*Plugin, error) {
 }
 
 func findManifest(root string) (string, error) {
-	for _, name := range []string{ManifestName, "rolloutviz-plugin.yml", "rolloutviz-plugin.json", "plugin.yaml", "plugin.yml", "plugin.json"} {
+	for _, name := range []string{ManifestName, "rlviz-plugin.yml", "rlviz-plugin.json", "plugin.yaml", "plugin.yml", "plugin.json"} {
 		path := filepath.Join(root, name)
 		if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
 			return path, nil

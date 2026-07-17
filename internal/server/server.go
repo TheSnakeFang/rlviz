@@ -13,14 +13,14 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
-	webassets "github.com/unlatch-ai/rolloutviz/web"
+	"github.com/unlatch-ai/rlviz/internal/model"
+	webassets "github.com/unlatch-ai/rlviz/web"
 )
 
 const fallbackUI = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>RolloutViz</title><style>body{font:16px system-ui;margin:3rem;max-width:70ch}code{background:#eee;padding:.15rem .3rem}</style></head>
-<body><h1>RolloutViz</h1><p>The local viewer is running.</p><p>Trajectory data is available at <code>/api/v1/trajectory</code>.</p></body></html>`
+<title>RLViz</title><style>body{font:16px system-ui;margin:3rem;max-width:70ch}code{background:#eee;padding:.15rem .3rem}</style></head>
+<body><h1>RLViz</h1><p>The local viewer is running.</p><p>Trajectory data is available at <code>/api/v1/trajectory</code>.</p></body></html>`
 
 const MaxCanonicalSourceBytes int64 = 32 << 20
 

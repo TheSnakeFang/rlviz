@@ -42,8 +42,8 @@ jobs:
           subject-checksums: dist/checksums.txt
       - name: Build Homebrew formula
         run: |
-          ./scripts/render_homebrew_formula.sh "${GITHUB_REF_NAME}" dist/checksums.txt dist/rolloutviz.rb
-          gh release upload "${GITHUB_REF_NAME}" dist/rolloutviz.rb --clobber
+          ./scripts/render_homebrew_formula.sh "${GITHUB_REF_NAME}" dist/checksums.txt dist/rlviz.rb
+          gh release upload "${GITHUB_REF_NAME}" dist/rlviz.rb --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   npm:

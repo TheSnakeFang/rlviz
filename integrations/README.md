@@ -1,6 +1,6 @@
 # Coding-agent integrations
 
-RolloutViz is designed to be operated and extended by coding agents. These files
+RLViz is designed to be operated and extended by coding agents. These files
 are project-instruction snippets, not runtime plugins. Copy the relevant file
 into a repository where an agent needs to inspect rollout data:
 
@@ -8,7 +8,7 @@ into a repository where an agent needs to inspect rollout data:
 | --- | --- | --- |
 | Codex | `codex/AGENTS.md` | `AGENTS.md`, or merge into an existing file |
 | Claude Code | `claude-code/CLAUDE.md` | `CLAUDE.md`, or merge into an existing file |
-| Cursor | `cursor/rolloutviz.mdc` | `.cursor/rules/rolloutviz.mdc` |
+| Cursor | `cursor/rlviz.mdc` | `.cursor/rules/rlviz.mdc` |
 
 Each integration gives the agent the same workflow:
 

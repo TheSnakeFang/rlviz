@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/daemon"
-	"github.com/unlatch-ai/rolloutviz/internal/server"
+	"github.com/unlatch-ai/rlviz/internal/daemon"
+	"github.com/unlatch-ai/rlviz/internal/server"
 )
 
 type Viewer struct {

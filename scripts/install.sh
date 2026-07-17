@@ -1,20 +1,20 @@
 #!/bin/sh
 set -eu
 
-REPOSITORY="unlatch-ai/rolloutviz"
-VERSION="${ROLLOUTVIZ_VERSION:-latest}"
-INSTALL_DIR="${ROLLOUTVIZ_INSTALL_DIR:-$HOME/.local/bin}"
+REPOSITORY="unlatch-ai/rlviz"
+VERSION="${RLVIZ_VERSION:-latest}"
+INSTALL_DIR="${RLVIZ_INSTALL_DIR:-$HOME/.local/bin}"
 
 case "$(uname -s)" in
   Darwin) os=darwin ;;
   Linux) os=linux ;;
-  *) echo "rolloutviz: unsupported operating system: $(uname -s)" >&2; exit 1 ;;
+  *) echo "rlviz: unsupported operating system: $(uname -s)" >&2; exit 1 ;;
 esac
 
 case "$(uname -m)" in
   x86_64|amd64) arch=x86_64 ;;
   arm64|aarch64) arch=arm64 ;;
-  *) echo "rolloutviz: unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+  *) echo "rlviz: unsupported architecture: $(uname -m)" >&2; exit 1 ;;
 esac
 
 if [ "$VERSION" = latest ]; then
@@ -25,7 +25,7 @@ else
   release_url="https://github.com/$REPOSITORY/releases/download/v$resolved_version"
 fi
 
-archive="rolloutviz_${resolved_version}_${os}_${arch}.tar.gz"
+archive="rlviz_${resolved_version}_${os}_${arch}.tar.gz"
 temporary=$(mktemp -d)
 trap 'rm -rf "$temporary"' EXIT HUP INT TERM
 
@@ -34,7 +34,7 @@ curl -fsSL "$release_url/checksums.txt" -o "$temporary/checksums.txt"
 
 expected=$(awk -v file="$archive" '$2 == file { print $1 }' "$temporary/checksums.txt")
 if [ -z "$expected" ]; then
-  echo "rolloutviz: checksum not found for $archive" >&2
+  echo "rlviz: checksum not found for $archive" >&2
   exit 1
 fi
 
@@ -45,13 +45,12 @@ else
 fi
 
 if [ "$actual" != "$expected" ]; then
-  echo "rolloutviz: checksum verification failed" >&2
+  echo "rlviz: checksum verification failed" >&2
   exit 1
 fi
 
 mkdir -p "$INSTALL_DIR"
 tar -xzf "$temporary/$archive" -C "$temporary"
 install "$temporary/rlviz" "$INSTALL_DIR/rlviz"
-ln -sf rlviz "$INSTALL_DIR/rolloutviz"
 
-echo "installed rlviz and rolloutviz to $INSTALL_DIR"
+echo "installed rlviz to $INSTALL_DIR"

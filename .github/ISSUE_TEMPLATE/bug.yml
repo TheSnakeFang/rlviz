@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible RolloutViz problem
+description: Report a reproducible RLViz problem
 title: "bug: "
 labels: [bug]
 body:

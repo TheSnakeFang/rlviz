@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/unlatch-ai/rolloutviz/internal/plugins"
+	"github.com/unlatch-ai/rlviz/internal/plugins"
 )
 
 func TestLoadSourceReturnsStructuredUnsupportedFormat(t *testing.T) {
@@ -30,7 +30,7 @@ func TestLoadSourceRequiresTrustThenRunsExampleAdapter(t *testing.T) {
 	if _, err := exec.LookPath("python3"); err != nil {
 		t.Skip("python3 is not available")
 	}
-	t.Setenv("ROLLOUTVIZ_CONFIG_DIR", t.TempDir())
+	t.Setenv("RLVIZ_CONFIG_DIR", t.TempDir())
 	adapter := filepath.Join("..", "..", "examples", "adapters", "simple-jsonl")
 	source := filepath.Join("..", "..", "examples", "traces", "simple-agent.jsonl")
 

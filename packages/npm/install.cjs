@@ -20,12 +20,12 @@ function releaseTarget(platform = process.platform, architecture = process.arch)
   return { os: targetOS, arch: targetArch };
 }
 
-function releaseURLs(version, target, base = "https://github.com/unlatch-ai/rolloutviz/releases/download") {
+function releaseURLs(version, target, base = "https://github.com/unlatch-ai/rlviz/releases/download") {
   const normalized = version.replace(/^v/, "");
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(normalized)) {
-    throw new Error(`invalid rolloutviz package version ${version}`);
+    throw new Error(`invalid rlviz package version ${version}`);
   }
-  const archive = `rolloutviz_${normalized}_${target.os}_${target.arch}.tar.gz`;
+  const archive = `rlviz_${normalized}_${target.os}_${target.arch}.tar.gz`;
   const release = `${base.replace(/\/$/, "")}/v${normalized}`;
   return { archive, archiveURL: `${release}/${archive}`, checksumsURL: `${release}/checksums.txt` };
 }
@@ -45,7 +45,7 @@ function download(url, maxBytes, redirects = 5) {
       reject(new Error(`refusing non-HTTPS download ${url}`));
       return;
     }
-    const request = https.get(parsed, { headers: { "user-agent": "rolloutviz-npm-installer" } }, (response) => {
+    const request = https.get(parsed, { headers: { "user-agent": "rlviz-npm-installer" } }, (response) => {
       if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
         response.resume();
         if (redirects <= 0) reject(new Error(`too many redirects downloading ${url}`));
@@ -78,11 +78,11 @@ function download(url, maxBytes, redirects = 5) {
 }
 
 async function install(options = {}) {
-  if (process.env.ROLLOUTVIZ_SKIP_DOWNLOAD === "1") return;
+  if (process.env.RLVIZ_SKIP_DOWNLOAD === "1") return;
   const packageDirectory = options.packageDirectory || __dirname;
   const packageJSON = options.packageVersion ? { version: options.packageVersion } : require("./package.json");
   const target = releaseTarget(options.platform, options.architecture);
-  const urls = releaseURLs(packageJSON.version, target, options.releaseBaseURL || process.env.ROLLOUTVIZ_RELEASE_BASE_URL);
+  const urls = releaseURLs(packageJSON.version, target, options.releaseBaseURL || process.env.RLVIZ_RELEASE_BASE_URL);
   const downloadFile = options.download || download;
   const [archiveData, checksumsData] = await Promise.all([
     downloadFile(urls.archiveURL, MAX_ARCHIVE_BYTES),
@@ -94,7 +94,7 @@ async function install(options = {}) {
   const actual = crypto.createHash("sha256").update(archiveData).digest("hex");
   if (actual !== expected) throw new Error(`checksum verification failed for ${urls.archive}`);
 
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "rolloutviz-npm-"));
+  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "rlviz-npm-"));
   try {
     const archivePath = path.join(temporary, urls.archive);
     fs.writeFileSync(archivePath, archiveData, { mode: 0o600 });
@@ -126,7 +126,7 @@ module.exports = { download, expectedChecksum, install, releaseTarget, releaseUR
 
 if (require.main === module) {
   install().catch((error) => {
-    console.error(`rolloutviz: ${error.message}`);
+    console.error(`rlviz: ${error.message}`);
     process.exit(1);
   });
 }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://rolloutviz.dev/schemas/v1alpha1/canonical-record.schema.json",
-  "title": "RolloutViz canonical NDJSON record",
-  "description": "One line in a rolloutviz.dev/v1alpha1 canonical stream. References must point to records emitted earlier in the same stream; event sequence values must strictly increase per trajectory; complete must be last and its records count excludes itself.",
+  "$id": "https://rlviz.dev/schemas/v1alpha1/canonical-record.schema.json",
+  "title": "RLViz canonical NDJSON record",
+  "description": "One line in a rlviz.dev/v1alpha1 canonical stream. References must point to records emitted earlier in the same stream; event sequence values must strictly increase per trajectory; complete must be last and its records count excludes itself.",
   "oneOf": [
     { "$ref": "#/$defs/run" },
     { "$ref": "#/$defs/case" },

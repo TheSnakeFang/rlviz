@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"testing"
 
-	rolloutindex "github.com/unlatch-ai/rolloutviz/internal/index"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	rolloutindex "github.com/unlatch-ai/rlviz/internal/index"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func TestIndexedPathsSharedPrefixAndAuthentication(t *testing.T) {

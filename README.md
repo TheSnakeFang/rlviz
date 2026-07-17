@@ -1,8 +1,8 @@
-# RolloutViz
+# RLViz
 
 Visualize and compare agent rollouts.
 
-RolloutViz is a local, open-source viewer for agent trajectories. Point it at a trace, open the viewer, and inspect what the model, tools, grader, and environment did step by step.
+RLViz is a local, open-source viewer for agent trajectories. Point it at a trace, open the viewer, and inspect what the model, tools, grader, and environment did step by step.
 
 The long-term goal is a lightweight workbench for people building agent environments and post-training systems:
 
@@ -15,7 +15,7 @@ The long-term goal is a lightweight workbench for people building agent environm
 
 ## Status
 
-RolloutViz accepts canonical v1alpha1 NDJSON, validates and indexes it locally, starts a loopback-only daemon, and opens an embedded keyboard-first viewer:
+RLViz accepts canonical v1alpha1 NDJSON, validates and indexes it locally, starts a loopback-only daemon, and opens an embedded keyboard-first viewer:
 
 ```bash
 rlviz open ./path/to/trajectory.jsonl
@@ -46,11 +46,11 @@ Both cache commands accept `--json`. Cleanup only removes `index.sqlite` and its
 Private formats can use project-local process adapters:
 
 ```bash
-./bin/rlviz plugin init --type adapter --lang python .rolloutviz/plugins/customer-trace
+./bin/rlviz plugin init --type adapter --lang python .rlviz/plugins/customer-trace
 # Review the generated executable code before trusting it.
-./bin/rlviz plugin trust .rolloutviz/plugins/customer-trace
-./bin/rlviz plugin validate .rolloutviz/plugins/customer-trace ./path/to/trace
-./bin/rlviz open ./path/to/trace --adapter .rolloutviz/plugins/customer-trace
+./bin/rlviz plugin trust .rlviz/plugins/customer-trace
+./bin/rlviz plugin validate .rlviz/plugins/customer-trace ./path/to/trace
+./bin/rlviz open ./path/to/trace --adapter .rlviz/plugins/customer-trace
 ```
 
 See [`docs/adapter-authoring.md`](docs/adapter-authoring.md) and the working [`simple-jsonl` example](examples/adapters/simple-jsonl).
@@ -60,21 +60,21 @@ See [`docs/adapter-authoring.md`](docs/adapter-authoring.md) and the working [`s
 Release archives contain one native binary and require no language runtime. Install the latest verified archive with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/unlatch-ai/rolloutviz/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/unlatch-ai/rlviz/main/scripts/install.sh | sh
 ```
 
-Set `ROLLOUTVIZ_VERSION` to pin a release and `ROLLOUTVIZ_INSTALL_DIR` to choose the destination. The installer verifies the release checksum before installing both `rlviz` and the `rolloutviz` alias.
+Set `RLVIZ_VERSION` to pin a release and `RLVIZ_INSTALL_DIR` to choose the destination. The installer verifies the release checksum before installing `rlviz`.
 
 On macOS or Linux with Homebrew:
 
 ```bash
-brew install unlatch-ai/tap/rolloutviz
+brew install unlatch-ai/tap/rlviz
 ```
 
 For Node-based environments and coding-agent sandboxes, the same native binary is available through npm:
 
 ```bash
-npm install --global rolloutviz
+npm install --global rlviz
 ```
 
 The npm installer selects the matching macOS or Linux release and verifies its checksum. npm is an installation path only; the viewer itself remains a native Go binary.

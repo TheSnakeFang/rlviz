@@ -1,7 +1,7 @@
 # Simple JSONL adapter
 
 This dependency-free example translates `examples/traces/simple-agent.jsonl`
-into RolloutViz's canonical stream. It demonstrates deterministic IDs, source
+into RLViz's canonical stream. It demonstrates deterministic IDs, source
 locations, format probing, tool alignment keys, and protocol-only stdout.
 
 ```bash

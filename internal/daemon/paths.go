@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-const stateDirectoryName = "rolloutviz"
+const stateDirectoryName = "rlviz"
 
 // Paths names the private files used to coordinate one daemon per user.
 type Paths struct {
@@ -20,7 +20,7 @@ type Paths struct {
 // DefaultPaths locates daemon state below the current user's cache directory.
 // The caller should call EnsureRuntimeDir before creating files there.
 func DefaultPaths() (Paths, error) {
-	if override := os.Getenv("ROLLOUTVIZ_RUNTIME_DIR"); override != "" {
+	if override := os.Getenv("RLVIZ_RUNTIME_DIR"); override != "" {
 		return PathsAt(override), nil
 	}
 	cacheDir, err := os.UserCacheDir()

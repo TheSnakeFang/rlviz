@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 
-API_VERSION = "rolloutviz.dev/v1alpha1"
+API_VERSION = "rlviz.dev/v1alpha1"
 
 
 def load_request(path):

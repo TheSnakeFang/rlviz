@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/analyzers"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/analyzers"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 type AnalysisResult struct {

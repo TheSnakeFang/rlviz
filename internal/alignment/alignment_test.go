@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 func event(kind string, data any) model.Event {

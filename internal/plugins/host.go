@@ -14,8 +14,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/unlatch-ai/rolloutviz/internal/analyzers"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/analyzers"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 type Source struct {
@@ -442,10 +442,10 @@ func (h *Host) prepareAnalyzer(ctx context.Context, plugin *Plugin, request []by
 	cmd.Stdin = nil
 	cmd.Env = append(os.Environ(),
 		"PYTHONDONTWRITEBYTECODE=1",
-		"ROLLOUTVIZ_ANALYZER_NAME="+snapshot.Manifest.Name,
-		"ROLLOUTVIZ_ANALYZER_VERSION="+snapshot.Manifest.Version,
-		"ROLLOUTVIZ_ANALYZER_DIGEST=sha256:"+snapshot.Digest,
-		"ROLLOUTVIZ_ANALYZER_INPUT_DIGEST="+inputDigest,
+		"RLVIZ_ANALYZER_NAME="+snapshot.Manifest.Name,
+		"RLVIZ_ANALYZER_VERSION="+snapshot.Manifest.Version,
+		"RLVIZ_ANALYZER_DIGEST=sha256:"+snapshot.Digest,
+		"RLVIZ_ANALYZER_INPUT_DIGEST="+inputDigest,
 	)
 	configureProcess(cmd)
 	stderr := &boundedBuffer{limit: boundedLimit(h.MaxStderrBytes, 1<<20)}
@@ -500,7 +500,7 @@ func writeRequest(_ string, request Request) (string, func(), error) {
 }
 
 func writePayload(data []byte) (string, func(), error) {
-	f, err := os.CreateTemp("", "rolloutviz-request-*.json")
+	f, err := os.CreateTemp("", "rlviz-request-*.json")
 	if err != nil {
 		return "", func() {}, err
 	}

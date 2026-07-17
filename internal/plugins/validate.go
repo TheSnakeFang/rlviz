@@ -10,8 +10,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/unlatch-ai/rolloutviz/internal/analyzers"
-	"github.com/unlatch-ai/rolloutviz/internal/model"
+	"github.com/unlatch-ai/rlviz/internal/analyzers"
+	"github.com/unlatch-ai/rlviz/internal/model"
 )
 
 type ValidationReport struct {

@@ -29,14 +29,14 @@ type TrustEntry struct {
 }
 
 func DefaultTrustStore() (*TrustStore, error) {
-	if override := os.Getenv("ROLLOUTVIZ_CONFIG_DIR"); override != "" {
+	if override := os.Getenv("RLVIZ_CONFIG_DIR"); override != "" {
 		return &TrustStore{Path: filepath.Join(override, "trusted-plugins.json")}, nil
 	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return nil, err
 	}
-	return &TrustStore{Path: filepath.Join(dir, "rolloutviz", "trusted-plugins.json")}, nil
+	return &TrustStore{Path: filepath.Join(dir, "rlviz", "trusted-plugins.json")}, nil
 }
 
 // Trust records the plugin's resolved absolute path and current digest.

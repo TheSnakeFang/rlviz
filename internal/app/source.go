@@ -7,7 +7,7 @@ import (
 )
 
 // ValidateSource resolves a source path and verifies that it can be opened as a
-// regular file. RolloutViz never opens source trajectories for writing.
+// regular file. RLViz never opens source trajectories for writing.
 func ValidateSource(path string) (string, error) {
 	if path == "" {
 		return "", fmt.Errorf("source path is required")

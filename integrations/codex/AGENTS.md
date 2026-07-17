@@ -1,6 +1,6 @@
-# RolloutViz trace workflow
+# RLViz trace workflow
 
-Use RolloutViz when the user asks to inspect, open, or explain a rollout,
+Use RLViz when the user asks to inspect, open, or explain a rollout,
 trajectory, episode, trace, or agent-environment run.
 
 ## Open a trace
@@ -21,14 +21,14 @@ when present. Otherwise use the project-local adapter flow below. Do not rename
 fields or rewrite the source to make it look supported.
 
 ```bash
-rlviz plugin init --type adapter --lang python .rolloutviz/plugins/<name>
-rlviz plugin trust .rolloutviz/plugins/<name>
-rlviz plugin validate --json .rolloutviz/plugins/<name> "<source>"
-rlviz open --json "<source>" --adapter .rolloutviz/plugins/<name>
+rlviz plugin init --type adapter --lang python .rlviz/plugins/<name>
+rlviz plugin trust .rlviz/plugins/<name>
+rlviz plugin validate --json .rlviz/plugins/<name> "<source>"
+rlviz open --json "<source>" --adapter .rlviz/plugins/<name>
 ```
 
 Inspect representative source records and edit only the generated adapter. Map
-them to the canonical `rolloutviz.dev/v1alpha1` records. Keep IDs stable, preserve
+them to the canonical `rlviz.dev/v1alpha1` records. Keep IDs stable, preserve
 event order, and include source line or byte locations when available.
 
 Before `plugin trust`, review the manifest and every executable file in the
@@ -43,7 +43,7 @@ rerunning validation.
 - Treat traces and referenced artifacts as read-only.
 - Do not run recorded commands or tools.
 - Do not add network calls, telemetry, uploads, or hosted dependencies.
-- Keep generated code under `.rolloutviz/plugins/` so it can be reviewed and
+- Keep generated code under `.rlviz/plugins/` so it can be reviewed and
   versioned with the repository.
 - Fix adapter code from structured validation diagnostics. Do not mutate the
   source to silence a validator error.

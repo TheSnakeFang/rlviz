@@ -2,8 +2,7 @@
 
 build: web-build
 	mkdir -p bin
-	go build -o bin/rlviz ./cmd/rolloutviz
-	cp bin/rlviz bin/rolloutviz
+	go build -o bin/rlviz ./cmd/rlviz
 
 web-install:
 	npm --prefix web ci
