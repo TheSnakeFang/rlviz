@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadAnalysis, loadChildPage, loadComparison, loadEventPage, loadGroup, loadGroupPaths, loadTrajectory } from "./api";
 import { ComparisonView } from "./ComparisonView";
-import { bindingLabel, commandIds, useCommands, useKeymapRevision } from "./commands";
+import { applyPresentationKeymap, bindingLabel, commandIds, useCommands, useKeymapRevision } from "./commands";
 import { ContextTrack } from "./ContextTrack";
 import { duration, eventText, payload, preview, time, title } from "./format";
 import { GroupView } from "./GroupView";
@@ -189,6 +189,7 @@ export function App({ initialTrajectory }: { initialTrajectory?: Trajectory }) {
   }, [initialTrajectory, routeVersion]);
 
   useEffect(() => applyPresentationTheme(presentation), [presentation]);
+  useEffect(() => applyPresentationKeymap(presentation), [presentation]);
 
   useEffect(() => {
     const params = new URLSearchParams(globalThis.location?.search ?? "");

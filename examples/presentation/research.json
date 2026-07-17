@@ -42,6 +42,12 @@
       "other_artifacts"
     ]
   },
+  "keymap": {
+    "bindings": {
+      "trajectory.next": ["j", "ArrowDown"],
+      "trajectory.previous": ["k", "ArrowUp"]
+    }
+  },
   "theme": {
     "context_change": "#b49cff"
   }

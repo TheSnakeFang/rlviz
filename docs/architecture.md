@@ -169,7 +169,9 @@ canonical records. Its pure `deriveLandmarkRail` selector keeps only source-back
 turns, prompts, context changes, failures, evaluations, artifacts, analyzer
 references, endpoints, and the current selection. Filtering switches the rail
 to raw matching events without changing canonical event navigation.
-`commands.ts` is the single command/keymap registry.
+`commands.ts` is the single command/keymap registry. Validated presentation
+bindings act as portable project defaults; browser-local overrides take
+precedence and executable handlers remain core-owned.
 `api.ts` is the typed daemon client, `types.ts` mirrors API records, and
 `VirtualList.tsx` bounds DOM work for long lists while reporting the exact
 non-overscanned viewport to the overview. Structured context observations

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindingsFor, commandIds, commands, detectKeymapConflicts, eventBinding, keymapStorageKey, loadKeymapOverrides, matchesBinding, normalizeBinding, resetKeymapOverrides, saveKeymapOverrides, setCommandBindings } from "./commands";
+import { applyPresentationKeymap, bindingsFor, commandIds, commands, detectKeymapConflicts, eventBinding, keymapStorageKey, loadKeymapOverrides, matchesBinding, normalizeBinding, presentationKeymapOverrides, resetKeymapOverrides, saveKeymapOverrides, setCommandBindings } from "./commands";
 
 describe("command registry", () => {
   it("has stable unique IDs and conflict-free defaults in each scope", () => {
@@ -44,5 +44,20 @@ describe("command registry", () => {
     const overrides = { [commandIds.trajectory.previous]: ["j"], [commandIds.group.next]: ["j"] };
     expect(detectKeymapConflicts(overrides, "trajectory")).toEqual([{ scope: "trajectory", binding: "j", commandIds: [commandIds.trajectory.next, commandIds.trajectory.previous] }]);
     expect(detectKeymapConflicts(overrides, "group")).toEqual([]);
+    expect(detectKeymapConflicts({ [commandIds.trajectory.next]: ["Mod+k"], [commandIds.trajectory.previous]: ["Ctrl+k"] }, "trajectory")).toEqual(expect.arrayContaining([expect.objectContaining({ binding: "Ctrl+k" })]));
+  });
+
+  it("applies portable project defaults below browser-local overrides", () => {
+    const cleanup = applyPresentationKeymap({ api_version: "rlviz.dev/v1alpha1", keymap: { bindings: { [commandIds.trajectory.next]: ["n", "ArrowDown"] } } });
+    expect(bindingsFor(commandIds.trajectory.next, {})).toEqual(["n", "ArrowDown"]);
+    expect(bindingsFor(commandIds.trajectory.next, { [commandIds.trajectory.next]: ["j"] })).toEqual(["j"]);
+    cleanup();
+    expect(bindingsFor(commandIds.trajectory.next, {})).toEqual(["j"]);
+  });
+
+  it("fails malformed or conflicting portable keymaps to shipped defaults", () => {
+    expect(presentationKeymapOverrides({ api_version: "rlviz.dev/v1alpha1", keymap: { bindings: { [commandIds.trajectory.next]: ["k"] } } })).toEqual({});
+    expect(presentationKeymapOverrides({ api_version: "rlviz.dev/v1alpha1", keymap: { bindings: { unknown: ["q"] } } })).toEqual({});
+    expect(presentationKeymapOverrides({ api_version: "rlviz.dev/v1alpha1", keymap: { bindings: { [commandIds.trajectory.next]: ["Hyper+j"] } } })).toEqual({});
   });
 });

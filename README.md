@@ -57,7 +57,8 @@ The daemon validates it again, stores only normalized JSON, and returns it as
 the top-level `presentation` object. Opening the same source without
 `--presentation` clears its prior presentation configuration. The contract can
 order or hide fixed inspector sections, but cannot replace the selected-event
-header or raw normalized record.
+header or raw normalized record. It can also provide portable defaults for
+stable core command bindings; local browser edits remain higher priority.
 
 `rlviz open` starts or reuses a private loopback daemon and returns after registration. Use `rlviz status` and `rlviz stop` to inspect or stop it; `rlviz serve` remains the explicit foreground debugging mode.
 

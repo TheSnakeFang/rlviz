@@ -177,6 +177,7 @@ export interface PresentationConfig {
   scalars?: Partial<Record<PresentationScalarFieldID, PresentationScalarFormat>>;
   group?: { columns?: PresentationFieldID[] };
   inspector?: { sections?: PresentationInspectorSectionID[] };
+  keymap?: { bindings?: Record<string, string[]> };
   theme?: Partial<Record<PresentationThemeToken, string>>;
 }
 

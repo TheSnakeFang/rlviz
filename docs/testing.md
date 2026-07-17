@@ -62,7 +62,9 @@ partial indexes, bounded rendering on 10,000 events, raw-event keyboard
 navigation, and pinned selection when filters exclude the current event.
 Presentation tests keep JSON Schema, Go validation, and TypeScript mirrors
 aligned. Inspector tests assert exact declarative ordering, omission, and the
-invariant raw-record escape hatch.
+invariant raw-record escape hatch. Keymap tests cover project-default versus
+browser-local precedence, modifier syntax, command allowlists, and same-scope
+conflict rejection.
 
 ### Real-browser end-to-end tests
 

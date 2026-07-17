@@ -101,6 +101,8 @@ The file is strict, bounded JSON rather than executable UI code. It is
 validated before daemon startup and again at registration. The normalized
 configuration survives source refreshes and daemon restarts. Reopening that
 source without `--presentation` intentionally clears the prior configuration.
+Portable keymap entries address stable core command IDs; browser-local shortcut
+edits take precedence over those project defaults.
 
 ### 6. Adapt a private format
 

@@ -18,6 +18,7 @@ func TestLoadValidPresentation(t *testing.T) {
   "scalars":{"signal:grader_score":{"format":"percent_fraction","precision":2,"unit":"pass"}},
   "group":{"columns":["pass","reward","signal:grader_score"]},
   "inspector":{"sections":["properties","analysis","source"]},
+  "keymap":{"bindings":{"trajectory.next":["j","ArrowDown"],"trajectory.previous":["k","ArrowUp"]}},
   "theme":{"focus":"#8be6d0"}
 }`))
 	if err != nil {
@@ -46,6 +47,13 @@ func TestLoadRejectsExecutableOrUnboundedSurfaces(t *testing.T) {
 		"unknown inspector":      `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["properties","html"]}}`,
 		"duplicate inspector":    `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["source","source"]}}`,
 		"too many inspector":     `{"api_version":"rlviz.dev/v1alpha1","inspector":{"sections":["properties","context","source","input","output","content","metadata","linked_artifacts","analysis","other_artifacts","properties"]}}`,
+		"unknown command":        `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.execute":["q"]}}}`,
+		"empty command binding":  `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.next":[]}}}`,
+		"unknown modifier":       `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.next":["Hyper+j"]}}}`,
+		"duplicate modifier":     `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.next":["Ctrl+Ctrl+j"]}}}`,
+		"command conflict":       `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.next":["k"]}}}`,
+		"portable mod conflict":  `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.next":["Mod+k"],"trajectory.previous":["Ctrl+k"]}}}`,
+		"normalized duplicate":   `{"api_version":"rlviz.dev/v1alpha1","keymap":{"bindings":{"trajectory.next":["j","J"]}}}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := Load(strings.NewReader(document)); err == nil {

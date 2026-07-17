@@ -77,7 +77,7 @@ export function KeymapDialog({ open, onClose }: { open: boolean; onClose: () => 
   return <div className="modal-backdrop keymap-backdrop" onMouseDown={onClose}>
     <section className="keymap-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={descriptionId} onMouseDown={(event) => event.stopPropagation()}>
       <header>
-        <div><span className="eyebrow">Preferences</span><h2 id={titleId}>Keyboard shortcuts</h2><p id={descriptionId}>Separate multiple bindings with commas. Changes stay local to this browser.</p></div>
+        <div><span className="eyebrow">Preferences</span><h2 id={titleId}>Keyboard shortcuts</h2><p id={descriptionId}>Separate bindings with commas. Browser changes override project defaults.</p></div>
         <button ref={closeRef} type="button" onClick={onClose} aria-label="Close keyboard shortcut settings">×</button>
       </header>
       <div className="keymap-scopes">
@@ -101,7 +101,7 @@ export function KeymapDialog({ open, onClose }: { open: boolean; onClose: () => 
           </div>
         </section>)}
       </div>
-      <footer><button type="button" onClick={reset}>Reset all shortcuts</button><button type="button" onClick={onClose}>Done</button></footer>
+      <footer><button type="button" onClick={reset}>Reset browser overrides</button><button type="button" onClick={onClose}>Done</button></footer>
     </section>
   </div>;
 }

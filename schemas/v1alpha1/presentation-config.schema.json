@@ -62,6 +62,24 @@
       },
       "additionalProperties": false
     },
+    "keymap": {
+      "type": "object",
+      "properties": {
+        "bindings": {
+          "type": "object",
+          "maxProperties": 41,
+          "propertyNames": { "$ref": "#/$defs/command_id" },
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 32, "pattern": "^[^\\x00-\\x1F\\x7F]+$" }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "theme": {
       "type": "object",
       "maxProperties": 17,
@@ -80,6 +98,14 @@
     "scalar_field_id": {
       "type": "string",
       "pattern": "^(reward|events|errors|tokens|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$"
+    },
+    "command_id": {
+      "enum": [
+        "trajectory.dismiss", "trajectory.search", "trajectory.next", "trajectory.previous", "trajectory.nextError", "trajectory.nextReward", "trajectory.nextContext", "trajectory.nextFinding", "trajectory.nextArtifact", "trajectory.toggleRaw", "trajectory.openGroup", "trajectory.toggleHelp", "trajectory.toggleExpanded", "trajectory.openTranscript", "trajectory.openTimeline", "trajectory.openOutcome",
+        "group.back", "group.togglePaths", "group.search", "group.next", "group.previous", "group.open", "group.toggleCompare", "group.compare", "group.best", "group.median", "group.worst", "group.rewardOutlier", "group.nextFailure", "group.nextInfraFailure", "group.toggleColumns",
+        "paths.back", "paths.togglePaths", "paths.next", "paths.previous", "paths.open",
+        "comparison.back", "comparison.next", "comparison.previous", "comparison.firstDivergence", "comparison.nextChange"
+      ]
     }
   }
 }

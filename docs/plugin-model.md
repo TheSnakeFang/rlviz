@@ -102,6 +102,13 @@ sections without data remain absent. The selected-event heading and raw-record
 mode are invariant. The declaration does not disable analysis, artifact
 navigation, deep links, or other data behavior; it changes presentation only.
 
+`keymap.bindings` maps stable core command IDs to one to four key strings. Only
+`Mod`, `Ctrl`, `Meta`, `Alt`, and `Shift` modifiers are accepted. Unknown
+commands, malformed or duplicate bindings, and same-scope conflicts fail
+validation. Project bindings replace shipped defaults for listed commands;
+browser-local user overrides remain higher priority and Reset returns to the
+project defaults. Configuration cannot add commands or handlers.
+
 Validate a file before using it:
 
 ```bash
@@ -120,5 +127,6 @@ fingerprints, so it survives daemon restarts and source refreshes without
 causing re-indexing. TypeScript mirrors the Go types;
 `GroupView` maps configured columns onto its existing built-in/signal model and
 uses the current user-saved column layout as a higher-priority preference.
+The command registry applies configured keymaps below browser-local overrides.
 Theme keys map to the same hyphenated CSS custom-property names only after
 validation. No presentation file is discovered from executable plugin output.

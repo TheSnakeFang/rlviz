@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { PresentationConfig } from "./types";
 
 export type CommandScope = "trajectory" | "group" | "paths" | "comparison";
 
@@ -87,6 +88,7 @@ export const commands: readonly CommandDefinition[] = [
 const commandById = new Map<CommandId, CommandDefinition>(commands.map((command) => [command.id, command]));
 export const keymapStorageKey = "rlviz.keybindings.v1";
 export type KeymapOverrides = Partial<Record<CommandId, string[]>>;
+let presentationKeymap: KeymapOverrides = {};
 
 function keyName(key: string): string {
   if (key === " " || key.toLowerCase() === "space") return "Space";
@@ -101,6 +103,14 @@ export function normalizeBinding(binding: string): string {
   const modifiers = new Set(parts.map((part) => part.toLowerCase()));
   const prefix = [modifiers.has("mod") ? "Mod" : "", modifiers.has("ctrl") ? "Ctrl" : "", modifiers.has("meta") ? "Meta" : "", modifiers.has("alt") ? "Alt" : "", modifiers.has("shift") ? "Shift" : ""].filter(Boolean);
   return [...prefix, key].join("+");
+}
+
+function validBinding(binding: string): boolean {
+  if (!binding || binding.length > 32 || /[\u0000-\u001f\u007f]/.test(binding)) return false;
+  const parts = binding.split("+").map((part) => part.trim());
+  if (!parts.at(-1)) return false;
+  const modifiers = parts.slice(0, -1).map((part) => part.toLowerCase());
+  return new Set(modifiers).size === modifiers.length && modifiers.every((part) => ["mod", "ctrl", "meta", "alt", "shift"].includes(part));
 }
 
 export function eventBinding(event: KeyboardEvent): string {
@@ -153,21 +163,49 @@ export function resetKeymapOverrides(storage?: Pick<Storage, "removeItem">): voi
   if (typeof window !== "undefined") window.dispatchEvent(new window.Event("rlviz:keymap-change"));
 }
 
-export function bindingsFor(id: CommandId, overrides = loadKeymapOverrides()): readonly string[] {
+export function bindingsFor(id: CommandId, overrides = loadKeymapOverrides(), configured = presentationKeymap): readonly string[] {
   const command = commandById.get(id);
-  return overrides[id] ?? command?.defaultBindings ?? [];
+  return overrides[id] ?? configured[id] ?? command?.defaultBindings ?? [];
 }
 
 export type KeymapConflict = { scope: CommandScope; binding: string; commandIds: CommandId[] };
-export function detectKeymapConflicts(overrides: KeymapOverrides = loadKeymapOverrides(), scope?: CommandScope): KeymapConflict[] {
+function conflictBindings(binding: string): string[] {
+  const normalized = normalizeBinding(binding);
+  return normalized.startsWith("Mod+") ? [normalized.replace("Mod+", "Ctrl+"), normalized.replace("Mod+", "Meta+")] : [normalized];
+}
+export function detectKeymapConflicts(overrides: KeymapOverrides = loadKeymapOverrides(), scope?: CommandScope, configured = presentationKeymap): KeymapConflict[] {
   const seen = new Map<string, CommandId[]>();
   commands.filter((command) => !scope || command.scope === scope).forEach((command) => {
-    new Set(bindingsFor(command.id, overrides).map(normalizeBinding)).forEach((binding) => {
+    new Set(bindingsFor(command.id, overrides, configured).flatMap(conflictBindings)).forEach((binding) => {
       const key = `${command.scope}\0${binding}`;
       seen.set(key, [...(seen.get(key) ?? []), command.id]);
     });
   });
   return [...seen].flatMap(([key, commandIds]) => commandIds.length > 1 ? [{ scope: key.split("\0")[0] as CommandScope, binding: key.split("\0")[1], commandIds }] : []);
+}
+
+export function presentationKeymapOverrides(config?: PresentationConfig): KeymapOverrides {
+  const bindings = config?.keymap?.bindings;
+  if (!bindings || typeof bindings !== "object" || Array.isArray(bindings) || Object.keys(bindings).length > commands.length) return {};
+  const candidate: KeymapOverrides = {};
+  for (const [id, values] of Object.entries(bindings)) {
+    if (!commandById.has(id as CommandId) || !Array.isArray(values) || values.length < 1 || values.length > 4 || values.some((binding) => typeof binding !== "string" || !validBinding(binding.trim()))) return {};
+    const normalized = values.map((binding) => normalizeBinding(binding.trim()));
+    if (new Set(normalized).size !== normalized.length) return {};
+    candidate[id as CommandId] = normalized;
+  }
+  return detectKeymapConflicts(candidate, undefined, {}).length ? {} : candidate;
+}
+
+/** Apply validated project defaults while preserving browser-local overrides. */
+export function applyPresentationKeymap(config?: PresentationConfig): () => void {
+  const previous = presentationKeymap;
+  presentationKeymap = presentationKeymapOverrides(config);
+  if (typeof window !== "undefined") window.dispatchEvent(new window.Event("rlviz:keymap-change"));
+  return () => {
+    presentationKeymap = previous;
+    if (typeof window !== "undefined") window.dispatchEvent(new window.Event("rlviz:keymap-change"));
+  };
 }
 
 export type CommandHandlers = Partial<Record<CommandId, (event: KeyboardEvent) => void | boolean>>;

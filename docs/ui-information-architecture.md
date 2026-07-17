@@ -214,9 +214,10 @@ handlers. A central registry owns:
 - conflict detection, reset, import, and export
 - command palette and shortcut reference generated from the same registry
 
-The registry, local rebind UI, persistence, conflict detection, and generated
-key hints are implemented. Command-palette and keymap import/export remain
-future work.
+The registry, local rebind UI, persistence, conflict detection, generated key
+hints, and portable project defaults through presentation configuration are
+implemented. Browser-local edits override project defaults. Command-palette
+and standalone keymap-file import/export remain future work.
 
 Core commands include next/previous landmark, next/previous turn, expand,
 inspect, search, next error, next context change, next grader, open outcome,
@@ -234,6 +235,9 @@ Inspector ordering and visibility are implemented as an exact list of fixed
 core sections. Selected-event identity and raw normalized access remain fixed;
 presentation configuration cannot inject markup or disable underlying data and
 keyboard behavior.
+
+Portable keymaps may only replace bindings for stable core command IDs. They
+cannot add commands or handlers, and invalid or conflicting maps fail closed.
 
 Group-table layouts follow the same boundary. Trajectory identity, comparison
 selection, and the open action are fixed; researchers can hide optional metrics

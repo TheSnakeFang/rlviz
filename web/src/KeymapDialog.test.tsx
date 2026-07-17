@@ -56,7 +56,7 @@ describe("keymap settings", () => {
     expect(screen.getByLabelText("Next event bindings")).toHaveValue("n");
     fireEvent.change(screen.getByLabelText("Previous event bindings"), { target: { value: "p" } });
     expect(storage.removeItem).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Reset all shortcuts" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset browser overrides" }));
     expect(storage.removeItem).toHaveBeenCalledWith(keymapStorageKey);
     expect(screen.getByLabelText("Next event bindings")).toHaveValue("j");
     expect(screen.getByLabelText("Previous event bindings")).toHaveValue("k");

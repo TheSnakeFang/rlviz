@@ -41,4 +41,5 @@ grant plugin trust or permission to inject HTML, CSS, JavaScript, selectors,
 URLs, or arbitrary inspector templates. Inspector layouts may only order or
 hide fixed core-owned section IDs; selected identity and raw access remain
 invariant. Runtime validation additionally checks
-semantic color contrast, which JSON Schema alone cannot express.
+semantic color contrast and same-scope keymap conflicts, which JSON Schema
+alone cannot express.

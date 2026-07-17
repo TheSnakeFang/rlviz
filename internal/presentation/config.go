@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -28,6 +29,7 @@ type Config struct {
 	Scalars    map[string]ScalarFormat `json:"scalars,omitempty"`
 	Group      GroupDefaults           `json:"group,omitempty"`
 	Inspector  *InspectorDefaults      `json:"inspector,omitempty"`
+	Keymap     *KeymapDefaults         `json:"keymap,omitempty"`
 	Theme      map[string]string       `json:"theme,omitempty"`
 }
 
@@ -48,6 +50,36 @@ type GroupDefaults struct {
 
 type InspectorDefaults struct {
 	Sections []string `json:"sections,omitempty"`
+}
+
+type KeymapDefaults struct {
+	Bindings map[string][]string `json:"bindings,omitempty"`
+}
+
+var commandIDs = map[string]bool{
+	"trajectory.dismiss": true, "trajectory.search": true, "trajectory.next": true, "trajectory.previous": true,
+	"trajectory.nextError": true, "trajectory.nextReward": true, "trajectory.nextContext": true, "trajectory.nextFinding": true,
+	"trajectory.nextArtifact": true, "trajectory.toggleRaw": true, "trajectory.openGroup": true, "trajectory.toggleHelp": true,
+	"trajectory.toggleExpanded": true, "trajectory.openTranscript": true, "trajectory.openTimeline": true, "trajectory.openOutcome": true,
+	"group.back": true, "group.togglePaths": true, "group.search": true, "group.next": true, "group.previous": true,
+	"group.open": true, "group.toggleCompare": true, "group.compare": true, "group.best": true, "group.median": true,
+	"group.worst": true, "group.rewardOutlier": true, "group.nextFailure": true, "group.nextInfraFailure": true, "group.toggleColumns": true,
+	"paths.back": true, "paths.togglePaths": true, "paths.next": true, "paths.previous": true, "paths.open": true,
+	"comparison.back": true, "comparison.next": true, "comparison.previous": true, "comparison.firstDivergence": true, "comparison.nextChange": true,
+}
+
+var commandDefaults = map[string][]string{
+	"trajectory.dismiss": {"Escape"}, "trajectory.search": {"/"}, "trajectory.next": {"j"}, "trajectory.previous": {"k"},
+	"trajectory.nextError": {"e"}, "trajectory.nextReward": {"r"}, "trajectory.nextContext": {"c"}, "trajectory.nextFinding": {"a"},
+	"trajectory.nextArtifact": {"o"}, "trajectory.toggleRaw": {"x"}, "trajectory.openGroup": {"g"}, "trajectory.toggleHelp": {"?"},
+	"trajectory.toggleExpanded": {"Enter", "Space"}, "trajectory.openTranscript": {"1"}, "trajectory.openTimeline": {"2"}, "trajectory.openOutcome": {"3"},
+	"group.back": {"Escape"}, "group.togglePaths": {"p"}, "group.search": {"/"}, "group.next": {"j", "ArrowDown"},
+	"group.previous": {"k", "ArrowUp"}, "group.open": {"Enter", "o"}, "group.toggleCompare": {"Space", "c"}, "group.compare": {"v"},
+	"group.best": {"b"}, "group.median": {"m"}, "group.worst": {"w"}, "group.rewardOutlier": {"u"}, "group.nextFailure": {"f"},
+	"group.nextInfraFailure": {"i"}, "group.toggleColumns": {"Shift+C"},
+	"paths.back": {"Escape"}, "paths.togglePaths": {"p"}, "paths.next": {"j", "ArrowDown"}, "paths.previous": {"k", "ArrowUp"}, "paths.open": {"Enter", "o"},
+	"comparison.back": {"Escape"}, "comparison.next": {"j", "ArrowDown"}, "comparison.previous": {"k", "ArrowUp"},
+	"comparison.firstDivergence": {"d"}, "comparison.nextChange": {"n"},
 }
 
 var inspectorSectionIDs = map[string]bool{
@@ -186,10 +218,111 @@ func (config Config) Validate() error {
 			seen[id] = true
 		}
 	}
+	if config.Keymap != nil {
+		if len(config.Keymap.Bindings) > len(commandIDs) {
+			return fmt.Errorf("keymap.bindings may contain at most %d commands", len(commandIDs))
+		}
+		for id, bindings := range config.Keymap.Bindings {
+			if !commandIDs[id] {
+				return fmt.Errorf("keymap.bindings contains unsupported command %q", id)
+			}
+			if len(bindings) == 0 || len(bindings) > 4 {
+				return fmt.Errorf("keymap binding %q must contain between one and four keys", id)
+			}
+			seenBindings := map[string]bool{}
+			for _, binding := range bindings {
+				trimmed := strings.TrimSpace(binding)
+				if !validKeyBinding(trimmed) {
+					return fmt.Errorf("keymap binding %q contains an invalid key", id)
+				}
+				normalized := normalizeKeyBinding(trimmed)
+				if seenBindings[normalized] {
+					return fmt.Errorf("keymap binding %q contains duplicate %q", id, trimmed)
+				}
+				seenBindings[normalized] = true
+			}
+		}
+		resolved := make(map[string][]string, len(commandDefaults))
+		for id, bindings := range commandDefaults {
+			resolved[id] = bindings
+		}
+		for id, bindings := range config.Keymap.Bindings {
+			resolved[id] = bindings
+		}
+		occupied := map[string]string{}
+		ids := make([]string, 0, len(resolved))
+		for id := range resolved {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		for _, id := range ids {
+			bindings := resolved[id]
+			scope := strings.SplitN(id, ".", 2)[0]
+			for _, binding := range bindings {
+				for _, collisionKey := range keyBindingCollisionKeys(binding) {
+					key := scope + "\x00" + collisionKey
+					if prior := occupied[key]; prior != "" && prior != id {
+						return fmt.Errorf("keymap binding %q conflicts between %q and %q", strings.TrimSpace(binding), prior, id)
+					}
+					occupied[key] = id
+				}
+			}
+		}
+	}
 	if err := validateTheme(config.Theme); err != nil {
 		return err
 	}
 	return nil
+}
+
+func validKeyBinding(binding string) bool {
+	if binding == "" || len([]rune(binding)) > 32 || unsafeText(binding) {
+		return false
+	}
+	parts := strings.Split(binding, "+")
+	if strings.TrimSpace(parts[len(parts)-1]) == "" {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, modifier := range parts[:len(parts)-1] {
+		modifier = strings.ToLower(strings.TrimSpace(modifier))
+		if seen[modifier] || (modifier != "mod" && modifier != "ctrl" && modifier != "meta" && modifier != "alt" && modifier != "shift") {
+			return false
+		}
+		seen[modifier] = true
+	}
+	return true
+}
+
+func normalizeKeyBinding(binding string) string {
+	parts := strings.Split(binding, "+")
+	key := strings.TrimSpace(parts[len(parts)-1])
+	if strings.EqualFold(key, "esc") || strings.EqualFold(key, "escape") {
+		key = "escape"
+	} else if key == " " || strings.EqualFold(key, "space") {
+		key = "space"
+	} else {
+		key = strings.ToLower(key)
+	}
+	modifiers := map[string]bool{}
+	for _, modifier := range parts[:len(parts)-1] {
+		modifiers[strings.ToLower(strings.TrimSpace(modifier))] = true
+	}
+	ordered := make([]string, 0, 6)
+	for _, modifier := range []string{"mod", "ctrl", "meta", "alt", "shift"} {
+		if modifiers[modifier] {
+			ordered = append(ordered, modifier)
+		}
+	}
+	return strings.Join(append(ordered, key), "+")
+}
+
+func keyBindingCollisionKeys(binding string) []string {
+	normalized := normalizeKeyBinding(binding)
+	if strings.HasPrefix(normalized, "mod+") {
+		return []string{strings.Replace(normalized, "mod+", "ctrl+", 1), strings.Replace(normalized, "mod+", "meta+", 1)}
+	}
+	return []string{normalized}
 }
 
 func validateFieldID(id string) error {
