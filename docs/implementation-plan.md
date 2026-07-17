@@ -230,6 +230,11 @@ source-backed data-model work.
 
 ## Milestone 11: group, divergence, and safe customization
 
+Status: deterministic behavioral alignment, divergence navigation, and pair
+summary deltas for outcome, tokens, explicit context events, compactions, and
+source-shaped verifier results are implemented. Cohort filtering, structured
+payload differences, and declarative customization remain.
+
 ### Deliverables
 
 - Cohort distributions, multi-signal filters, outlier shortcuts, and saved columns

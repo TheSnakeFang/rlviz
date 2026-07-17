@@ -246,6 +246,31 @@ export interface ValueDifference {
   changed: boolean;
 }
 
+export interface CountDifference {
+  left: number;
+  right: number;
+  delta: number;
+}
+
+export interface NumericDifference extends ValueDifference {
+  left?: number;
+  right?: number;
+  delta?: number;
+}
+
+export interface VerifierResult {
+  event_id: string;
+  sequence: number;
+  alignment_key?: string;
+  output?: unknown;
+}
+
+export interface VerifierDifference {
+  left?: VerifierResult[];
+  right?: VerifierResult[];
+  changed: boolean;
+}
+
 export interface ComparisonResponse {
   left: ComparisonSide;
   right: ComparisonSide;
@@ -256,10 +281,15 @@ export interface ComparisonResponse {
     later_realignment?: number;
   };
   differences: {
-    event_count: { left: number; right: number; delta: number };
+    event_count: CountDifference;
     status: ValueDifference;
     termination: ValueDifference;
     reward: ValueDifference;
+    success?: ValueDifference;
+    token_count?: NumericDifference;
+    context_event_count?: CountDifference;
+    compaction_count?: CountDifference;
+    verifier_results?: VerifierDifference;
   };
 }
 

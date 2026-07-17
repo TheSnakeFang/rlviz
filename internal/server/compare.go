@@ -2,11 +2,13 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/unlatch-ai/rlviz/internal/alignment"
@@ -45,11 +47,33 @@ type countDifference struct {
 	Delta int `json:"delta"`
 }
 
+type optionalIntegerDifference struct {
+	Left    *int64 `json:"left,omitempty"`
+	Right   *int64 `json:"right,omitempty"`
+	Delta   *int64 `json:"delta,omitempty"`
+	Changed bool   `json:"changed"`
+}
+
+// verifierResult retains the canonical grader output and points back to the
+// source event that produced it. RLViz deliberately does not normalize the
+// output into a pass/fail verdict because grader payloads are domain-defined.
+type verifierResult struct {
+	EventID      string `json:"event_id"`
+	Sequence     int64  `json:"sequence"`
+	AlignmentKey string `json:"alignment_key,omitempty"`
+	Output       any    `json:"output,omitempty"`
+}
+
 type comparisonDifferences struct {
-	EventCount  countDifference `json:"event_count"`
-	Status      valueDifference `json:"status"`
-	Termination valueDifference `json:"termination"`
-	Reward      valueDifference `json:"reward"`
+	EventCount        countDifference           `json:"event_count"`
+	Status            valueDifference           `json:"status"`
+	Termination       valueDifference           `json:"termination"`
+	Reward            valueDifference           `json:"reward"`
+	Success           valueDifference           `json:"success"`
+	TokenCount        optionalIntegerDifference `json:"token_count"`
+	ContextEventCount countDifference           `json:"context_event_count"`
+	CompactionCount   countDifference           `json:"compaction_count"`
+	VerifierResults   valueDifference           `json:"verifier_results"`
 }
 
 func (api *indexedAPI) compare(response http.ResponseWriter, request *http.Request) {
@@ -223,11 +247,24 @@ func compareDifferences(left, right comparisonSide) comparisonDifferences {
 	}
 	leftReward, leftRewardOK := rewardValue(left.Signals)
 	rightReward, rightRewardOK := rewardValue(right.Signals)
+	leftSuccess, leftSuccessOK := booleanSignalValue(left.Signals, "pass", "success")
+	rightSuccess, rightSuccessOK := booleanSignalValue(right.Signals, "pass", "success")
+	leftTokens, leftTokensOK := integerSignalValue(left.Signals, "token_count", "total_tokens", "tokens")
+	rightTokens, rightTokensOK := integerSignalValue(right.Signals, "token_count", "total_tokens", "tokens")
+	leftContextEvents, leftCompactions := contextEventCounts(left.Events)
+	rightContextEvents, rightCompactions := contextEventCounts(right.Events)
+	leftVerifiers := verifierResults(left.Events)
+	rightVerifiers := verifierResults(right.Events)
 	return comparisonDifferences{
-		EventCount:  countDifference{Left: len(left.Events), Right: len(right.Events), Delta: len(right.Events) - len(left.Events)},
-		Status:      valueDifference{Left: leftStatus, Right: rightStatus, Changed: leftStatus != rightStatus},
-		Termination: valueDifference{Left: leftTermination, Right: rightTermination, Changed: leftTermination != rightTermination},
-		Reward:      valueDifference{Left: optionalValue(leftReward, leftRewardOK), Right: optionalValue(rightReward, rightRewardOK), Changed: !valuesEqual(leftReward, leftRewardOK, rightReward, rightRewardOK)},
+		EventCount:        countDifference{Left: len(left.Events), Right: len(right.Events), Delta: len(right.Events) - len(left.Events)},
+		Status:            valueDifference{Left: leftStatus, Right: rightStatus, Changed: leftStatus != rightStatus},
+		Termination:       valueDifference{Left: leftTermination, Right: rightTermination, Changed: leftTermination != rightTermination},
+		Reward:            valueDifference{Left: optionalValue(leftReward, leftRewardOK), Right: optionalValue(rightReward, rightRewardOK), Changed: !valuesEqual(leftReward, leftRewardOK, rightReward, rightRewardOK)},
+		Success:           valueDifference{Left: optionalValue(leftSuccess, leftSuccessOK), Right: optionalValue(rightSuccess, rightSuccessOK), Changed: !valuesEqual(leftSuccess, leftSuccessOK, rightSuccess, rightSuccessOK)},
+		TokenCount:        optionalIntegerDifferenceValue(leftTokens, leftTokensOK, rightTokens, rightTokensOK),
+		ContextEventCount: countDifference{Left: leftContextEvents, Right: rightContextEvents, Delta: rightContextEvents - leftContextEvents},
+		CompactionCount:   countDifference{Left: leftCompactions, Right: rightCompactions, Delta: rightCompactions - leftCompactions},
+		VerifierResults:   valueDifference{Left: leftVerifiers, Right: rightVerifiers, Changed: !verifierResultsEqual(leftVerifiers, rightVerifiers)},
 	}
 }
 
@@ -238,6 +275,93 @@ func rewardValue(signals []*model.Signal) (any, bool) {
 		}
 	}
 	return nil, false
+}
+
+func booleanSignalValue(signals []*model.Signal, names ...string) (bool, bool) {
+	for _, name := range names {
+		for _, signal := range signals {
+			if signal == nil || !strings.EqualFold(strings.TrimSpace(signal.Name), name) {
+				continue
+			}
+			value, ok := signal.Value.(bool)
+			if ok {
+				return value, true
+			}
+		}
+	}
+	return false, false
+}
+
+func integerSignalValue(signals []*model.Signal, names ...string) (int64, bool) {
+	for _, name := range names {
+		for _, signal := range signals {
+			if signal == nil || !strings.EqualFold(strings.TrimSpace(signal.Name), name) {
+				continue
+			}
+			number, ok := signal.Value.(json.Number)
+			if !ok {
+				continue
+			}
+			value, err := strconv.ParseInt(number.String(), 10, 64)
+			if err == nil && value >= 0 {
+				return value, true
+			}
+		}
+	}
+	return 0, false
+}
+
+func optionalIntegerDifferenceValue(left int64, leftOK bool, right int64, rightOK bool) optionalIntegerDifference {
+	result := optionalIntegerDifference{Changed: !valuesEqual(left, leftOK, right, rightOK)}
+	if leftOK {
+		result.Left = &left
+	}
+	if rightOK {
+		result.Right = &right
+	}
+	if leftOK && rightOK {
+		delta := right - left
+		result.Delta = &delta
+	}
+	return result
+}
+
+func contextEventCounts(events []*model.Event) (contextEvents, compactions int) {
+	for _, event := range events {
+		if event == nil || !strings.HasPrefix(event.AlignmentKey, "context:") {
+			continue
+		}
+		contextEvents++
+		if event.AlignmentKey == "context:compaction" {
+			compactions++
+		}
+	}
+	return contextEvents, compactions
+}
+
+func verifierResults(events []*model.Event) []verifierResult {
+	results := make([]verifierResult, 0)
+	for _, event := range events {
+		if event == nil || event.Kind != "grader" {
+			continue
+		}
+		results = append(results, verifierResult{
+			EventID: event.ID, Sequence: event.Sequence, AlignmentKey: event.AlignmentKey, Output: event.Output,
+		})
+	}
+	return results
+}
+
+func verifierResultsEqual(left, right []verifierResult) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index].AlignmentKey != right[index].AlignmentKey || !reflect.DeepEqual(left[index].Output, right[index].Output) {
+			return false
+		}
+	}
+	return true
 }
 
 func optionalValue(value any, ok bool) any {

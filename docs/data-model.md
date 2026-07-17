@@ -42,6 +42,29 @@ Candidate concepts:
   before/after membership from token totals alone.
 - Every normalized semantic value should retain raw/source provenance.
 
+## Pair-comparison semantics
+
+The indexed pair-comparison response adds conservative summaries under
+`differences` without changing either canonical side:
+
+- `success` uses the first boolean `pass` signal, then `success`; absent or
+  non-boolean values remain absent.
+- `token_count` uses the first non-negative integer `token_count`, then
+  `total_tokens`, then `tokens`. `delta` is present only when both sides have a
+  total, and is `right - left`.
+- `context_event_count` counts events with an explicit `context:*`
+  `alignment_key`; `compaction_count` counts the exact
+  `context:compaction` key. Event kind or free-form data is never guessed.
+- `verifier_results` contains canonical `grader` event output with `event_id`,
+  `sequence`, and optional `alignment_key`. The output remains source-shaped;
+  RLViz does not reinterpret a domain grader as a common verdict. Its `changed`
+  flag compares alignment keys and outputs, not side-specific event IDs or
+  sequence numbers.
+
+These fields are additive to the original status, termination, reward, event
+count, and alignment response. The referenced canonical events and existing
+event provenance remain the source of truth.
+
 ## Protocol evolution
 
 The protocol remains pre-stable. A semantic revision requires:

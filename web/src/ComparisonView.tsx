@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { InlineArtifacts } from "./ArtifactPanel";
 import { bindingLabel, commandIds, useCommands, useKeymapRevision } from "./commands";
 import { json, preview, title } from "./format";
-import type { ComparisonResponse, TrajectoryEvent } from "./types";
+import type { ComparisonResponse, TrajectoryEvent, VerifierResult } from "./types";
 import { VirtualList } from "./VirtualList";
 
 function differenceValue(value: unknown): string {
@@ -22,6 +22,19 @@ function EventLane({ event, side }: { event?: TrajectoryEvent; side: "left" | "r
 
 function metric(label: string, left: unknown, right: unknown, changed = false) {
   return <div className={changed ? "changed" : ""} key={label}><span>{label}</span><b>{differenceValue(left)}</b><i>→</i><b>{differenceValue(right)}</b></div>;
+}
+
+function verifierSummary(results?: VerifierResult[]): string {
+  if (!results?.length) return "—";
+  const final = results[results.length - 1];
+  const output = final && typeof final === "object" && "output" in final ? final.output : undefined;
+  if (output !== null && typeof output === "object" && !Array.isArray(output)) {
+    const fields = output as Record<string, unknown>;
+    const verdict = ["string", "number", "boolean"].includes(typeof fields.verdict) ? String(fields.verdict) : undefined;
+    const score = typeof fields.score === "number" || typeof fields.score === "string" ? String(fields.score) : undefined;
+    if (verdict || score) return `${results.length}${verdict ? ` · ${verdict}` : ""}${score ? ` · score ${score}` : ""}`;
+  }
+  return output === undefined ? String(results.length) : `${results.length} · ${preview(output, 32)}`;
 }
 
 export function ComparisonView({ comparison, onClose, initialStep, onStepChange }: { comparison: ComparisonResponse; onClose: () => void; initialStep?: number; onStepChange?: (step: number) => void }) {
@@ -63,8 +76,17 @@ export function ComparisonView({ comparison, onClose, initialStep, onStepChange 
   const selectedStep = alignment.steps[selected];
   const selectedLeft = selectedStep?.left_index === undefined ? undefined : left.events[selectedStep.left_index];
   const selectedRight = selectedStep?.right_index === undefined ? undefined : right.events[selectedStep.right_index];
+  const contextDifference = differences.context_event_count;
+  const compactionDifference = differences.compaction_count;
+  const verifierDifference = differences.verifier_results;
+  const showSuccess = !!differences.success && (differences.success.left !== undefined || differences.success.right !== undefined);
+  const showTokens = !!differences.token_count && (differences.token_count.left !== undefined || differences.token_count.right !== undefined);
+  const showContext = !!contextDifference && (contextDifference.left > 0 || contextDifference.right > 0);
+  const showCompaction = !!compactionDifference && (compactionDifference.left > 0 || compactionDifference.right > 0);
+  const showVerifiers = !!verifierDifference && ((verifierDifference.left?.length ?? 0) > 0 || (verifierDifference.right?.length ?? 0) > 0);
+  const showResearchDifferences = showSuccess || showTokens || showContext || showCompaction || showVerifiers;
 
-  return <main className="comparison-view" aria-label="Trajectory comparison">
+  return <main className={`comparison-view ${showResearchDifferences ? "has-research-differences" : ""}`} aria-label="Trajectory comparison">
     <header className="comparison-heading">
       <div><span className="eyebrow">Pair comparison</span><h1><b>{left.trajectory.id}</b><i>vs</i><b>{right.trajectory.id}</b></h1></div>
       <button onClick={onClose}>Back to group <kbd>{bindingLabel(commandIds.comparison.back)}</kbd></button>
@@ -75,6 +97,13 @@ export function ComparisonView({ comparison, onClose, initialStep, onStepChange 
       {metric("TERMINATION", differences.termination.left, differences.termination.right, differences.termination.changed)}
       {metric("EVENTS", differences.event_count.left, differences.event_count.right, differences.event_count.delta !== 0)}
     </section>
+    {showResearchDifferences && <section className="comparison-metrics comparison-research-metrics" aria-label="Research outcome and context differences">
+      {differences.success && showSuccess && metric("PASS", differences.success.left, differences.success.right, differences.success.changed)}
+      {differences.token_count && showTokens && metric("TOKENS", differences.token_count.left, differences.token_count.right, differences.token_count.changed)}
+      {contextDifference && showContext && metric("CONTEXT EVENTS", contextDifference.left, contextDifference.right, contextDifference.delta !== 0)}
+      {compactionDifference && showCompaction && metric("COMPACTIONS", compactionDifference.left, compactionDifference.right, compactionDifference.delta !== 0)}
+      {verifierDifference && showVerifiers && metric("VERIFIERS", verifierSummary(verifierDifference.left), verifierSummary(verifierDifference.right), verifierDifference.changed)}
+    </section>}
     <div className="comparison-workspace">
       <section ref={alignmentRef} className="comparison-alignment" aria-label="Aligned events">
         <div className="lane-headings"><b>{left.trajectory.id}</b><span>alignment</span><b>{right.trajectory.id}</b></div>

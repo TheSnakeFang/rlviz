@@ -65,6 +65,10 @@ func comparisonHandlerCounts(t *testing.T, eventsPerLeft, eventsPerRight int, di
 	records = append(records,
 		&model.Signal{RecordType: model.RecordSignal, ID: "left-reward", TrajectoryID: "left", Name: "reward", Value: 0.0},
 		&model.Signal{RecordType: model.RecordSignal, ID: "right-reward", TrajectoryID: "right", Name: "reward", Value: 1.0},
+		&model.Signal{RecordType: model.RecordSignal, ID: "left-pass", TrajectoryID: "left", Name: "pass", Value: false},
+		&model.Signal{RecordType: model.RecordSignal, ID: "right-pass", TrajectoryID: "right", Name: "pass", Value: true},
+		&model.Signal{RecordType: model.RecordSignal, ID: "left-tokens", TrajectoryID: "left", Name: "total_tokens", Value: 100},
+		&model.Signal{RecordType: model.RecordSignal, ID: "right-tokens", TrajectoryID: "right", Name: "token_count", Value: 125},
 		&model.Artifact{RecordType: model.RecordArtifact, ID: "right-log", TrajectoryID: "right", Name: "log", MediaType: "text/plain", Text: "done"},
 	)
 	records = append(records, &model.Complete{RecordType: model.RecordComplete, Records: int64(len(records))})
@@ -154,6 +158,105 @@ func TestIndexedCompareReturnsDivergenceRealignmentAndDifferences(t *testing.T) 
 	reward := differences["reward"].(map[string]any)
 	if reward["left"] != float64(0) || reward["right"] != float64(1) || reward["changed"] != true {
 		t.Fatalf("reward = %#v", reward)
+	}
+	success := differences["success"].(map[string]any)
+	if success["left"] != false || success["right"] != true || success["changed"] != true {
+		t.Fatalf("success = %#v", success)
+	}
+	tokens := differences["token_count"].(map[string]any)
+	if tokens["left"] != float64(100) || tokens["right"] != float64(125) || tokens["delta"] != float64(25) || tokens["changed"] != true {
+		t.Fatalf("token_count = %#v", tokens)
+	}
+}
+
+func TestCompareDifferencesReportsExplicitContextAndVerifierData(t *testing.T) {
+	left := comparisonSide{
+		Events: []*model.Event{
+			{ID: "left-compact", Sequence: 2, Kind: "state", AlignmentKey: "context:compaction"},
+			{ID: "left-restore", Sequence: 3, Kind: "state", AlignmentKey: "context:restore"},
+			{ID: "left-grader", Sequence: 4, Kind: "grader", AlignmentKey: "grader:suite", Output: map[string]any{"verdict": "fail", "score": json.Number("0")}},
+		},
+		Signals: []*model.Signal{
+			{Name: "pass", Value: false},
+			{Name: "token_count", Value: json.Number("9007199254740993")},
+		},
+	}
+	right := comparisonSide{
+		Events: []*model.Event{
+			{ID: "right-grader", Sequence: 2, Kind: "grader", AlignmentKey: "grader:suite", Output: map[string]any{"verdict": "pass", "score": json.Number("1")}},
+		},
+		Signals: []*model.Signal{
+			{Name: "success", Value: true},
+			{Name: "tokens", Value: json.Number("9007199254741000")},
+		},
+	}
+
+	differences := compareDifferences(left, right)
+	if differences.Success.Left != false || differences.Success.Right != true || !differences.Success.Changed {
+		t.Fatalf("success = %#v", differences.Success)
+	}
+	if differences.TokenCount.Left == nil || *differences.TokenCount.Left != 9007199254740993 ||
+		differences.TokenCount.Right == nil || *differences.TokenCount.Right != 9007199254741000 ||
+		differences.TokenCount.Delta == nil || *differences.TokenCount.Delta != 7 {
+		t.Fatalf("token_count = %#v", differences.TokenCount)
+	}
+	if differences.ContextEventCount != (countDifference{Left: 2, Right: 0, Delta: -2}) ||
+		differences.CompactionCount != (countDifference{Left: 1, Right: 0, Delta: -1}) {
+		t.Fatalf("context counts = %#v %#v", differences.ContextEventCount, differences.CompactionCount)
+	}
+	leftResults := differences.VerifierResults.Left.([]verifierResult)
+	if len(leftResults) != 1 || leftResults[0].EventID != "left-grader" || leftResults[0].Sequence != 4 || leftResults[0].AlignmentKey != "grader:suite" {
+		t.Fatalf("left verifier results = %#v", leftResults)
+	}
+	if !differences.VerifierResults.Changed {
+		t.Fatal("verifier results should differ")
+	}
+}
+
+func TestCompareDifferencesDoesNotInferMissingOrMistypedMetrics(t *testing.T) {
+	left := comparisonSide{
+		Events: []*model.Event{
+			{ID: "state", Kind: "state", Data: map[string]any{"operation": "compaction"}},
+			{ID: "tool", Kind: "tool", AlignmentKey: "contextual:compaction"},
+		},
+		Signals: []*model.Signal{
+			{Name: "pass", Value: json.Number("1")},
+			{Name: "token_count", Value: json.Number("1.5")},
+		},
+	}
+	differences := compareDifferences(left, comparisonSide{})
+	encoded, err := json.Marshal(differences)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var payload map[string]map[string]any
+	if err := json.Unmarshal(encoded, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := payload["success"]["left"]; ok {
+		t.Fatalf("numeric pass was inferred: %s", encoded)
+	}
+	if _, ok := payload["token_count"]["left"]; ok {
+		t.Fatalf("fractional token total was inferred: %s", encoded)
+	}
+	if payload["context_event_count"]["left"] != float64(0) || payload["compaction_count"]["left"] != float64(0) {
+		t.Fatalf("implicit context operation was inferred: %s", encoded)
+	}
+}
+
+func TestVerifierDifferenceIgnoresSourceIdentityButRetainsIt(t *testing.T) {
+	output := map[string]any{"verdict": "pass", "score": json.Number("1")}
+	left := comparisonSide{Events: []*model.Event{{ID: "left-grader", Sequence: 8, Kind: "grader", AlignmentKey: "grader:suite", Output: output}}}
+	right := comparisonSide{Events: []*model.Event{{ID: "right-grader", Sequence: 21, Kind: "grader", AlignmentKey: "grader:suite", Output: output}}}
+
+	difference := compareDifferences(left, right).VerifierResults
+	if difference.Changed {
+		t.Fatal("source event identity alone should not change a verifier result")
+	}
+	leftResult := difference.Left.([]verifierResult)[0]
+	rightResult := difference.Right.([]verifierResult)[0]
+	if leftResult.EventID != "left-grader" || rightResult.EventID != "right-grader" || leftResult.Sequence != 8 || rightResult.Sequence != 21 {
+		t.Fatalf("verifier provenance was not retained: left=%#v right=%#v", leftResult, rightResult)
 	}
 }
 

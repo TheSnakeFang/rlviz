@@ -25,6 +25,15 @@ const comparison: ComparisonResponse = {
   differences: {
     reward: { left: 0, right: 1, changed: true }, status: { left: "failed", right: "complete", changed: true },
     termination: { left: "error", right: "answer", changed: true }, event_count: { left: 4, right: 5, delta: 1 },
+    success: { left: false, right: true, changed: true },
+    token_count: { left: 850, right: 1100, delta: 250, changed: true },
+    context_event_count: { left: 0, right: 1, delta: 1 },
+    compaction_count: { left: 0, right: 1, delta: 1 },
+    verifier_results: {
+      left: [{ event_id: "left-grader", sequence: 4, output: { verdict: "fail" } }],
+      right: [{ event_id: "right-grader", sequence: 5, output: { verdict: "pass" } }],
+      changed: true,
+    },
   },
 };
 
@@ -38,6 +47,12 @@ describe("trajectory comparison", () => {
     expect(screen.getByText(/right-choice-raw/)).toBeInTheDocument();
     expect(screen.getByText("right-side artifact output")).toBeInTheDocument();
     expect(screen.getByText("REWARD")).toBeInTheDocument();
+    expect(screen.getByText("PASS")).toBeInTheDocument();
+    expect(screen.getByText("TOKENS")).toBeInTheDocument();
+    expect(screen.getByText("CONTEXT EVENTS")).toBeInTheDocument();
+    expect(screen.getByText("COMPACTIONS").parentElement).toHaveClass("changed");
+    expect(screen.getByText("VERIFIERS")).toBeInTheDocument();
+    expect(screen.getByText("1 · pass")).toBeInTheDocument();
   });
 
   it("navigates steps, changes, divergence, and returns to the group", () => {
@@ -67,5 +82,11 @@ describe("trajectory comparison", () => {
     render(<ComparisonView comparison={{ ...comparison, left: { ...comparison.left, events }, right: { ...comparison.right, events }, alignment: { steps, common_behavioral_prefix: 5, first_meaningful_divergence: 5 } }} onClose={() => {}} />);
     expect(screen.getByText("4 aligned prefix events compressed")).toBeInTheDocument();
     expect(screen.getByText("5 shared behavioral anchors")).toBeInTheDocument();
+  });
+
+  it("does not add an empty research metric row when optional semantics are unavailable", () => {
+    const { success: _success, token_count: _tokens, context_event_count: _context, compaction_count: _compactions, verifier_results: _verifiers, ...legacyDifferences } = comparison.differences;
+    render(<ComparisonView comparison={{ ...comparison, differences: legacyDifferences }} onClose={() => {}} />);
+    expect(screen.queryByRole("region", { name: "Research outcome and context differences" })).not.toBeInTheDocument();
   });
 });
