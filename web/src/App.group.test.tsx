@@ -21,8 +21,8 @@ const comparison: ComparisonResponse = {
 describe("Browse Read Compare flow", () => {
   afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"); });
 
-  it("loads the daemon collection, marks a pair, and opens stage-aligned Compare", async () => {
-    window.history.replaceState({}, "", "/?trajectory=source-1&trajectory_id=candidate&indexed=1#token=secret");
+  it("loads the daemon collection and composes a two-lane reference arrangement", async () => {
+    window.history.replaceState({}, "", "/#token=secret");
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/v1/indexed/browse") return new Response(JSON.stringify(browse));
@@ -44,21 +44,20 @@ describe("Browse Read Compare flow", () => {
 		expect(screen.getByRole("option", { selected: true })).toHaveTextContent("reference");
 		await waitFor(() => expect(screen.getByRole("option", { name: /candidate/ })).toHaveTextContent("tag 3"));
 		fireEvent.keyDown(window, { key: "k" });
-    fireEvent.keyDown(window, { key: " " });
-    fireEvent.keyDown(window, { key: "j" });
-    fireEvent.keyDown(window, { key: " " });
-    fireEvent.keyDown(window, { key: "v" });
-    expect(await screen.findByRole("main", { name: "Pair Compare" })).toHaveTextContent("aligned by annotated stages");
-    expect(screen.getByText(/first divergence/)).toBeInTheDocument();
-    fireEvent.keyDown(window, { key: "d" });
-    expect(screen.getByRole("button", { name: /outcome/ })).toHaveClass("selected");
     fireEvent.keyDown(window, { key: "Enter" });
-    expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveTextContent("candidate");
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByRole("main", { name: "Pair Compare" })).toHaveAttribute("data-selected-stage", "stage:outcome");
-    fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.getByRole("main", { name: "Browse trajectories" })).toBeInTheDocument();
-    expect(document.querySelectorAll("[role=option].marked")).toHaveLength(2);
+    expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "candidate");
+    fireEvent.keyDown(window, { key: "Tab" });
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.keyDown(window, { key: "a" });
+    await waitFor(() => expect(screen.getAllByRole("main", { name: "Read trajectory" })).toHaveLength(2));
+    expect(screen.getAllByRole("main", { name: "Read trajectory" }).map((lane) => lane.getAttribute("data-trajectory"))).toEqual(["candidate", "reference"]);
+    fireEvent.keyDown(window, { key: "A", shiftKey: true });
+    expect(screen.getByTestId("reference-name")).toHaveTextContent("reference");
+    fireEvent.keyDown(window, { key: "V", shiftKey: true });
+    expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-direction", "columns");
+    fireEvent.keyDown(window, { key: "x" });
+    expect(screen.getAllByRole("main", { name: "Read trajectory" })).toHaveLength(1);
+    expect(screen.getByTestId("reference-name")).toHaveTextContent("none");
   });
 
 	it("does not apply late analysis to another rollout", async () => {

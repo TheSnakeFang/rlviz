@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replace browser mode swaps with the serializable workspace rack: a
+  collapsible collection rail, two-band trajectory stage, bottom console,
+  per-lane view state, reference pins, resizable persisted seams, arrangement
+  deep links, and browser-integrated jumplist history.
 - Add the local-first rollout instrument UI with Browse, Read, stage-aligned
   Compare, attention ordering, caterpillar projections, fidelity controls, and
   local verdict tags.
@@ -14,5 +18,5 @@
 - Add validated light, dark, and high-contrast palette support.
 - Add the static documentation site at [rlviz.dev](https://rlviz.dev), deployed
   through Vercel.
-- Known limitation: Read depth currently changes navigation state only; distinct
-  per-depth representations remain future work.
+- Known limitation: lane depth currently changes navigation state only;
+  distinct per-depth representations are planned for workspace build phase 2.

@@ -3,6 +3,7 @@ import { bindingsFor, commands, detectKeymapConflicts, loadKeymapOverrides, norm
 import type { CommandId, CommandScope, KeymapOverrides } from "./commands";
 
 const scopeLabels: Record<CommandScope, string> = {
+  workspace: "Workspace",
   trajectory: "Trajectory",
   group: "Rollout group",
   paths: "Behavioral paths",

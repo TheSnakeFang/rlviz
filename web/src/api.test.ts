@@ -7,6 +7,7 @@ describe("trajectory API normalization", () => {
 	it("uses the stable trajectory ID from the viewer URL", () => {
 		expect(trajectoryEndpoint("?trajectory=abc/123")).toBe("/api/v1/trajectory?trajectory=abc%2F123");
 		expect(trajectoryEndpoint("?trajectory=abc&demo=1&indexed=1&event=evt-2&surface=outcome&view=compare&left=a&right=b&step=3&cohort_filter=pass%3Afalse")).toBe("/api/v1/indexed/trajectory?trajectory=abc&limit=200");
+		expect(trajectoryEndpoint("?workspace=%7B%22version%22%3A2%7D&mode=read")).toBe("/api/v1/trajectory");
 		expect(trajectoryEndpoint("")).toBe("/api/v1/trajectory");
 	});
 

@@ -5,7 +5,7 @@ import { App } from "./App";
 import { sampleTrajectory } from "./sample";
 
 describe("instrument viewer", () => {
-  afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"); document.documentElement.removeAttribute("data-theme"); });
+  afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"); window.localStorage.clear(); document.documentElement.removeAttribute("data-theme"); });
 
   async function openRead() {
     render(<App initialTrajectory={sampleTrajectory} />);
@@ -91,6 +91,34 @@ describe("instrument viewer", () => {
 	expect(screen.getByText(/depth 1\/3/)).toBeInTheDocument();
 	fireEvent.keyDown(window, { key: "Escape" });
 	expect(screen.getByRole("main", { name: "Browse trajectories" })).toBeInTheDocument();
+  });
+
+  it("serializes keyboard seam changes and restores the arrangement from its deep link", async () => {
+    const first = render(<App initialTrajectory={sampleTrajectory} />);
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByRole("main", { name: "Read trajectory" });
+    fireEvent.keyDown(window, { key: "w", ctrlKey: true });
+    expect(screen.getByRole("region", { name: "Workspace console" })).toHaveAttribute("data-resize-mode", "true");
+    fireEvent.keyDown(window, { key: "ArrowUp" });
+    fireEvent.keyDown(window, { key: "Escape" });
+    const serialized = new URLSearchParams(window.location.search).get("workspace");
+    expect(serialized).toBeTruthy();
+    expect(JSON.parse(serialized!).seams.console).toBeCloseTo(0.3);
+    first.unmount();
+    render(<App initialTrajectory={sampleTrajectory} />);
+    expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", sampleTrajectory.id);
+    expect(parseFloat((document.querySelector(".instrument-shell") as HTMLElement).style.getPropertyValue("--console-height"))).toBeCloseTo(30);
+  });
+
+  it("walks arrangement depth backward and forward through the jumplist", async () => {
+    await openRead();
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-depth", "2");
+    fireEvent.keyDown(window, { key: "o", ctrlKey: true });
+    expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-depth", "1");
+    fireEvent.keyDown(window, { key: "i", ctrlKey: true });
+    expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-depth", "2");
+    expect(document.querySelector(".workspace-breadcrumb")).toHaveTextContent("1 lane");
   });
 
   it("pans a zoomed axis when a landmark jump leaves the window", async () => {

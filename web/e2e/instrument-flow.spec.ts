@@ -65,7 +65,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto("http://127.0.0.1:4173/", { waitUntil: "domcontentloaded" });
 });
 
-test("Browse to Read to Compare preserves the instrument invariants", async ({ page }) => {
+test("Browse into a multi-lane workspace preserves the instrument invariants", async ({ page }) => {
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
   await expect(page.getByRole("option").first()).toContainText("candidate");
 	await page.getByRole("button", { name: "caterpillars" }).click();
@@ -75,20 +75,18 @@ test("Browse to Read to Compare preserves the instrument invariants", async ({ p
   await page.keyboard.press("]");
   await expect(page.locator(".fidelity-readout b")).toHaveText("previews");
   await page.keyboard.press("Space");
+  await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "candidate");
+  await page.keyboard.press("Tab");
   await page.keyboard.press("j");
-  await page.keyboard.press("Space");
-  await page.keyboard.press("v");
-  await expect(page.getByRole("main", { name: "Pair Compare" })).toContainText("aligned by outcome only");
-  await page.keyboard.press("d");
-  await expect(page.locator(".stage-row.selected")).toContainText("first divergence");
-
-  await page.keyboard.press("Escape");
-  await page.keyboard.press("k");
-  await page.keyboard.press("Enter");
-  await expect(page.getByRole("main", { name: "Read trajectory" })).toBeVisible();
+  await page.keyboard.press("a");
+  await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveCount(2);
+  await page.keyboard.press("Shift+A");
+  await expect(page.getByTestId("reference-name")).toHaveText("partial");
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator(".lane-track.active-zone")).toHaveAttribute("data-trajectory", "candidate");
   await expect(page.locator(".moment.selected b")).toHaveText("Policy error");
 
-  const strip = page.getByRole("region", { name: "Trajectory shape" });
+  const strip = page.locator(".lane-track.active-zone .shape-strip");
   const anchor = await strip.getAttribute("data-selected-x");
 	const initialVisible = Number(await strip.getAttribute("data-visible-events"));
 	await page.keyboard.press("+");

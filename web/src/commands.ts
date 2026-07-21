@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { PresentationConfig } from "./types";
 
-export type CommandScope = "trajectory" | "group" | "paths" | "comparison" | "overlay";
+export type CommandScope = "workspace" | "trajectory" | "group" | "paths" | "comparison" | "overlay";
 type CommandRegistrationScope = CommandScope | "all";
 
 export const commandIds = {
+  workspace: {
+    toggleRail: "workspace.toggleRail", addLane: "workspace.addLane", closeLane: "workspace.closeLane",
+    cycleNext: "workspace.cycleNext", cyclePrevious: "workspace.cyclePrevious", nextRollout: "workspace.nextRollout", previousRollout: "workspace.previousRollout",
+    promoteDemote: "workspace.promoteDemote", pinReference: "workspace.pinReference", directionRows: "workspace.directionRows", directionColumns: "workspace.directionColumns",
+    descend: "workspace.descend", ascend: "workspace.ascend", jumpBack: "workspace.jumpBack", jumpForward: "workspace.jumpForward", resizeMode: "workspace.resizeMode",
+  },
   trajectory: {
     dismiss: "trajectory.dismiss", search: "trajectory.search", next: "trajectory.next", previous: "trajectory.previous",
     nextError: "trajectory.nextError", nextReward: "trajectory.nextReward", nextContext: "trajectory.nextContext", nextFinding: "trajectory.nextFinding",
@@ -18,6 +24,7 @@ export const commandIds = {
   view: {
     fidelityUp: "view.fidelityUp", fidelityDown: "view.fidelityDown",
     zoomIn: "view.zoomIn", zoomOut: "view.zoomOut", zoomFit: "view.zoomFit",
+    zoomInAll: "view.zoomInAll", zoomOutAll: "view.zoomOutAll", zoomFitAll: "view.zoomFitAll",
     toggleHelp: "view.toggleHelp",
   },
   group: {
@@ -51,6 +58,22 @@ export type CommandDefinition = {
 };
 
 export const commands: readonly CommandDefinition[] = [
+  { id: commandIds.workspace.toggleRail, scope: "workspace", label: "Toggle collection rail", defaultBindings: ["t"] },
+  { id: commandIds.workspace.addLane, scope: "workspace", label: "Add selected rollout as a lane", defaultBindings: ["a"] },
+  { id: commandIds.workspace.closeLane, scope: "workspace", label: "Close active lane", defaultBindings: ["x"] },
+  { id: commandIds.workspace.cycleNext, scope: "workspace", label: "Cycle active zone", defaultBindings: ["Tab"] },
+  { id: commandIds.workspace.cyclePrevious, scope: "workspace", label: "Cycle active zone backward", defaultBindings: ["Shift+Tab"] },
+  { id: commandIds.workspace.nextRollout, scope: "workspace", label: "Sweep lane to next rollout", defaultBindings: ["n"] },
+  { id: commandIds.workspace.previousRollout, scope: "workspace", label: "Sweep lane to previous rollout", defaultBindings: ["p"] },
+  { id: commandIds.workspace.promoteDemote, scope: "workspace", label: "Promote or demote active lane", defaultBindings: ["Shift+Enter"] },
+  { id: commandIds.workspace.pinReference, scope: "workspace", label: "Pin active lane as reference", defaultBindings: ["Shift+A"] },
+  { id: commandIds.workspace.directionRows, scope: "workspace", label: "Stack focus lanes in rows", defaultBindings: ["Shift+H"] },
+  { id: commandIds.workspace.directionColumns, scope: "workspace", label: "Place focus lanes in columns", defaultBindings: ["Shift+V"] },
+  { id: commandIds.workspace.descend, scope: "workspace", label: "Descend active lane", defaultBindings: ["Enter", "Space"] },
+  { id: commandIds.workspace.ascend, scope: "workspace", label: "Ascend active lane or restore arrangement", defaultBindings: ["Escape"] },
+  { id: commandIds.workspace.jumpBack, scope: "workspace", label: "Previous workspace arrangement", defaultBindings: ["Ctrl+o"] },
+  { id: commandIds.workspace.jumpForward, scope: "workspace", label: "Next workspace arrangement", defaultBindings: ["Ctrl+i"] },
+  { id: commandIds.workspace.resizeMode, scope: "workspace", label: "Enter seam resize mode", defaultBindings: ["Ctrl+w"] },
   { id: commandIds.trajectory.dismiss, scope: "overlay", label: "Close search or dialog", defaultBindings: ["Escape"], allowInInput: true },
   { id: commandIds.trajectory.search, scope: "trajectory", label: "Search events", defaultBindings: ["/"] },
   { id: commandIds.trajectory.next, scope: "trajectory", label: "Next event", defaultBindings: ["j"] },
@@ -80,9 +103,13 @@ export const commands: readonly CommandDefinition[] = [
 
   { id: commandIds.view.fidelityUp, scope: "all", label: "Increase fidelity", defaultBindings: ["]"] },
   { id: commandIds.view.fidelityDown, scope: "all", label: "Decrease fidelity", defaultBindings: ["["] },
-  { id: commandIds.view.zoomIn, scope: "all", label: "Zoom in around selection", defaultBindings: ["+"] },
+  { id: commandIds.view.zoomIn, scope: "all", label: "Zoom in around selection", defaultBindings: ["+", "="] },
   { id: commandIds.view.zoomOut, scope: "all", label: "Zoom out around selection", defaultBindings: ["-"] },
   { id: commandIds.view.zoomFit, scope: "all", label: "Fit axis", defaultBindings: ["0"] },
+  // "+" IS Shift+= on US layouts, so all-lane zoom needs its own characters.
+  { id: commandIds.view.zoomInAll, scope: "all", label: "Zoom in all lanes", defaultBindings: [">"] },
+  { id: commandIds.view.zoomOutAll, scope: "all", label: "Zoom out all lanes", defaultBindings: ["<"] },
+  { id: commandIds.view.zoomFitAll, scope: "all", label: "Fit axis in all lanes", defaultBindings: [")"] },
   { id: commandIds.view.toggleHelp, scope: "all", label: "Show active keyboard shortcuts", defaultBindings: ["?"] },
 
   { id: commandIds.group.back, scope: "group", label: "Back to trajectory", defaultBindings: ["Escape"], allowInInput: true },
@@ -214,7 +241,7 @@ export function detectKeymapConflicts(overrides: KeymapOverrides = loadKeymapOve
   const seen = new Map<string, CommandId[]>();
   commands.filter((command) => !scope || command.scope === scope || command.scope === "all").forEach((command) => {
     new Set(bindingsFor(command.id, overrides, configured).flatMap(conflictBindings)).forEach((binding) => {
-      const scopes = command.scope === "all" ? (["trajectory", "group", "paths", "comparison"] as CommandScope[]) : [command.scope];
+      const scopes = command.scope === "all" ? (["workspace", "trajectory", "group", "paths", "comparison"] as CommandScope[]) : [command.scope];
       scopes.forEach((commandScope) => {
         const key = `${commandScope}\0${binding}`;
         seen.set(key, [...(seen.get(key) ?? []), command.id]);

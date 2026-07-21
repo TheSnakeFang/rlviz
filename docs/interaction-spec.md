@@ -13,6 +13,10 @@ structure.
 
 ## 1. Modes
 
+The rack and arrangement model in `workspace-spec.md` supersedes this section's
+top-level mode swaps. The mode descriptions below remain vocabulary for the
+equivalent Browse, Read, and Compare arrangements.
+
 Three modes, one overlay class. No other top-level surfaces.
 
 - **Browse** — home: everything the daemon knows (sources, runs, cases,
