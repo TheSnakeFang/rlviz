@@ -71,12 +71,17 @@ func build(output string) error {
 	if err != nil {
 		return fmt.Errorf("read installer for site: %w", err)
 	}
+	vercelConfig, err := os.ReadFile("site/vercel.json")
+	if err != nil {
+		return fmt.Errorf("read Vercel config for site: %w", err)
+	}
 	artifacts := map[string][]byte{
 		"install.sh":    installer,
 		"CNAME":         []byte("rlviz.dev"),
 		"llms.txt":      []byte(llmsManifest()),
 		"llms-full.txt": []byte(llmsFull(contents)),
 		"style.css":     []byte(styles),
+		"vercel.json":   vercelConfig,
 	}
 	for name, content := range artifacts {
 		if err := os.WriteFile(filepath.Join(output, name), content, 0o644); err != nil {

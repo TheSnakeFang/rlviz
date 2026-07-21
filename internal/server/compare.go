@@ -18,8 +18,8 @@ import (
 
 const (
 	MaxComparisonEvents             = 20_000
-	MaxComparisonAlignmentWork      = 25_000_000
-	MaxComparisonAlignmentWorkspace = 64 << 20
+	MaxComparisonAlignmentWork      = alignment.MaxComparisonWork
+	MaxComparisonAlignmentWorkspace = alignment.MaxComparisonWorkspace
 	MaxComparisonRawBytes           = 64 << 20
 )
 

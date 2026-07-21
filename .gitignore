@@ -1,5 +1,7 @@
 /bin/
+/build/
 /dist/
+/node_modules/
 /web/node_modules/
 /webapp/node_modules
 /webapp/dist/

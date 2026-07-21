@@ -22,7 +22,7 @@ export const commandIds = {
     pivotAggregate: "trajectory.pivotAggregate", dropMarker: "trajectory.dropMarker", cycleMarkers: "trajectory.cycleMarkers",
   },
   view: {
-    fidelityUp: "view.fidelityUp", fidelityDown: "view.fidelityDown",
+    fidelityUp: "view.fidelityUp", fidelityDown: "view.fidelityDown", fidelityUpAll: "view.fidelityUpAll", fidelityDownAll: "view.fidelityDownAll",
     zoomIn: "view.zoomIn", zoomOut: "view.zoomOut", zoomFit: "view.zoomFit",
     zoomInAll: "view.zoomInAll", zoomOutAll: "view.zoomOutAll", zoomFitAll: "view.zoomFitAll",
     toggleHelp: "view.toggleHelp",
@@ -103,6 +103,8 @@ export const commands: readonly CommandDefinition[] = [
 
   { id: commandIds.view.fidelityUp, scope: "all", label: "Increase fidelity", defaultBindings: ["]"] },
   { id: commandIds.view.fidelityDown, scope: "all", label: "Decrease fidelity", defaultBindings: ["["] },
+  { id: commandIds.view.fidelityUpAll, scope: "all", label: "Increase fidelity in all lanes", defaultBindings: ["}"] },
+  { id: commandIds.view.fidelityDownAll, scope: "all", label: "Decrease fidelity in all lanes", defaultBindings: ["{"] },
   { id: commandIds.view.zoomIn, scope: "all", label: "Zoom in around selection", defaultBindings: ["+", "="] },
   { id: commandIds.view.zoomOut, scope: "all", label: "Zoom out around selection", defaultBindings: ["-"] },
   { id: commandIds.view.zoomFit, scope: "all", label: "Fit axis", defaultBindings: ["0"] },

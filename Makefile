@@ -8,17 +8,18 @@ web-install:
 	npm --prefix web ci
 
 webapp-install:
-	@test -d web/node_modules || { echo "run make web-install first"; exit 1; }
-	@test -e webapp/node_modules || ln -s ../web/node_modules webapp/node_modules
+	npm --prefix webapp ci
 
 wasm-check:
+	mkdir -p build/wasm-check
 	GOOS=js GOARCH=wasm go build ./internal/model ./internal/analyzers ./internal/alignment ./internal/browsercore
-	GOOS=js GOARCH=wasm go build -o /tmp/rlviz-browser-core.wasm ./cmd/rlviz-wasm
+	GOOS=js GOARCH=wasm go build -o build/wasm-check/rlviz-browser-core.wasm ./cmd/rlviz-wasm
 
 webapp: webapp-install
 	npm --prefix webapp run build
 	GOOS=js GOARCH=wasm go build -o webapp/dist/rlviz.wasm ./cmd/rlviz-wasm
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" webapp/dist/wasm_exec.js
+	cp webapp/vercel.json webapp/dist/vercel.json
 
 webapp-test: webapp-install
 	npm --prefix webapp test
@@ -81,4 +82,4 @@ dev:
 	npm --prefix web run dev
 
 clean:
-	rm -rf bin web/dist webapp/dist webapp/node_modules
+	rm -rf bin build web/dist webapp/dist webapp/node_modules

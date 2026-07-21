@@ -6,12 +6,14 @@ import { flows, type FlowAction, type Observable } from "../../web/e2e/flows";
 
 test.beforeEach(async ({ page }) => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
+  const vercel = JSON.parse(await readFile(path.join(root, "vercel.json"), "utf8")) as { headers: Array<{ headers: Array<{ key: string; value: string }> }> };
+  const securityHeaders = Object.fromEntries(vercel.headers[0].headers.map(({ key, value }) => [key, value]));
   const contentTypes: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm" };
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.origin !== "http://127.0.0.1:4174") return route.abort();
     const relative = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    try { await route.fulfill({ body: await readFile(path.join(root, relative)), contentType: contentTypes[path.extname(relative)] ?? "application/octet-stream" }); }
+    try { await route.fulfill({ body: await readFile(path.join(root, relative)), contentType: contentTypes[path.extname(relative)] ?? "application/octet-stream", headers: securityHeaders }); }
     catch { await route.fulfill({ status: 404, body: "not found" }); }
   });
   await page.goto("/");
@@ -44,7 +46,7 @@ function target(page: Page, observable: Observable): Locator {
 }
 
 async function act(page: Page, action: FlowAction, boxes: Map<string, Awaited<ReturnType<Locator["boundingBox"]>>>) {
-  if (action.kind === "key") return page.keyboard.press(action.value);
+  if (action.kind === "key") return page.keyboard.press(action.value === "+" ? "Shift+Equal" : action.value);
   if (action.kind === "filter") return page.locator("#browse-filter").fill(action.value);
   if (action.kind === "click") return page.locator(action.target).first().click({ clickCount: action.clicks ?? 1 });
   if (action.kind === "capture-box") { boxes.set(action.key, await page.locator(action.target).first().boundingBox()); return; }

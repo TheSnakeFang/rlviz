@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, PointerEvent as ReactPointerEvent, RefObject } from "react";
-import { daemonProvider } from "./provider";
+import { daemonProvider, ViewerProviderContext } from "./provider";
 import type { ViewerProvider } from "./provider";
 import { commandIds, commands, useCommands, useKeymapRevision } from "./commands";
 import { attentionScore, axisX, firstAnomaly, glyphForKind, panWindowToInclude, verdictGlyph, zoomWindow } from "./instrument";
@@ -195,6 +195,8 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   const railRef = useRef<HTMLElement>(null); const rackRef = useRef<HTMLDivElement>(null); const stageRef = useRef<HTMLDivElement>(null); const focusRef = useRef<HTMLDivElement>(null);
   const lastFocus = useRef<string | undefined>(undefined);
   const jumpList = useRef<WorkspaceState[]>([workspace]); const jumpIndex = useRef(0); const restoring = useRef(false); const openRevision = useRef(0);
+  const laneDataLRU = useRef<string[]>([]);
+  const pendingReplace = useRef<WorkspaceState | undefined>(undefined); const replaceFrame = useRef<number | undefined>(undefined);
   const legacyReadIntent = useRef((() => { const params = new URLSearchParams(window.location.search); return (params.get("mode") === "read" || params.get("view") === "read") && !params.get("trajectory_id"); })());
 
   const ordered = useMemo(() => [...browse.trajectories].sort((a, b) => attentionScore(b) - attentionScore(a)), [browse]);
@@ -205,7 +207,19 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   const writeURL = useCallback((next: WorkspaceState, push: boolean) => {
     try { localStorage.setItem(seamStorageKey, JSON.stringify(next.seams)); } catch { /* storage is optional */ }
     const state = { rlvizWorkspace: next };
-    if (push) window.history.pushState(state, "", workspaceURL(next)); else window.history.replaceState(state, "", workspaceURL(next));
+    if (push) {
+      if (replaceFrame.current !== undefined) cancelAnimationFrame(replaceFrame.current);
+      replaceFrame.current = undefined; pendingReplace.current = undefined;
+      window.history.pushState(state, "", workspaceURL(next));
+      return;
+    }
+    pendingReplace.current = next;
+    if (replaceFrame.current !== undefined) return;
+    replaceFrame.current = requestAnimationFrame(() => {
+      replaceFrame.current = undefined;
+      const latest = pendingReplace.current; pendingReplace.current = undefined;
+      if (latest) window.history.replaceState({ rlvizWorkspace: latest }, "", workspaceURL(latest));
+    });
   }, []);
   const applyWorkspace = useCallback((next: WorkspaceState, snapshot = true) => {
     const normalized = normalizeWorkspace(next); if (!normalized) return;
@@ -218,6 +232,26 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   }, [writeURL]);
   const change = useCallback((update: (current: WorkspaceState) => WorkspaceState, snapshot = true) => applyWorkspace(update(workspaceRef.current), snapshot), [applyWorkspace]);
 
+  const rememberLaneData = useCallback((id: string) => {
+    laneDataLRU.current = [...laneDataLRU.current.filter((item) => item !== id), id];
+  }, []);
+  const putLaneData = useCallback((id: string, data: LaneData) => {
+    rememberLaneData(id);
+    setLaneData((current) => { const next = new Map(current).set(id, data); laneDataRef.current = next; return next; });
+  }, [rememberLaneData]);
+  const deleteLaneData = useCallback((id: string) => {
+    laneDataLRU.current = laneDataLRU.current.filter((item) => item !== id);
+    setLaneData((current) => { if (!current.has(id)) return current; const next = new Map(current); next.delete(id); laneDataRef.current = next; return next; });
+  }, []);
+  const pruneOffLaneData = useCallback(() => {
+    const active = new Set(workspaceRef.current.lanes.map((lane) => lane.id));
+    const offLane = laneDataLRU.current.filter((id) => laneDataRef.current.has(id) && !active.has(id));
+    const evict = new Set(offLane.slice(0, Math.max(0, offLane.length - 8)));
+    if (!evict.size) return;
+    laneDataLRU.current = laneDataLRU.current.filter((id) => !evict.has(id));
+    setLaneData((current) => { const next = new Map(current); evict.forEach((id) => next.delete(id)); laneDataRef.current = next; return next; });
+  }, []);
+
   const ensureLaneData = useCallback(async (lane: WorkspaceLane) => {
     if (laneDataRef.current.has(lane.id)) return;
     const revision = openRevision.current;
@@ -226,11 +260,11 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
       if (revision !== openRevision.current || !workspaceRef.current.lanes.some((item) => item.id === lane.id)) return;
       const data: LaneData = { trajectory: loaded.trajectory, analysis: null, presentation: loaded.presentation };
       if (lane.id === workspaceRef.current.active) setPresentation(loaded.presentation);
-      setLaneData((current) => { const next = new Map(current).set(lane.id, data); laneDataRef.current = next; return next; });
+      putLaneData(lane.id, data);
       change((current) => ({ ...current, lanes: current.lanes.map((item) => item.id === lane.id && item.axis.end <= item.axis.start + 1 ? { ...item, selected: firstAnomaly(loaded.trajectory), axis: { start: loaded.trajectory.events[0]?.sequence ?? 0, end: loaded.trajectory.events.at(-1)?.sequence ?? 1 } } : item) }), false);
       if (lane.sourceId !== "sample") provider.loadAnalysis(lane.sourceId, lane.trajectoryId).then((analysis) => setLaneData((current) => { const existing = current.get(lane.id); if (!existing) return current; const next = new Map(current).set(lane.id, { ...existing, analysis }); laneDataRef.current = next; return next; })).catch(() => undefined);
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not load trajectory"); }
-  }, [change, initialTrajectory, provider]);
+  }, [change, initialTrajectory, provider, putLaneData]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -242,7 +276,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     Promise.all([provider.loadInitial(controller.signal), provider.loadBrowse(controller.signal)]).then(([loaded, collection]) => {
       setBrowse(collection); setPresentation(loaded.presentation);
       const sourceId = collection.trajectories.find((row) => row.trajectory.id === loaded.trajectory.id)?.source_id;
-      if (sourceId) setLaneData((current) => { const next = new Map(current).set(laneId(sourceId, loaded.trajectory.id), { trajectory: loaded.trajectory, analysis: null, presentation: loaded.presentation }); laneDataRef.current = next; return next; });
+      if (sourceId) putLaneData(laneId(sourceId, loaded.trajectory.id), { trajectory: loaded.trajectory, analysis: null, presentation: loaded.presentation });
       if (sourceId && legacyReadIntent.current && !workspaceRef.current.lanes.length) {
         const id = laneId(sourceId, loaded.trajectory.id);
         applyWorkspace({ ...workspaceRef.current, railExpanded: false, active: id, lanes: [{ id, sourceId, trajectoryId: loaded.trajectory.id, band: "focus", selected: firstAnomaly(loaded.trajectory), depth: 1, fidelity: 3, axis: { start: loaded.trajectory.events[0]?.sequence ?? 0, end: loaded.trajectory.events.at(-1)?.sequence ?? 1 } }] }, false);
@@ -250,7 +284,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
       workspaceRef.current.lanes.forEach((lane) => void ensureLaneData(lane));
     }).catch((reason) => { if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not load viewer"); });
     return () => controller.abort();
-  }, [applyWorkspace, ensureLaneData, initialTrajectory, provider]);
+  }, [applyWorkspace, ensureLaneData, initialTrajectory, provider, putLaneData]);
 
   useEffect(() => applyPresentationTheme(presentation), [presentation]);
   useEffect(() => { if (activeLane && laneData.has(activeLane.id)) setPresentation(laneData.get(activeLane.id)?.presentation); }, [activeLane, laneData]);
@@ -278,15 +312,17 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     const focus = workspaceRef.current.lanes.filter((lane) => lane.band === "focus");
     const band = add && focus.length >= 2 ? "context" : "focus";
     const base: WorkspaceLane = { id, sourceId: row.source_id, trajectoryId: row.trajectory.id, band, selected: preserve?.selected ?? firstAnomaly(loaded.trajectory), depth: preserve?.depth ?? 1, fidelity: preserve?.fidelity ?? 3, axis: preserve?.axis ?? { start: loaded.trajectory.events[0]?.sequence ?? 0, end: loaded.trajectory.events.at(-1)?.sequence ?? 1 } };
-    setLaneData((current) => { const next = new Map(current).set(id, { trajectory: loaded.trajectory, analysis: null, presentation: loaded.presentation }); laneDataRef.current = next; return next; });
+    putLaneData(id, { trajectory: loaded.trajectory, analysis: null, presentation: loaded.presentation });
     change((current) => {
       if (add || !current.lanes.length) return { ...current, lanes: [...current.lanes, base], active: id, railExpanded: current.railExpanded };
+      if (preserve) return { ...current, lanes: current.lanes.map((lane) => lane.id === preserve.id ? { ...base, band: preserve.band } : lane), active: id, reference: current.reference === preserve.id ? undefined : current.reference };
       const replaceId = current.lanes.find((lane) => lane.id === current.active && lane.band === "focus")?.id ?? current.lanes.find((lane) => lane.id === lastFocus.current && lane.band === "focus")?.id ?? current.lanes.find((lane) => lane.band === "focus")?.id;
       if (!replaceId) return { ...current, lanes: [...current.lanes, base], active: id };
       return { ...current, lanes: current.lanes.map((lane) => lane.id === replaceId ? { ...base, band: "focus" } : lane), active: id, reference: current.reference === replaceId ? undefined : current.reference };
     });
+    pruneOffLaneData();
     if (row.source_id !== "sample") provider.loadAnalysis(row.source_id, row.trajectory.id).then((analysis) => setLaneData((current) => { const data = current.get(id); if (!data) return current; const next = new Map(current).set(id, { ...data, analysis }); laneDataRef.current = next; return next; })).catch(() => undefined);
-  }, [change, initialTrajectory, provider]);
+  }, [change, initialTrajectory, provider, pruneOffLaneData, putLaneData]);
 
   const openSelected = (add: boolean) => { if (selectedRow) void loadRowIntoLane(selectedRow, add).catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load trajectory")); };
   const updateLane = useCallback((id: string, update: (lane: WorkspaceLane, data?: LaneData) => WorkspaceLane, snapshot = true) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => lane.id === id ? update(lane, laneDataRef.current.get(id)) : lane) }), snapshot), [change]);
@@ -297,13 +333,13 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   }, false), [updateLane]);
   const moveEvent = (delta: number) => { if (!activeLane) return; const data = laneData.get(activeLane.id); if (!data) return; selectEvent(activeLane.id, Math.max(0, Math.min(data.trajectory.events.length - 1, activeLane.selected + delta))); };
   const jumpEvent = (predicate: (event: TrajectoryEvent) => boolean) => { if (!activeLane) return; const events = laneData.get(activeLane.id)?.trajectory.events; if (!events) return; const next = events.findIndex((event, index) => index > activeLane.selected && predicate(event)), wrapped = events.findIndex(predicate); if (next >= 0 || wrapped >= 0) selectEvent(activeLane.id, next >= 0 ? next : wrapped); };
-  const cycleZone = (delta: number) => { const zones = ["rail", ...workspaceRef.current.lanes.map((lane) => lane.id)]; const index = zones.indexOf(workspaceRef.current.active); change((current) => ({ ...current, active: zones[(Math.max(0, index) + delta + zones.length) % zones.length] })); };
-  const sweep = (delta: number) => { if (!activeLane || !filtered.length) return; const index = filtered.findIndex((row) => rowKey(row) === activeLane.id); const row = filtered[(Math.max(0, index) + delta + filtered.length) % filtered.length]; change((current) => ({ ...current, railSelected: filtered.indexOf(row) }), false); void loadRowIntoLane(row, false, activeLane); };
-  const closeLane = () => { if (!activeLane) return; change((current) => { const lanes = current.lanes.filter((lane) => lane.id !== activeLane.id); return { ...current, lanes, active: lanes[0]?.id ?? "rail", reference: current.reference === activeLane.id ? undefined : current.reference }; }); };
+  const cycleZone = (delta: number) => { const zones = [...(workspaceRef.current.railExpanded ? ["rail"] : []), ...workspaceRef.current.lanes.map((lane) => lane.id)]; if (!zones.length) return; const index = zones.indexOf(workspaceRef.current.active); change((current) => ({ ...current, active: zones[((index < 0 ? 0 : index) + delta + zones.length) % zones.length] })); };
+  const sweep = (delta: number) => { if (!activeLane || !filtered.length) return; const occupied = new Set(workspaceRef.current.lanes.filter((lane) => lane.id !== activeLane.id).map((lane) => lane.id)); const candidates = filtered.filter((row) => !occupied.has(rowKey(row))); if (!candidates.length) return; const index = candidates.findIndex((row) => rowKey(row) === activeLane.id); const row = candidates[((index < 0 ? 0 : index) + delta + candidates.length) % candidates.length]; change((current) => ({ ...current, railSelected: filtered.indexOf(row) }), false); void loadRowIntoLane(row, false, activeLane); };
+  const closeLane = () => { if (!activeLane) return; deleteLaneData(activeLane.id); change((current) => { const lanes = current.lanes.filter((lane) => lane.id !== activeLane.id); return { ...current, lanes, railExpanded: lanes.length ? current.railExpanded : true, active: lanes[0]?.id ?? "rail", reference: current.reference === activeLane.id ? undefined : current.reference }; }); };
   const promoteDemote = () => { if (!activeLane) return; change((current) => { const lane = current.lanes.find((item) => item.id === activeLane.id); if (!lane) return current; const counterpart = lane.band === "context" ? current.lanes.find((item) => item.id === lastFocus.current && item.band === "focus") ?? current.lanes.find((item) => item.band === "focus") : current.lanes.find((item) => item.band === "context"); if (!counterpart) return current; return { ...current, lanes: current.lanes.map((item) => item.id === lane.id ? { ...item, band: counterpart.band } : item.id === counterpart.id ? { ...item, band: lane.band } : item) }; }); };
-  const jump = (delta: number) => { const nextIndex = jumpIndex.current + delta; if (nextIndex < 0 || nextIndex >= jumpList.current.length) return; jumpIndex.current = nextIndex; restoring.current = true; applyWorkspace(jumpList.current[nextIndex], false); restoring.current = false; };
-  const adjustFidelity = (delta: number, all: boolean) => { if (workspaceRef.current.active === "rail") { setRailFidelity((value) => Math.max(0, Math.min(5, value + delta))); return; } change((current) => ({ ...current, lanes: current.lanes.map((lane) => all || lane.id === current.active ? { ...lane, fidelity: Math.max(0, Math.min(5, lane.fidelity + delta)) } : lane) })); };
-  const adjustZoom = (factor: number | "fit", all: boolean) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => { if (!all && lane.id !== current.active) return lane; const data = laneDataRef.current.get(lane.id); if (!data) return lane; const min = data.trajectory.events[0]?.sequence ?? 0, max = data.trajectory.events.at(-1)?.sequence ?? 1, sequence = data.trajectory.events[lane.selected]?.sequence ?? min; return { ...lane, axis: factor === "fit" ? { start: min, end: max } : zoomWindow(lane.axis, sequence, factor, min, max) }; }) }));
+  const jump = (delta: number) => { const nextIndex = jumpIndex.current + delta; if (nextIndex < 0 || nextIndex >= jumpList.current.length) return; jumpIndex.current = nextIndex; restoring.current = true; const next = jumpList.current[nextIndex]; applyWorkspace(next, false); next.lanes.forEach((lane) => void ensureLaneData(lane)); restoring.current = false; };
+  const adjustFidelity = (delta: number, all: boolean) => { if (workspaceRef.current.active === "rail" && !all) { setRailFidelity((value) => Math.max(0, Math.min(5, value + delta))); return; } change((current) => ({ ...current, lanes: current.lanes.map((lane) => all || lane.id === current.active ? { ...lane, fidelity: Math.max(0, Math.min(5, lane.fidelity + delta)) } : lane) }), false); };
+  const adjustZoom = (factor: number | "fit", all: boolean) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => { if (!all && lane.id !== current.active) return lane; const data = laneDataRef.current.get(lane.id); if (!data) return lane; const min = data.trajectory.events[0]?.sequence ?? 0, max = data.trajectory.events.at(-1)?.sequence ?? 1, sequence = data.trajectory.events[lane.selected]?.sequence ?? min; return { ...lane, axis: factor === "fit" ? { start: min, end: max } : zoomWindow(lane.axis, sequence, factor, min, max) }; }) }), false);
 
   const resizeNearest = (key: string) => {
     const active = workspaceRef.current.active === "rail" ? "rail" : workspaceRef.current.lanes.find((lane) => lane.id === workspaceRef.current.active)?.band === "context" ? "focusContext" : workspaceRef.current.lanes.filter((lane) => lane.band === "focus").length > 1 ? "focusLane" : "console";
@@ -312,7 +348,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   };
 
   useCommands("workspace", {
-    [commandIds.workspace.toggleRail]: () => change((current) => ({ ...current, railExpanded: !current.railExpanded })),
+    [commandIds.workspace.toggleRail]: () => change((current) => { const railExpanded = !current.railExpanded; return { ...current, railExpanded, active: !railExpanded && current.active === "rail" && current.lanes.length ? current.lanes[0].id : current.active }; }),
     [commandIds.workspace.addLane]: () => workspaceRef.current.active === "rail" ? openSelected(true) : false,
     [commandIds.workspace.closeLane]: () => activeLane ? closeLane() : false,
     [commandIds.workspace.cycleNext]: () => cycleZone(1), [commandIds.workspace.cyclePrevious]: () => cycleZone(-1),
@@ -327,13 +363,14 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     [commandIds.workspace.ascend]: () => { if (resizeMode) { setResizeMode(false); return; } if (!activeLane) return false; if (activeLane.depth > 1) updateLane(activeLane.id, (lane) => ({ ...lane, depth: lane.depth - 1 })); else closeLane(); },
     [commandIds.workspace.jumpBack]: () => jump(-1), [commandIds.workspace.jumpForward]: () => jump(1), [commandIds.workspace.resizeMode]: () => setResizeMode(true),
     [commandIds.view.fidelityUp]: () => adjustFidelity(1, false), [commandIds.view.fidelityDown]: () => adjustFidelity(-1, false),
+    [commandIds.view.fidelityUpAll]: () => adjustFidelity(1, true), [commandIds.view.fidelityDownAll]: () => adjustFidelity(-1, true),
     [commandIds.view.zoomIn]: () => activeLane ? adjustZoom(2, false) : false, [commandIds.view.zoomOut]: () => activeLane ? adjustZoom(0.5, false) : false, [commandIds.view.zoomFit]: () => activeLane ? adjustZoom("fit", false) : false,
     [commandIds.view.zoomInAll]: () => activeLane ? adjustZoom(2, true) : false, [commandIds.view.zoomOutAll]: () => activeLane ? adjustZoom(0.5, true) : false, [commandIds.view.zoomFitAll]: () => activeLane ? adjustZoom("fit", true) : false,
     [commandIds.view.toggleHelp]: () => setHelp(true),
   }, !help);
   useCommands("trajectory", {
-    [commandIds.trajectory.next]: () => activeLane ? moveEvent(1) : workspaceRef.current.active === "rail" ? change((current) => ({ ...current, railSelected: Math.min(filtered.length - 1, current.railSelected + 1) })) : false,
-    [commandIds.trajectory.previous]: () => activeLane ? moveEvent(-1) : workspaceRef.current.active === "rail" ? change((current) => ({ ...current, railSelected: Math.max(0, current.railSelected - 1) })) : false,
+    [commandIds.trajectory.next]: () => activeLane ? moveEvent(1) : workspaceRef.current.active === "rail" ? change((current) => ({ ...current, railSelected: Math.min(filtered.length - 1, current.railSelected + 1) }), false) : false,
+    [commandIds.trajectory.previous]: () => activeLane ? moveEvent(-1) : workspaceRef.current.active === "rail" ? change((current) => ({ ...current, railSelected: Math.max(0, current.railSelected - 1) }), false) : false,
     [commandIds.trajectory.nextError]: () => jumpEvent((event) => event.kind === "error"), [commandIds.trajectory.nextContext]: () => jumpEvent((event) => !!event.context || !!event.alignment_key?.startsWith("context:")),
     [commandIds.trajectory.nextReward]: () => jumpEvent((event) => event.kind === "reward" || event.kind === "grader"), [commandIds.trajectory.nextFinding]: () => { if (!activeLane) return false; const ids = new Set((laneData.get(activeLane.id)?.analysis?.analysis.findings ?? []).flatMap((finding) => finding.event_ids ?? [])); jumpEvent((event) => ids.has(event.id)); },
   }, !help);
@@ -345,17 +382,12 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   }, !help && workspace.active === "rail");
 
   useEffect(() => {
+    if (!resizeMode) return;
     const onKey = (event: KeyboardEvent) => {
       if (help || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
-      if (resizeMode && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); resizeNearest(event.key); return; }
-      if (!event.shiftKey) return;
-      if (event.code === "BracketRight" || event.key === "}") { event.preventDefault(); adjustFidelity(1, true); }
-      else if (event.code === "BracketLeft" || event.key === "{") { event.preventDefault(); adjustFidelity(-1, true); }
-      else if (event.code === "Equal" && event.key === "+") { event.preventDefault(); event.stopImmediatePropagation(); adjustZoom(2, true); }
-      else if (event.code === "Minus") { event.preventDefault(); adjustZoom(0.5, true); }
-      else if (event.code === "Digit0") { event.preventDefault(); adjustZoom("fit", true); }
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); resizeNearest(event.key); }
     };
-    window.addEventListener("keydown", onKey, true); return () => window.removeEventListener("keydown", onKey, true);
+    window.addEventListener("keydown", onKey); return () => window.removeEventListener("keydown", onKey);
   }, [help, resizeMode]);
 
   const beginResize = (event: ReactPointerEvent<HTMLDivElement>, name: SeamName) => {
@@ -375,7 +407,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
 
   const focus = workspace.lanes.filter((lane) => lane.band === "focus"), context = workspace.lanes.filter((lane) => lane.band === "context");
   const rackStyle = { "--rail-width": `${(workspace.railExpanded ? workspace.seams.rail : 0) * 100}vw`, "--focus-height": `${workspace.seams.focusContext * 100}%`, "--console-height": `${workspace.seams.console * 100}vh` } as CSSProperties;
-  return <div ref={rackRef} className={`instrument-shell workspace-rack rail-${workspace.railExpanded ? "open" : "closed"}`} data-filter={workspace.railQuery} data-direction={workspace.direction} data-active-zone={workspace.active} style={rackStyle}>
+  return <ViewerProviderContext.Provider value={provider}><div ref={rackRef} className={`instrument-shell workspace-rack rail-${workspace.railExpanded ? "open" : "closed"}`} data-filter={workspace.railQuery} data-direction={workspace.direction} data-active-zone={workspace.active} style={rackStyle}>
     <button className="theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`} onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}>{theme}</button>
     {error && <div className="instrument-error" role="alert">{error}</div>}{presentation?.notices?.map((notice) => <div className="presentation-notice" role="status" key={notice}>{notice}</div>)}
     <div className="rack-body">
@@ -394,5 +426,5 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     <Sash name="console" orientation="horizontal" onPointerDown={beginResize} onReset={resetSeam} />
     <Console workspace={workspace} lane={activeLane} data={activeLane ? laneData.get(activeLane.id) : undefined} breadcrumb={breadcrumb} resizeMode={resizeMode} onSelect={(index) => activeLane && selectEvent(activeLane.id, index)} onHelp={() => setHelp(true)} />
     {help && <HelpOverlay onClose={() => setHelp(false)} />}
-  </div>;
+  </div></ViewerProviderContext.Provider>;
 }

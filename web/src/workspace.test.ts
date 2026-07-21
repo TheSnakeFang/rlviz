@@ -20,6 +20,18 @@ describe("workspace arrangements", () => {
     expect(normalized.seams.rail).toBe(0.42);
   });
 
+  it("keeps the first duplicate lane before clamping the focus band", () => {
+    const normalized = normalizeWorkspace({ ...emptyWorkspace(), lanes: [
+      { sourceId: "s", trajectoryId: "one", band: "focus", depth: 2, axis: { start: 1, end: 2 } },
+      { sourceId: "s", trajectoryId: "one", band: "context", depth: 3, axis: { start: 3, end: 4 } },
+      { sourceId: "s", trajectoryId: "two", band: "focus", axis: { start: 0, end: 1 } },
+      { sourceId: "s", trajectoryId: "three", band: "focus", axis: { start: 0, end: 1 } },
+    ] })!;
+    expect(normalized.lanes.map((lane) => [lane.trajectoryId, lane.band, lane.depth])).toEqual([
+      ["one", "focus", 2], ["two", "focus", 1], ["three", "context", 1],
+    ]);
+  });
+
   it("maps legacy read and compare URLs into arrangements", () => {
     const read = legacyWorkspace("?trajectory=source&trajectory_id=one&mode=read")!;
     expect(read.lanes.map((lane) => lane.trajectoryId)).toEqual(["one"]);

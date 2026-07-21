@@ -14,6 +14,13 @@ import (
 
 var ErrTooLarge = errors.New("alignment exceeds configured bounds")
 
+// Comparison bounds are shared by the daemon and browser core so identical
+// trajectory pairs have the same acceptance boundary on both surfaces.
+const (
+	MaxComparisonWork      = 25_000_000
+	MaxComparisonWorkspace = 64 << 20
+)
+
 // Complexity describes the divergent middle after exact suffix-first trimming.
 // WorkCells counts DP cells including the zero row/column; WorkspaceBytes
 // covers one direction byte per middle pair plus two rolling score rows.

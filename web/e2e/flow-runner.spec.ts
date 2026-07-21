@@ -81,7 +81,7 @@ function target(page: Page, observable: Observable): Locator {
 }
 
 async function act(page: Page, action: FlowAction, boxes: Map<string, Awaited<ReturnType<Locator["boundingBox"]>>>) {
-  if (action.kind === "key") return page.keyboard.press(action.value);
+  if (action.kind === "key") return page.keyboard.press(action.value === "+" ? "Shift+Equal" : action.value);
   if (action.kind === "filter") return page.locator("#browse-filter").fill(action.value);
   if (action.kind === "click") return page.locator(action.target).first().click({ clickCount: action.clicks ?? 1 });
   if (action.kind === "capture-box") { boxes.set(action.key, await page.locator(action.target).first().boundingBox()); return; }

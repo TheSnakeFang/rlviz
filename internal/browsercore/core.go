@@ -13,7 +13,10 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"reflect"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/TheSnakeFang/rlviz/internal/alignment"
 	"github.com/TheSnakeFang/rlviz/internal/analyzers"
@@ -21,6 +24,14 @@ import (
 )
 
 const MaxRecommendedBytes = 32 << 20
+
+type CodedError struct {
+	Code    string
+	Message string
+}
+
+func (err *CodedError) Error() string     { return err.Message }
+func (err *CodedError) ErrorCode() string { return err.Code }
 
 type Source struct {
 	ID         string `json:"id"`
@@ -61,15 +72,24 @@ type Collection struct {
 // Parse detects a built-in browser format, normalizes it to canonical NDJSON,
 // validates the stream, and builds the complete in-memory collection.
 func Parse(source []byte, name string) ([]byte, error) {
-	canonical, format, err := Normalize(source, name)
-	if err != nil {
-		return nil, err
-	}
-	collection, err := ParseCanonical(canonical, name, format, len(source))
+	collection, err := ParseCollection(source, name)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(collection)
+}
+
+// ParseCollection returns the decoded collection without an intermediate JSON
+// round trip. The WASM bridge caches this value for analysis and comparison.
+func ParseCollection(source []byte, name string) (Collection, error) {
+	if len(source) > MaxRecommendedBytes {
+		return Collection{}, fmt.Errorf("trace is %d bytes; browser maximum is %d bytes", len(source), MaxRecommendedBytes)
+	}
+	canonical, format, err := Normalize(source, name)
+	if err != nil {
+		return Collection{}, err
+	}
+	return ParseCanonical(canonical, name, format, len(source))
 }
 
 // Normalize returns validated canonical input for built-in formats.
@@ -97,6 +117,12 @@ func Normalize(source []byte, name string) ([]byte, string, error) {
 }
 
 func ParseCanonical(canonical []byte, name, format string, sourceSize int) (Collection, error) {
+	if sourceSize < 0 || sourceSize > MaxRecommendedBytes {
+		return Collection{}, fmt.Errorf("trace is %d bytes; browser maximum is %d bytes", sourceSize, MaxRecommendedBytes)
+	}
+	if len(canonical) > MaxRecommendedBytes {
+		return Collection{}, fmt.Errorf("canonical trace is %d bytes; browser maximum is %d bytes", len(canonical), MaxRecommendedBytes)
+	}
 	runs := map[string]*model.Run{}
 	cases := map[string]*model.Case{}
 	groups := map[string]*model.Group{}
@@ -104,6 +130,7 @@ func ParseCanonical(canonical []byte, name, format string, sourceSize int) (Coll
 	events := map[string][]model.Event{}
 	signals := map[string][]model.Signal{}
 	artifacts := map[string][]model.Artifact{}
+	trajectoryOrder := make([]string, 0)
 	err := model.Decode(bytes.NewReader(canonical), func(record *model.Record) error {
 		switch value := record.Value.(type) {
 		case *model.Run:
@@ -113,6 +140,9 @@ func ParseCanonical(canonical []byte, name, format string, sourceSize int) (Coll
 		case *model.Group:
 			groups[value.ID] = value
 		case *model.Trajectory:
+			if _, exists := trajectories[value.ID]; !exists {
+				trajectoryOrder = append(trajectoryOrder, value.ID)
+			}
 			trajectories[value.ID] = value
 		case *model.Event:
 			events[value.TrajectoryID] = append(events[value.TrajectoryID], *value)
@@ -130,12 +160,7 @@ func ParseCanonical(canonical []byte, name, format string, sourceSize int) (Coll
 	source := Source{ID: "browser-" + hex.EncodeToString(sum[:8]), Name: filepath.Base(name), Format: format, Size: sourceSize, IndexState: "complete"}
 	rows := make([]BrowseRow, 0, len(trajectories))
 	data := make(map[string]TrajectoryData, len(trajectories))
-	ids := make([]string, 0, len(trajectories))
-	for id := range trajectories {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	for _, id := range ids {
+	for _, id := range trajectoryOrder {
 		trajectory := *trajectories[id]
 		group := groups[trajectory.GroupID]
 		var currentCase *model.Case
@@ -173,18 +198,57 @@ func Compare(collection Collection, leftID, rightID string) (map[string]any, err
 	if !lok || !rok {
 		return nil, errors.New("comparison trajectory not found")
 	}
-	result := alignment.Align(left.Events, right.Events)
+	result, complexity, err := alignment.AlignBounded(left.Events, right.Events, alignment.MaxComparisonWork, alignment.MaxComparisonWorkspace)
+	if err != nil {
+		if errors.Is(err, alignment.ErrTooLarge) {
+			return nil, &CodedError{Code: "comparison_too_large", Message: fmt.Sprintf("comparison divergent middle %dx%d requires %d alignment cells and %d workspace bytes; maximums are %d and %d", complexity.MiddleLeft, complexity.MiddleRight, complexity.WorkCells, complexity.WorkspaceBytes, alignment.MaxComparisonWork, alignment.MaxComparisonWorkspace)}
+		}
+		return nil, err
+	}
 	return map[string]any{
-		"left":      map[string]any{"trajectory": left.Trajectory, "events": left.Events, "signals": left.Signals, "artifacts": left.Artifacts},
-		"right":     map[string]any{"trajectory": right.Trajectory, "events": right.Events, "signals": right.Signals, "artifacts": right.Artifacts},
-		"alignment": result,
-		"differences": map[string]any{
-			"event_count": countDifference(len(left.Events), len(right.Events)),
-			"status":      valueDifference(left.Trajectory.Status, right.Trajectory.Status),
-			"termination": valueDifference(left.Trajectory.Termination, right.Trajectory.Termination),
-			"reward":      valueDifference(reward(left.Signals), reward(right.Signals)),
-		},
+		"source":      collection.Source,
+		"left":        comparisonSide(left),
+		"right":       comparisonSide(right),
+		"alignment":   result,
+		"differences": comparisonDifferences(left, right),
 	}, nil
+}
+
+func comparisonSide(side TrajectoryData) map[string]any {
+	context := map[string]any{
+		"run":        map[string]any{"value": side.Run},
+		"case":       map[string]any{"value": side.Case},
+		"group":      map[string]any{"value": side.Group},
+		"trajectory": map[string]any{"value": side.Trajectory},
+	}
+	return map[string]any{
+		"context": context, "run": side.Run, "case": side.Case, "group": side.Group,
+		"trajectory": side.Trajectory, "events": side.Events, "event_provenance": []any{},
+		"signals": side.Signals, "artifacts": side.Artifacts,
+	}
+}
+
+func comparisonDifferences(left, right TrajectoryData) map[string]any {
+	leftReward, leftRewardOK := signalValue(left.Signals, "reward")
+	rightReward, rightRewardOK := signalValue(right.Signals, "reward")
+	leftSuccess, leftSuccessOK := boolSignalValue(left.Signals, "pass", "success")
+	rightSuccess, rightSuccessOK := boolSignalValue(right.Signals, "pass", "success")
+	leftTokens, leftTokensOK := integerSignalValue(left.Signals, "token_count", "total_tokens", "tokens")
+	rightTokens, rightTokensOK := integerSignalValue(right.Signals, "token_count", "total_tokens", "tokens")
+	leftContext, leftCompactions := contextEventCounts(left.Events)
+	rightContext, rightCompactions := contextEventCounts(right.Events)
+	leftVerifiers, rightVerifiers := verifierResults(left.Events), verifierResults(right.Events)
+	return map[string]any{
+		"event_count":         countDifference(len(left.Events), len(right.Events)),
+		"status":              valueDifference(left.Trajectory.Status, right.Trajectory.Status),
+		"termination":         valueDifference(left.Trajectory.Termination, right.Trajectory.Termination),
+		"reward":              optionalValueDifference(leftReward, leftRewardOK, rightReward, rightRewardOK),
+		"success":             optionalValueDifference(leftSuccess, leftSuccessOK, rightSuccess, rightSuccessOK),
+		"token_count":         optionalIntegerDifference(leftTokens, leftTokensOK, rightTokens, rightTokensOK),
+		"context_event_count": countDifference(leftContext, rightContext),
+		"compaction_count":    countDifference(leftCompactions, rightCompactions),
+		"verifier_results":    map[string]any{"left": leftVerifiers, "right": rightVerifiers, "changed": !reflect.DeepEqual(verifierComparable(leftVerifiers), verifierComparable(rightVerifiers))},
+	}
 }
 
 func trajectoryMetrics(t model.Trajectory, events []model.Event, signals []model.Signal) map[string]any {
@@ -209,7 +273,103 @@ func countDifference(left, right int) map[string]any {
 	return map[string]any{"left": left, "right": right, "delta": right - left}
 }
 func valueDifference(left, right any) map[string]any {
-	return map[string]any{"left": left, "right": right, "changed": fmt.Sprint(left) != fmt.Sprint(right)}
+	return map[string]any{"left": left, "right": right, "changed": !reflect.DeepEqual(left, right)}
+}
+func signalValue(signals []model.Signal, names ...string) (any, bool) {
+	for _, name := range names {
+		for _, signal := range signals {
+			if strings.EqualFold(strings.TrimSpace(signal.Name), name) {
+				return signal.Value, true
+			}
+		}
+	}
+	return nil, false
+}
+func boolSignalValue(signals []model.Signal, names ...string) (bool, bool) {
+	value, ok := signalValue(signals, names...)
+	result, valid := value.(bool)
+	return result, ok && valid
+}
+func integerSignalValue(signals []model.Signal, names ...string) (int64, bool) {
+	value, ok := signalValue(signals, names...)
+	if !ok {
+		return 0, false
+	}
+	switch number := value.(type) {
+	case json.Number:
+		parsed, err := strconv.ParseInt(number.String(), 10, 64)
+		return parsed, err == nil && parsed >= 0
+	case float64:
+		return int64(number), number >= 0 && number == math.Trunc(number) && number <= math.MaxInt64
+	case int64:
+		return number, number >= 0
+	}
+	return 0, false
+}
+func optionalValueDifference(left any, leftOK bool, right any, rightOK bool) map[string]any {
+	result := map[string]any{"changed": leftOK != rightOK || (leftOK && !reflect.DeepEqual(left, right))}
+	if leftOK {
+		result["left"] = left
+	}
+	if rightOK {
+		result["right"] = right
+	}
+	return result
+}
+func optionalIntegerDifference(left int64, leftOK bool, right int64, rightOK bool) map[string]any {
+	result := map[string]any{"changed": leftOK != rightOK || (leftOK && left != right)}
+	if leftOK {
+		result["left"] = left
+	}
+	if rightOK {
+		result["right"] = right
+	}
+	if leftOK && rightOK {
+		result["delta"] = right - left
+	}
+	return result
+}
+func contextEventCounts(events []model.Event) (contextEvents, compactions int) {
+	for _, event := range events {
+		if event.Context != nil {
+			contextEvents++
+			if event.Context.Operation == "compaction" {
+				compactions++
+			}
+			continue
+		}
+		if strings.HasPrefix(event.AlignmentKey, "context:") {
+			contextEvents++
+		}
+		if event.AlignmentKey == "context:compaction" {
+			compactions++
+		}
+	}
+	return contextEvents, compactions
+}
+func verifierResults(events []model.Event) []map[string]any {
+	results := make([]map[string]any, 0)
+	for _, event := range events {
+		if event.Kind != "grader" {
+			continue
+		}
+		result := map[string]any{"event_id": event.ID, "sequence": event.Sequence}
+		if event.AlignmentKey != "" {
+			result["alignment_key"] = event.AlignmentKey
+		}
+		if event.Output != nil {
+			result["output"] = event.Output
+		}
+		results = append(results, result)
+	}
+	return results
+}
+func verifierComparable(results []map[string]any) []map[string]any {
+	comparable := make([]map[string]any, len(results))
+	for index, result := range results {
+		comparable[index] = map[string]any{"alignment_key": result["alignment_key"], "output": result["output"]}
+	}
+	return comparable
 }
 func reward(signals []model.Signal) any {
 	for _, signal := range signals {
@@ -493,11 +653,17 @@ func maskedCount(value any) int {
 
 // DecodeAdapterResult validates canonical NDJSON returned by an uploaded module.
 func DecodeAdapterResult(data []byte, sourceName string, sourceSize int) ([]byte, error) {
-	collection, err := ParseCanonical(data, sourceName, "browser-wasm-adapter", sourceSize)
+	collection, err := DecodeAdapterCollection(data, sourceName, sourceSize)
 	if err != nil {
 		return nil, err
 	}
 	return json.Marshal(collection)
+}
+
+// DecodeAdapterCollection validates canonical adapter output without an
+// intermediate JSON round trip.
+func DecodeAdapterCollection(data []byte, sourceName string, sourceSize int) (Collection, error) {
+	return ParseCanonical(data, sourceName, "browser-wasm-adapter", sourceSize)
 }
 
 // DecodeCollection accepts a collection previously returned by Parse.

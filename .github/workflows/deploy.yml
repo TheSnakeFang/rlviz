@@ -42,18 +42,20 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: web/package-lock.json
+          cache-dependency-path: |
+            web/package-lock.json
+            webapp/package-lock.json
       - name: Build documentation site
         run: make site
       - name: Build browser app and Go WebAssembly core
-        run: make web-install webapp
+        run: make webapp
       - name: Install Vercel CLI
-        run: npm install --global vercel
+        run: npm install --global vercel@56.4.1
       - name: Deploy documentation
         env:
           VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID_DOCS }}
-        run: vercel deploy site/dist --prod --yes --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID"
+        run: vercel deploy site/dist --prod --yes --scope "$VERCEL_ORG_ID"
       - name: Deploy browser app
         env:
           VERCEL_PROJECT_ID: ${{ env.VERCEL_PROJECT_ID_APP }}
-        run: vercel deploy webapp/dist --prod --yes --token "$VERCEL_TOKEN" --scope "$VERCEL_ORG_ID"
+        run: vercel deploy webapp/dist --prod --yes --scope "$VERCEL_ORG_ID"

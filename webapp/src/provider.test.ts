@@ -25,12 +25,22 @@ function galleryCollection(): BrowserCollection {
 
 describe("in-memory viewer provider", () => {
   it("serves Browse and Read from the bundled 300-event gallery fixture", async () => {
-    const provider = createInMemoryProvider(JSON.stringify(galleryCollection()));
+    const provider = createInMemoryProvider(galleryCollection(), "gallery-digest");
     const browse = await provider.loadBrowse();
     expect(browse.trajectories).toHaveLength(1);
     expect(browse.trajectories[0].source_name).toBe("coding-agent-bugfix.ndjson");
     const loaded = await provider.loadInitial();
     expect(loaded.trajectory.events).toHaveLength(300);
     expect(loaded.trajectory.events[0].id).toBe("coding-event-0000");
+    expect(new TextDecoder().decode(await provider.loadArtifactContent("gallery", loaded.trajectory.id, "coding-artifact-patch"))).toContain("cache/store.go");
+  });
+
+  it("never fetches path-backed artifacts that have no inline bytes", async () => {
+    const collection = galleryCollection();
+    const trajectoryId = Object.keys(collection.trajectories)[0];
+    const artifacts = collection.trajectories[trajectoryId]!.artifacts ??= [];
+    artifacts.push({ id: "path-only", trajectory_id: trajectoryId, media_type: "text/plain", path: "trace.log" });
+    const provider = createInMemoryProvider(collection, "gallery-digest");
+    await expect(provider.loadArtifactContent("gallery", trajectoryId, "path-only")).rejects.toThrow("Artifact preview requires the CLI");
   });
 });

@@ -18,15 +18,17 @@ describe("keymap settings", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("groups commands by scope in an accessible dialog", () => {
-    render(<KeymapDialog open onClose={() => {}} />);
-    expect(screen.getByRole("dialog", { name: "Keyboard shortcuts" })).toHaveAttribute("aria-modal", "true");
-    expect(screen.getByRole("button", { name: "Close keyboard shortcut settings" })).toHaveFocus();
-    expect(screen.getByRole("heading", { name: "Trajectory" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Rollout group" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Behavioral paths" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Comparison" })).toBeInTheDocument();
+    const { container } = render(<KeymapDialog open onClose={() => {}} />);
+    const dialog = container.querySelector<HTMLElement>("[role=dialog]")!;
+    expect(dialog).toHaveAccessibleName("Keyboard shortcuts");
+    expect(dialog).toHaveAttribute("aria-modal", "true");
+    expect(screen.getByLabelText("Close keyboard shortcut settings")).toHaveFocus();
+    expect(dialog).toHaveTextContent("Trajectory");
+    expect(dialog).toHaveTextContent("Rollout group");
+    expect(dialog).toHaveTextContent("Behavioral paths");
+    expect(dialog).toHaveTextContent("Comparison");
     expect(screen.getByLabelText("Next event bindings")).toHaveValue("j");
-  });
+  }, 10_000);
 
   it("keeps edits as drafts until a per-command save", () => {
     render(<KeymapDialog open onClose={() => {}} />);

@@ -6,12 +6,9 @@ import researchExample from "../../examples/gallery/web-research-agent.ndjson?ra
 import cohortExample from "../../examples/gallery/checkout-cohort.ndjson?raw";
 import { adapterIdentity, runAdapter } from "./adapter";
 import { createInMemoryProvider } from "./provider";
-import { parseTrace } from "./wasm";
+import { limits, parseTrace } from "./wasm";
 
 const encoder = new TextEncoder();
-const warningBytes = 32 * 1024 * 1024;
-const maximumBytes = 256 * 1024 * 1024;
-
 const examples = [
   ["300-event coding trace", "coding-agent-bugfix.ndjson", codingExample],
   ["web research trace", "web-research-agent.ndjson", researchExample],
@@ -53,15 +50,13 @@ export function BrowserApp() {
   const adapterInput = useRef<HTMLInputElement>(null);
 
   const openBytes = useCallback(async (bytes: Uint8Array, name: string) => {
-    if (bytes.byteLength > maximumBytes) {
-      setStatus(`${name} is too large for the in-memory browser viewer. Use the CLI for files above 256 MiB.`);
-      return;
-    }
-    if (bytes.byteLength > warningBytes && !window.confirm(`${name} is ${(bytes.byteLength / 1024 / 1024).toFixed(1)} MiB. The browser viewer keeps the full index in memory and may become slow. Continue?`)) return;
-    setBusy(true); setStatus(`Parsing ${name} in this tab…`); setSource({ bytes, name });
+    setBusy(true); setStatus(`Parsing ${name} in this tab…`);
     try {
-      const encoded = await parseTrace(bytes, name);
-      setProvider(createInMemoryProvider(encoded));
+      const { maxRecommendedBytes } = await limits();
+      if (bytes.byteLength > maxRecommendedBytes) throw new Error(`${name} is ${(bytes.byteLength / 1024 / 1024).toFixed(1)} MiB; the browser maximum is ${maxRecommendedBytes / 1024 / 1024} MiB. Use the CLI for larger files`);
+      setSource({ bytes, name });
+      const parsed = await parseTrace(bytes, name);
+      setProvider(createInMemoryProvider(parsed.collection, parsed.collection_id));
       setStatus(`${name} is open. No trace bytes left this tab.`);
     } catch (error) {
       setProvider(undefined);
@@ -86,8 +81,8 @@ export function BrowserApp() {
     const adapter = pendingAdapter;
     setPendingAdapter(undefined); setBusy(true); setStatus(`Running confirmed adapter ${adapter.name} in the browser sandbox…`);
     try {
-      const encoded = await runAdapter(adapter.bytes, source.bytes, source.name);
-      setProvider(createInMemoryProvider(encoded));
+      const parsed = await runAdapter(adapter.bytes, source.bytes, source.name);
+      setProvider(createInMemoryProvider(parsed.collection, parsed.collection_id));
       setStatus(`${source.name} is open through ${adapter.name}. The adapter is held only for this session.`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Adapter failed");

@@ -63,13 +63,17 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const raw = value as Partial<WorkspaceState>;
   if (raw.version !== 2 || !Array.isArray(raw.lanes)) return undefined;
+  const seen = new Set<string>();
   const lanes = raw.lanes.flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object") return [];
     const lane = candidate as Partial<WorkspaceLane>;
     if (typeof lane.sourceId !== "string" || typeof lane.trajectoryId !== "string" || (lane.band !== "focus" && lane.band !== "context")) return [];
     const axis = lane.axis && finite(lane.axis.start) && finite(lane.axis.end) && lane.axis.end >= lane.axis.start ? lane.axis : { start: 0, end: 1 };
+    const id = laneId(lane.sourceId, lane.trajectoryId);
+    if (seen.has(id)) return [];
+    seen.add(id);
     return [{
-      id: laneId(lane.sourceId, lane.trajectoryId), sourceId: lane.sourceId, trajectoryId: lane.trajectoryId, band: lane.band,
+      id, sourceId: lane.sourceId, trajectoryId: lane.trajectoryId, band: lane.band,
       selected: clamp(finite(lane.selected) ? Math.round(lane.selected) : 0, 0, Number.MAX_SAFE_INTEGER),
       depth: clamp(finite(lane.depth) ? Math.round(lane.depth) : 1, 1, 3),
       fidelity: clamp(finite(lane.fidelity) ? Math.round(lane.fidelity) : 3, 0, 5), axis,
@@ -83,16 +87,18 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
   });
   const ids = new Set(lanes.map((lane) => lane.id));
   const seams = raw.seams ?? defaultSeams;
+  const railExpanded = raw.railExpanded !== false || lanes.length === 0;
+  const requestedActive = raw.active === "rail" || (typeof raw.active === "string" && ids.has(raw.active)) ? raw.active : "rail";
   return {
     version: 2,
-    railExpanded: raw.railExpanded !== false,
+    railExpanded,
     railProjection: raw.railProjection === "caterpillar" ? "caterpillar" : "table",
     railQuery: typeof raw.railQuery === "string" ? raw.railQuery.slice(0, 500) : "",
     railSelected: clamp(finite(raw.railSelected) ? Math.round(raw.railSelected) : 0, 0, Number.MAX_SAFE_INTEGER),
     lanes,
     direction: raw.direction === "columns" ? "columns" : "rows",
     reference: typeof raw.reference === "string" && ids.has(raw.reference) ? raw.reference : undefined,
-    active: raw.active === "rail" || (typeof raw.active === "string" && ids.has(raw.active)) ? raw.active : "rail",
+    active: requestedActive === "rail" && !railExpanded ? lanes[0].id : requestedActive,
     seams: {
       rail: clamp(finite(seams.rail) ? seams.rail : defaultSeams.rail, 0.14, 0.42),
       focusContext: clamp(finite(seams.focusContext) ? seams.focusContext : defaultSeams.focusContext, 0.42, 0.9),

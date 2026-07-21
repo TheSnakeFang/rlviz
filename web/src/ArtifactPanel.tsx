@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { loadArtifactContent } from "./api";
 import { bindingLabel, commandIds, useKeymapRevision } from "./commands";
 import { json } from "./format";
+import { useViewerProvider } from "./provider";
 import type { TrajectoryArtifact } from "./types";
 
 const imageTypes = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
@@ -42,6 +42,7 @@ export function InlineArtifacts({ artifacts, eventId, label }: { artifacts?: Tra
 }
 
 function SelectedArtifactPreview({ artifact, sourceId, trajectoryId }: { artifact: TrajectoryArtifact; sourceId: string; trajectoryId: string }) {
+  const provider = useViewerProvider();
   const [content, setContent] = useState<string>();
   const [imageURL, setImageURL] = useState<string>();
   const [loading, setLoading] = useState(false);
@@ -58,7 +59,7 @@ function SelectedArtifactPreview({ artifact, sourceId, trajectoryId }: { artifac
     const controller = new AbortController();
     let objectURL = "";
     setLoading(true);
-    loadArtifactContent(sourceId, trajectoryId, artifact.id, controller.signal).then((bytes) => {
+    provider.loadArtifactContent(sourceId, trajectoryId, artifact.id, controller.signal).then((bytes) => {
       if (imageTypes.has(mediaType)) {
         const blob = new Blob([bytes], { type: mediaType });
         objectURL = URL.createObjectURL(blob);
@@ -72,7 +73,7 @@ function SelectedArtifactPreview({ artifact, sourceId, trajectoryId }: { artifac
     }).catch((reason) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Artifact preview failed"); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { controller.abort(); if (objectURL) URL.revokeObjectURL(objectURL); };
-  }, [artifact, authorized, sourceId, trajectoryId]);
+  }, [artifact, authorized, provider, sourceId, trajectoryId]);
 
   return <div className="artifact-preview"><div className="artifact-meta"><strong>{artifactName(artifact)}</strong><span>{artifact.path ? "path-backed" : "inline"}{artifact.sha256 ? " · sha256 verified on read" : ""}</span></div>
     {artifact.path && !authorized ? <div className="artifact-consent"><strong>Local file preview</strong><code>{artifact.path}</code><p>This artifact path is relative to the trace. Load it only if you trust the trace and its files.</p><button onClick={() => setAuthorized(true)}>Load preview</button></div>
