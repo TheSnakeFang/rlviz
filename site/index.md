@@ -7,13 +7,14 @@ RLViz opens canonical trajectories, rollout cohorts, and trusted adapter output 
 ## Install
 
 ```bash
-brew install TheSnakeFang/tap/rlviz
+curl -fsSL https://rlviz.dev/install.sh | sh
 ```
 
-Or download a release binary with the repository installer:
+Or through a package manager:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/TheSnakeFang/rlviz/main/scripts/install.sh | sh
+npm install -g rlviz
+brew install TheSnakeFang/tap/rlviz
 ```
 
 Installation and setup documentation: [rlviz.dev/onboarding.html](https://rlviz.dev/onboarding.html).

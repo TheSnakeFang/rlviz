@@ -66,7 +66,12 @@ func build(output string) error {
 			return fmt.Errorf("write %s: %w", rawName, err)
 		}
 	}
+	installer, err := os.ReadFile("scripts/install.sh")
+	if err != nil {
+		return fmt.Errorf("read installer for site: %w", err)
+	}
 	artifacts := map[string][]byte{
+		"install.sh":    installer,
 		"CNAME":         []byte("rlviz.dev"),
 		"llms.txt":      []byte(llmsManifest()),
 		"llms-full.txt": []byte(llmsFull(contents)),
@@ -123,7 +128,7 @@ func layout(current page, body string) string {
 		}
 		fmt.Fprintf(&navigation, `<a href="%s"%s>%s</a>`, candidate.Output, class, html.EscapeString(candidate.Title))
 	}
-	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"dark\"><title>" + html.EscapeString(current.Title) + " · RLViz</title><link rel=\"stylesheet\" href=\"style.css\"></head><body><aside><a class=\"brand\" href=\"index.html\"><b>RLViz</b><span>rollout instrument</span></a><nav>" + navigation.String() + "</nav><footer>local-first · source-read-only</footer></aside><main>" + body + "</main></body></html>"
+	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><meta name=\"color-scheme\" content=\"dark\"><title>" + html.EscapeString(current.Title) + " · RLViz</title><link rel=\"stylesheet\" href=\"style.css\"></head><body><aside><a class=\"brand\" href=\"index.html\"><b>RLViz</b></a><nav>" + navigation.String() + "</nav><footer>local-first · source-read-only</footer></aside><main>" + body + "</main></body></html>"
 }
 
 func markdown(source []byte) string {
