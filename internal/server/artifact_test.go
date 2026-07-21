@@ -198,7 +198,7 @@ func TestOpenVerifiedArtifactRejectsPathSwap(t *testing.T) {
 		t.Fatal(err)
 	}
 	if file, _, err := openVerifiedArtifact(second, expected); err == nil {
-		file.Close()
+		_ = file.Close()
 		t.Fatal("open accepted a file different from the pre-open stat")
 	}
 }

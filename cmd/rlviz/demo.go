@@ -159,15 +159,15 @@ func ensureDemoSource(paths daemon.Paths) (string, error) {
 	name := temporary.Name()
 	defer os.Remove(name)
 	if err := temporary.Chmod(0o600); err != nil {
-		temporary.Close()
+		_ = temporary.Close()
 		return "", err
 	}
 	if _, err := temporary.Write(fixturedata.DemoNDJSON); err != nil {
-		temporary.Close()
+		_ = temporary.Close()
 		return "", err
 	}
 	if err := temporary.Sync(); err != nil {
-		temporary.Close()
+		_ = temporary.Close()
 		return "", err
 	}
 	if err := temporary.Close(); err != nil {

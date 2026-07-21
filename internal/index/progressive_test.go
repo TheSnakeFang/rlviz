@@ -246,7 +246,7 @@ func writeProgressiveRecords(t *testing.T, path string, records []any, appendMod
 		t.Fatal(err)
 	}
 	if _, err := file.Write(data.Bytes()); err != nil {
-		file.Close()
+		_ = file.Close()
 		t.Fatal(err)
 	}
 	if err := file.Close(); err != nil {
