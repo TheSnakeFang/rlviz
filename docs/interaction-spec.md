@@ -153,7 +153,8 @@ Keep existing bindings. Additions (conflict-checked per scope):
 |---|---|---|
 | `trajectory.nextRollout` / `previousRollout` | `n` / `p` | trajectory |
 | `workspace.openDetail` | `d` | trajectory |
-| `workspace.moveMode` | `Ctrl+m`, then arrows | workspace |
+| `workspace.moveMode` | `Ctrl+m`, then arrows; `Ctrl+m`/`Esc` exits | workspace |
+| `workspace.resizeMode` | `Ctrl+w`, then arrows; `Ctrl+w`/`Esc` exits | workspace |
 | `trajectory.ascend` | `Escape` | trajectory |
 | `trajectory.markIn` / `markOut` | `i` / `Shift+O` | trajectory |
 | `trajectory.goto` | `:` | trajectory |

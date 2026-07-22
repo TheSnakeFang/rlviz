@@ -168,10 +168,10 @@ export const flows: Flow[] = [
       // contract covers keyboard resize (real input) and persistence.
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "capture-box", target: ".workspace-console", key: "console-before" }, expect: [{ target: "console" }] },
-      { action: { kind: "key", value: "Control+w" }, expect: [attr("console", "data-resize-mode", "true")] },
+      { action: { kind: "key", value: "Control+w" }, expect: [attr("console", "data-resize-mode", "true"), { target: "rail", selector: ".keybar", contains: "Exit resize mode" }] },
       { action: { kind: "key", value: "ArrowLeft" }, expect: [{ target: "console" }] },
       { action: { kind: "key", value: "ArrowLeft" }, expect: [{ target: "console", boxNotEquals: "console-before" }] },
-      { action: { kind: "key", value: "Escape" }, expect: [attr("console", "data-resize-mode", "false")] },
+      { action: { kind: "key", value: "Control+w" }, expect: [attr("console", "data-resize-mode", "false")] },
       { action: { kind: "capture-box", target: ".workspace-console", key: "console-persist" }, expect: [{ target: "console" }] },
       { action: { kind: "reload" }, expect: [{ target: "console", boxEquals: "console-persist" }, { target: "focus-lane", count: 1 }] },
     ],
@@ -352,9 +352,9 @@ export const flows: Flow[] = [
     id: "u", name: "keyboard-module-move-persists", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail"), attr("console", "data-dock-position", "right")] },
-      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "true")] },
+      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "true"), { target: "rail", selector: ".keybar", contains: "Exit move mode" }] },
       { action: { kind: "key", value: "ArrowDown" }, expect: [attr("console", "data-dock-position", "bottom")] },
-      { action: { kind: "key", value: "Escape" }, expect: [attr("shell", "data-move-mode", "false"), attr("console", "data-dock-position", "bottom")] },
+      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "false"), attr("console", "data-dock-position", "bottom")] },
       { action: { kind: "reload" }, expect: [attr("console", "data-dock-position", "bottom"), { target: "focus-lane", count: 1 }] },
     ],
     // The webapp holds the trace in memory only (privacy design): reload
@@ -362,9 +362,9 @@ export const flows: Flow[] = [
     webappSteps: [
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail"), attr("console", "data-dock-position", "right")] },
-      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "true")] },
+      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "true"), { target: "rail", selector: ".keybar", contains: "Exit move mode" }] },
       { action: { kind: "key", value: "ArrowDown" }, expect: [attr("console", "data-dock-position", "bottom")] },
-      { action: { kind: "key", value: "Escape" }, expect: [attr("shell", "data-move-mode", "false"), attr("console", "data-dock-position", "bottom")] },
+      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "false"), attr("console", "data-dock-position", "bottom")] },
     ],
   },
   {

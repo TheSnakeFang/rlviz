@@ -38,8 +38,10 @@ MIT, with floating panels and popout windows disabled):
   enumerates and tests arrangements exactly as before.
 - Keyboard: `Tab`/`Shift+Tab` cycle modules; **arrow-key spatial navigation**
   (`Alt+←↑↓→`) moves focus to the neighboring module. `Ctrl+m` enters a
-  move-module mode where the same arrows relocate the active module; `Esc`
-  exits it. Both routes are shown in the active-module keybar.
+  move-module mode where the same arrows relocate the active module; `Ctrl+w`
+  enters seam-resize mode. The entry chord toggles its mode off and `Esc`
+  exits either mode. While a mode is active, the keybar shows only its live
+  arrow, toggle, and cancel controls.
 
 ## 2. The collection module
 
