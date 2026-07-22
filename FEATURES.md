@@ -15,7 +15,7 @@ work, and `later` is an intended capability without a committed release.
 | Open in the browser | Drop a modest trace into the browser viewer; parsing and indexing stay in the tab | current |
 | Browse a collection | Filter rollouts, change visual fidelity, switch between a flat rollout list and trial groups, and open or add a rollout | current |
 | Inspect a rollout | Move through events and landmarks, change depth and fidelity, adjust the timeline viewport, and inspect normalized and raw source data | current |
-| Build a workspace | Arrange rollout modules in rows or columns, move and resize modules, keep context lanes, and serialize the layout into a deep link | current |
+| Build a workspace | Arrange rollout modules in rows or columns, move and resize modules, keep context lanes, and share the logical workspace without viewport-specific geometry | current |
 | Keep one rollout in detail | Open a rollout-pinned detail module, navigate it directly, and inspect other lanes without replacing it | current |
 | Triage a rollout group | Inspect outcome and metric distributions, sort or filter trajectories, and jump to representative or failing rollouts | current |
 | Compare behavior | Align two trajectories around behavioral anchors and inspect their first meaningful divergence and structured differences | current |
@@ -62,7 +62,7 @@ work, and `later` is an intended capability without a committed release.
 - `current` `Alt` + arrow spatial navigation and `Tab` cycling.
 - `current` One always-visible keybar generated from the active module's command bindings.
 - `current` Customizable keymap storage and active-shortcut help.
-- `current` Serialized layouts, history, and shareable local deep links.
+- `current` Shareable logical workspace links and bounded, device-local dock geometry.
 - `next` Onboarding and a complete keybinding-remap UI backed by the shared config.
 
 ### Comparison and derived analysis

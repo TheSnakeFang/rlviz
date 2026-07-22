@@ -66,6 +66,40 @@ describe("Browse Read Compare flow", () => {
     expect(screen.getByTestId("reference-name")).toHaveTextContent("none");
   });
 
+	it("keeps the newest rollout sweep when an older load resolves last", async () => {
+		const rows = ["candidate", "reference", "third"].map((id) => ({
+			...browse.trajectories[0],
+			trajectory: { ...browse.trajectories[0].trajectory, id },
+			metrics: { ...browse.trajectories[0].metrics, trajectory: { id } },
+		}));
+		const collection = { ...browse, count: rows.length, trajectories: rows };
+		const pending = new Map<string, { resolve: (value: Awaited<ReturnType<ViewerProvider["loadTrajectory"]>>) => void; signal?: AbortSignal }>();
+		const provider: ViewerProvider = {
+			async loadInitial() { return { trajectory: { ...trajectoryPayload("candidate").trajectory, events: trajectoryPayload("candidate").events }, isSample: false }; },
+			async loadBrowse() { return collection; },
+			loadTrajectory(_sourceId, trajectoryId, signal) {
+				if (trajectoryId === "candidate") return Promise.resolve({ trajectory: { ...trajectoryPayload("candidate").trajectory, events: trajectoryPayload("candidate").events }, isSample: false });
+				return new Promise((resolve) => pending.set(trajectoryId, { resolve, signal }));
+			},
+			async loadAnalysis() { return { analysis: { api_version: "v1", provenance: { name: "test", version: "1", digest: "x", input_digest: "y" } }, cached: false, analyzed_at: "now" }; },
+			async loadComparison() { return comparison; },
+			async loadArtifactContent() { throw new Error("unused"); },
+		};
+		render(<App provider={provider} />);
+		await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(3));
+		fireEvent.keyDown(window, { key: "Enter" });
+		await screen.findByRole("main", { name: "Read trajectory" });
+		fireEvent.keyDown(window, { key: "n" });
+		fireEvent.keyDown(window, { key: "p" });
+		await waitFor(() => expect(pending.size).toBe(2));
+		expect(pending.get("reference")?.signal?.aborted).toBe(true);
+		pending.get("third")!.resolve({ trajectory: { ...trajectoryPayload("third").trajectory, events: trajectoryPayload("third").events }, isSample: false });
+		await waitFor(() => expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "third"));
+		pending.get("reference")!.resolve({ trajectory: { ...trajectoryPayload("reference").trajectory, events: trajectoryPayload("reference").events }, isSample: false });
+		await waitFor(() => expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "third"));
+		expect(document.querySelector(".instrument-shell")?.getAttribute("data-active-zone")).toBe(laneId("source-1", "third"));
+	});
+
 	it("does not apply late analysis to another rollout", async () => {
 		let resolveCandidateAnalysis!: (value: Response) => void;
 		vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {

@@ -34,8 +34,10 @@ MIT, with floating panels and popout windows disabled):
   and future modules (compare readout, artifacts).
 - Users move modules between dock positions by drag or keyboard; seams
   resize; **empty dock areas collapse to nothing** (no labeled voids).
-- Layouts serialize into deep links and the config file; the flow harness
-  enumerates and tests arrangements exactly as before.
+- Deep links serialize logical modules, selection, depth, and viewport state.
+  Exact Dockview geometry stays in bounded, versioned local storage and is
+  restored only when the local panel topology matches the link. The flow
+  harness enumerates and tests arrangements exactly as before.
 - Keyboard: `Tab`/`Shift+Tab` cycle modules; **arrow-key spatial navigation**
   (`Alt+←↑↓→`) moves focus to the neighboring module. `Ctrl+m` enters a
   move-module mode where the same arrows relocate the active module; `Ctrl+w`

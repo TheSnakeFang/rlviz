@@ -243,7 +243,7 @@ describe("instrument viewer", () => {
 	expect(screen.getByRole("main", { name: "Browse trajectories" })).toBeInTheDocument();
   });
 
-  it("serializes keyboard dockview resize changes and restores the arrangement from its deep link", async () => {
+  it("keeps dockview geometry local while the shareable workspace URL stays compact", async () => {
     const first = render(<App initialTrajectory={sampleTrajectory} />);
     fireEvent.keyDown(window, { key: "Enter" });
     await screen.findByRole("main", { name: "Read trajectory" });
@@ -253,7 +253,8 @@ describe("instrument viewer", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     const serialized = new URLSearchParams(window.location.search).get("workspace");
     expect(serialized).toBeTruthy();
-    expect(JSON.parse(serialized!).layout).toBeTruthy();
+    expect(JSON.parse(serialized!).layout).toBeUndefined();
+    expect(JSON.parse(window.localStorage.getItem("rlviz.workspace.v3")!).layout).toBeTruthy();
     first.unmount();
     render(<App initialTrajectory={sampleTrajectory} />);
     expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", sampleTrajectory.id);
@@ -357,7 +358,8 @@ describe("instrument viewer", () => {
     fireEvent.keyDown(window, { key: "w", ctrlKey: true });
     expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-resize-mode", "false");
     const serialized = new URLSearchParams(window.location.search).get("workspace");
-    expect(JSON.parse(serialized!).layout).toBeTruthy();
+    expect(JSON.parse(serialized!).layout).toBeUndefined();
+    expect(JSON.parse(window.localStorage.getItem("rlviz.workspace.v3")!).layout).toBeTruthy();
     first.unmount();
     render(<App initialTrajectory={sampleTrajectory} />);
     expect(await screen.findByRole("region", { name: "Workspace console" })).toHaveAttribute("data-dock-position", "bottom");
@@ -403,7 +405,9 @@ describe("instrument viewer", () => {
     fireEvent.keyDown(window, { key: "Enter" });
     await screen.findByRole("main", { name: "Read trajectory" });
     fireEvent.keyDown(window, { key: "x" });
-    expect(screen.getByText("Open a rollout from the rail.")).toBeInTheDocument();
+    expect(screen.getByText("Open a rollout from the collection.")).toBeInTheDocument();
+    expect(document.querySelector(".detail-empty")?.closest(".workspace-console")).toBeInTheDocument();
+    expect(document.querySelector(".empty-stage")).not.toBeInTheDocument();
     expect(document.querySelectorAll(".dv-groupview:has(.lane-track)")).toHaveLength(0);
   });
 

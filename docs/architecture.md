@@ -169,8 +169,13 @@ semantics pending broader real-format evidence. See `data-model.md` and
 
 The React application has three levels of research surfaces:
 
-- `App.tsx`: trajectory loading, routing, shared event selection, landmark rail,
-  and selected-event-first inspector
+- `App.tsx`: composes the workspace modules and command handlers
+- `workspaceController.ts`: reducer-backed logical workspace state, compact URL
+  history, jumplist history, and topology-matched local geometry restore
+- `laneLoader.ts`: cancellable per-lane and per-slot loading, bounded off-lane
+  cache ownership, and stale-response rejection
+- `workspaceDock.ts`: the adapter between logical workspace modules and
+  Dockview panel IDs, default placement, reconciliation, and focus targets
 - `ContextTrack.tsx`: sparse context observations, lifecycle navigation, and
   exact selected-event context evidence without interpolation
 - `ContextDetails.tsx`: selected context facts, provenance, derivation, and

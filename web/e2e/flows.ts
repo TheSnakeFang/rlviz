@@ -370,7 +370,7 @@ export const flows: Flow[] = [
   {
     id: "v", name: "empty-dock-group-collapses", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
-      { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 0 }, { target: "stage", selector: ".empty-stage", contains: "Open a rollout" }, { target: "stage", selector: ".dv-groupview:has(.lane-track)", absent: true }] },
+      { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 0 }, { target: "console", selector: ".detail-empty", contains: "Open a rollout" }, { target: "stage", selector: ".dv-groupview:has(.lane-track)", absent: true }] },
     ],
   },
   {

@@ -40,6 +40,10 @@ export interface WorkspaceState {
 }
 
 export const workspaceStorageKey = "rlviz.workspace.v3";
+const maximumDockLayoutBytes = 256 * 1024;
+const maximumDockPanels = 64;
+const maximumDockNodes = 256;
+const maximumDockDepth = 32;
 
 export function emptyWorkspace(): WorkspaceState {
   return {
@@ -122,8 +126,23 @@ function normalizeDockLayout(value: unknown): SerializedDockview | undefined {
   if (!layout.grid || typeof layout.grid !== "object" || !layout.grid.root || typeof layout.grid.root !== "object" ||
       !layout.panels || typeof layout.panels !== "object" || Array.isArray(layout.panels) ||
       !finite(layout.grid.width) || !finite(layout.grid.height)) return undefined;
-  // Floating and popout state is never accepted, even from a crafted link.
-  const clone = JSON.parse(JSON.stringify(layout)) as SerializedDockview;
+  const panelCount = Object.keys(layout.panels).length;
+  if (panelCount > maximumDockPanels) return undefined;
+  let encoded: string;
+  try { encoded = JSON.stringify(layout); }
+  catch { return undefined; }
+  if (encoded.length > maximumDockLayoutBytes) return undefined;
+  const clone = JSON.parse(encoded) as SerializedDockview;
+  let nodes = 0;
+  const visit = (node: unknown, depth: number): boolean => {
+    if (!node || typeof node !== "object" || depth > maximumDockDepth || ++nodes > maximumDockNodes) return false;
+    const record = node as Record<string, unknown>;
+    if (Array.isArray(record.data)) return record.data.every((child) => visit(child, depth + 1));
+    return true;
+  };
+  if (!visit(clone.grid.root, 0)) return undefined;
+  // Floating and popout state is never accepted, even from local storage or
+  // crafted history state.
   delete clone.floatingGroups;
   delete clone.popoutGroups;
   return clone;
@@ -133,10 +152,25 @@ export function serializeWorkspace(workspace: WorkspaceState): string {
   return JSON.stringify(workspace);
 }
 
+export function workspaceTopologyKey(workspace: WorkspaceState): string {
+  return JSON.stringify({
+    rail: workspace.railExpanded,
+    lanes: workspace.lanes.map((lane) => lane.id).sort(),
+    details: [...workspace.details].sort(),
+  });
+}
+
+export function workspaceWithoutLayout(workspace: WorkspaceState): WorkspaceState {
+  const { layout: _layout, ...shareable } = workspace;
+  return shareable;
+}
+
 export function workspaceURL(workspace: WorkspaceState, location: Pick<Location, "pathname" | "search" | "hash"> = window.location): string {
   const params = new URLSearchParams(location.search);
   ["trajectory", "trajectory_id", "indexed", "mode", "view", "left", "right"].forEach((key) => params.delete(key));
-  params.set("workspace", serializeWorkspace(workspace));
+  // Exact Dockview geometry is device-local. Links carry only logical viewer
+  // state, which keeps them bounded and stable across viewport sizes.
+  params.set("workspace", serializeWorkspace(workspaceWithoutLayout(workspace)));
   return `${location.pathname}?${params}${location.hash}`;
 }
 

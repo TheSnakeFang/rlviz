@@ -8,16 +8,19 @@ import { commandDefinition, commandIds, commands, dispatchCommand, firstBindingL
 import type { CommandId } from "./commands";
 import { axisX, episodeIndexForEvent, episodesFor, episodeWindow, firstAnomaly, glyphForKind, layoutStrip, panWindowToInclude, stripX, verdictGlyph, zoomWindow } from "./instrument";
 import type { Episode, StripMark } from "./instrument";
-import type { AnalysisResponse, BrowseResponse, BrowseTrajectory, Trajectory, TrajectoryEvent } from "./types";
+import type { BrowseResponse, BrowseTrajectory, Trajectory, TrajectoryEvent } from "./types";
 import { preview, title } from "./format";
 import { sampleTrajectory } from "./sample";
 import { applyPresentationTheme } from "./presentation";
 import type { PresentationConfig } from "./types";
-import { effectiveDepth, emptyWorkspace, laneId, legacyWorkspace, normalizeWorkspace, snapshotLabel, workspaceFromSearch, workspaceStorageKey, workspaceURL } from "./workspace";
+import { effectiveDepth, laneId } from "./workspace";
 import type { WorkspaceLane, WorkspaceState } from "./workspace";
+import { useWorkspaceController } from "./workspaceController";
+import { useLaneDataLoader } from "./laneLoader";
+import type { LaneData } from "./laneLoader";
+import { focusElementForTarget, lanePanelId, panelIdForTarget, pinnedDetailLaneId, pinnedDetailTarget, reconcileDockPanels, targetFromPanelId } from "./workspaceDock";
 
 const fidelityNames = ["hairline", "glyphs", "detail"];
-type LaneData = { trajectory: Trajectory; analysis: AnalysisResponse | null; presentation?: PresentationConfig };
 
 function metric(row: BrowseTrajectory, name: string): unknown {
   const metrics = row.metrics.metrics ?? row.metrics.normalized_metrics ?? row.metrics;
@@ -52,17 +55,6 @@ function fakeBrowse(trajectory: Trajectory): BrowseResponse {
     trajectory: { ...trajectory, events: undefined } as Omit<Trajectory, "events">,
     metrics: { trajectory: { ...trajectory, events: undefined }, event_count: trajectory.events.length, error_count: trajectory.events.filter((event) => event.kind === "error").length, reward: trajectory.total_reward },
   }] };
-}
-
-function savedWorkspace(): WorkspaceState | undefined {
-  try {
-    const value = localStorage.getItem(workspaceStorageKey);
-    return value ? normalizeWorkspace(JSON.parse(value)) : undefined;
-  } catch { return undefined; }
-}
-
-function initialWorkspace(): WorkspaceState {
-  return workspaceFromSearch(window.location.search) ?? legacyWorkspace(window.location.search) ?? savedWorkspace() ?? emptyWorkspace();
 }
 
 function HelpOverlay({ onClose }: { onClose: () => void }) {
@@ -328,7 +320,7 @@ function Console({ workspace, lane, data, breadcrumb, resizeMode, dockPosition, 
       {trajectory && <div className="judge-list">{judgesFor(trajectory).map((judge, index) => <button key={`${judge.label}:${index}`} className={/false|fail/i.test(judge.value) ? "failure" : judge.label === "verifier" && /true|pass/i.test(judge.value) ? "verifier-pass" : ""} onClick={() => { const found = trajectory.events.findIndex((event) => event.id === judge.eventId); if (found >= 0) onSelect(found); }}><small>{judge.label}</small><b>{judge.value}</b></button>)}</div>}
       <div className="console-meta">{pinned && <strong>pinned rollout</strong>}<span>reference: <b data-testid="reference-name">{workspace.reference ? workspace.lanes.find((item) => item.id === workspace.reference)?.trajectoryId ?? "none" : "none"}</b></span>{resizeMode && <strong>resize mode · arrows · Esc</strong>}<button onClick={onHelp}>?</button></div>
     </header>
-    <section className="detail-region" aria-label="Selected moment">{detailRows.map((event) => <button key={event.id} className={`moment ${event.id === current?.id ? "selected" : ""}`} onClick={() => onSelect(trajectory!.events.indexOf(event))}><span className="address">{event.sequence}</span><span className="kind-glyph">{glyphForKind(event.kind)}</span><span className="moment-copy"><small>{event.kind}</small><b>{eventText(event)}</b>{event.id === current?.id && <pre>{preview(eventDetail(event), 700)}</pre>}{event.id === current?.id && <em>source · {event.source?.path ?? "canonical record"}{event.source?.line ? `:${event.source.line}` : ""}</em>}</span></button>)}</section>
+    <section className="detail-region" aria-label="Selected moment">{trajectory ? detailRows.map((event) => <button key={event.id} className={`moment ${event.id === current?.id ? "selected" : ""}`} onClick={() => onSelect(trajectory.events.indexOf(event))}><span className="address">{event.sequence}</span><span className="kind-glyph">{glyphForKind(event.kind)}</span><span className="moment-copy"><small>{event.kind}</small><b>{eventText(event)}</b>{event.id === current?.id && <pre>{preview(eventDetail(event), 700)}</pre>}{event.id === current?.id && <em>source · {event.source?.path ?? "canonical record"}{event.source?.line ? `:${event.source.line}` : ""}</em>}</span></button>) : <div className="detail-empty"><b>Open a rollout from the collection.</b><small>Enter opens · A adds a lane</small></div>}</section>
   </section>;
 }
 
@@ -349,14 +341,6 @@ function MinimalTab({ params }: IDockviewPanelHeaderProps<{ label?: string }>) {
 
 const dockComponents = { workspace: WorkspacePanel };
 const dockTabComponents = { minimal: MinimalTab };
-const lanePanelId = (id: string) => `lane:${id}`;
-const laneIdFromPanel = (id: string) => id.startsWith("lane:") ? id.slice(5) : undefined;
-const pinnedDetailTarget = (id: string) => `detail:${id}`;
-const pinnedDetailLaneId = (target: string) => target.startsWith("detail:") ? target.slice(7) : undefined;
-const panelIdForTarget = (target: string) => target === "rail" ? "collection" : target === "detail" ? "detail" : target.startsWith("detail:") ? target : lanePanelId(target);
-const targetFromPanelId = (id: string) => id === "collection" ? "rail" : id === "detail" ? "detail" : id.startsWith("detail:") ? id : laneIdFromPanel(id);
-
-
 const KEYBAR_COLLECTION: CommandId[] = [commandIds.workspace.descend, commandIds.workspace.addLane, commandIds.view.fidelityUp, commandIds.group.search, commandIds.workspace.toggleRail, commandIds.workspace.cycleNext, commandIds.workspace.moveMode, commandIds.view.toggleHelp];
 const KEYBAR_LANE: CommandId[] = [commandIds.trajectory.next, commandIds.trajectory.nextError, commandIds.view.fidelityUp, commandIds.workspace.descend, commandIds.view.zoomIn, commandIds.workspace.openDetail, commandIds.workspace.moveMode, commandIds.workspace.cycleNext, commandIds.workspace.closeLane, commandIds.view.toggleHelp];
 const KEYBAR_DETAIL: CommandId[] = [commandIds.trajectory.next, commandIds.trajectory.previous, commandIds.trajectory.nextError, commandIds.workspace.moveMode, commandIds.workspace.closeLane, commandIds.workspace.cycleNext, commandIds.view.toggleHelp];
@@ -373,11 +357,8 @@ function KeyBar({ module, selection, mode, onModeArrow, onModeExit }: { module: 
 
 export function App({ initialTrajectory, provider = daemonProvider }: { initialTrajectory?: Trajectory; provider?: ViewerProvider }) {
   useKeymapRevision();
-  const [workspace, setWorkspace] = useState<WorkspaceState>(initialWorkspace);
-  const workspaceRef = useRef(workspace); workspaceRef.current = workspace;
+  const { workspace, workspaceRef, breadcrumb, applyWorkspace, change, jump } = useWorkspaceController();
   const [browse, setBrowse] = useState<BrowseResponse>(() => fakeBrowse(initialTrajectory ?? sampleTrajectory));
-  const [laneData, setLaneData] = useState<Map<string, LaneData>>(() => new Map(initialTrajectory ? [[laneId("sample", initialTrajectory.id), { trajectory: initialTrajectory, analysis: null }]] : []));
-  const laneDataRef = useRef(laneData); laneDataRef.current = laneData;
   const [railFidelity, setRailFidelity] = useState(1);
   const [hover, setHover] = useState<Record<string, number | undefined>>({});
   const [help, setHelp] = useState(false); const [resizeMode, setResizeMode] = useState(false); const [moveMode, setMoveMode] = useState(false); const [error, setError] = useState("");
@@ -386,15 +367,21 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   const [detailPosition, setDetailPosition] = useState<"right" | "bottom">(workspace.direction === "columns" ? "bottom" : "right");
   const [presentation, setPresentation] = useState<PresentationConfig>();
   const [theme, setTheme] = useState<"light" | "dark">(() => document.documentElement.getAttribute("data-theme") === "dark" || (!document.documentElement.getAttribute("data-theme") && window.matchMedia?.("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
-  const [breadcrumb, setBreadcrumb] = useState(() => snapshotLabel(workspace));
   const railRef = useRef<HTMLElement>(null); const dockApiRef = useRef<DockviewApi | null>(null); const syncingDock = useRef(false);
   const lastFocus = useRef<string | undefined>(undefined);
   const openingPinned = useRef<string | undefined>(undefined);
   const tabPointerAt = useRef(0);
-  const jumpList = useRef<WorkspaceState[]>([workspace]); const jumpIndex = useRef(0); const restoring = useRef(false); const openRevision = useRef(0);
-  const laneDataLRU = useRef<string[]>([]);
-  const pendingReplace = useRef<WorkspaceState | undefined>(undefined); const replaceFrame = useRef<number | undefined>(undefined);
   const legacyReadIntent = useRef((() => { const params = new URLSearchParams(window.location.search); return (params.get("mode") === "read" || params.get("view") === "read") && !params.get("trajectory_id"); })());
+
+  const { laneData, laneDataRef, putLaneData, deleteLaneData, pruneOffLaneData, loadForSlot, loadAnalysisForLane } = useLaneDataLoader({
+    provider,
+    initialTrajectory,
+    workspace,
+    workspaceRef,
+    change,
+    onError: setError,
+    onPresentation: setPresentation,
+  });
 
   const ordered = browse.trajectories;
   const filtered = useMemo(() => ordered.filter((row) => !workspace.railQuery || `${row.trajectory.id} ${row.source_name} ${row.case_name ?? ""} ${row.group_name ?? ""}`.toLowerCase().includes(workspace.railQuery.toLowerCase())), [ordered, workspace.railQuery]);
@@ -402,73 +389,11 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   const pinnedActiveLane = pinnedDetailLaneId(workspace.active);
   const activeLane = workspace.lanes.find((lane) => lane.id === workspace.active || lane.id === pinnedActiveLane) ?? (workspace.active === "detail" ? workspace.lanes.find((lane) => lane.id === lastFocus.current) ?? workspace.lanes.find((lane) => lane.band === "focus") : undefined);
 
-  const writeURL = useCallback((next: WorkspaceState, push: boolean) => {
-    try { localStorage.setItem(workspaceStorageKey, JSON.stringify(next)); } catch { /* storage is optional */ }
-    const state = { rlvizWorkspace: next };
-    if (push) {
-      if (replaceFrame.current !== undefined) cancelAnimationFrame(replaceFrame.current);
-      replaceFrame.current = undefined; pendingReplace.current = undefined;
-      window.history.pushState(state, "", workspaceURL(next));
-      return;
-    }
-    pendingReplace.current = next;
-    if (replaceFrame.current !== undefined) return;
-    replaceFrame.current = requestAnimationFrame(() => {
-      replaceFrame.current = undefined;
-      const latest = pendingReplace.current; pendingReplace.current = undefined;
-      if (latest) window.history.replaceState({ rlvizWorkspace: latest }, "", workspaceURL(latest));
-    });
-  }, []);
-  const applyWorkspace = useCallback((next: WorkspaceState, snapshot = true) => {
-    const normalized = normalizeWorkspace(next); if (!normalized) return;
-    if (JSON.stringify(normalized) === JSON.stringify(workspaceRef.current)) return;
-    workspaceRef.current = normalized; setWorkspace(normalized); setBreadcrumb(snapshotLabel(normalized)); writeURL(normalized, snapshot && !restoring.current);
-    if (snapshot && !restoring.current) {
-      const serialized = JSON.stringify(normalized), current = JSON.stringify(jumpList.current[jumpIndex.current]);
-      if (serialized !== current) { jumpList.current = [...jumpList.current.slice(0, jumpIndex.current + 1), normalized]; jumpIndex.current = jumpList.current.length - 1; }
-    }
-  }, [writeURL]);
-  const change = useCallback((update: (current: WorkspaceState) => WorkspaceState, snapshot = true) => applyWorkspace(update(workspaceRef.current), snapshot), [applyWorkspace]);
-
-  const rememberLaneData = useCallback((id: string) => {
-    laneDataLRU.current = [...laneDataLRU.current.filter((item) => item !== id), id];
-  }, []);
-  const putLaneData = useCallback((id: string, data: LaneData) => {
-    rememberLaneData(id);
-    setLaneData((current) => { const next = new Map(current).set(id, data); laneDataRef.current = next; return next; });
-  }, [rememberLaneData]);
-  const deleteLaneData = useCallback((id: string) => {
-    laneDataLRU.current = laneDataLRU.current.filter((item) => item !== id);
-    setLaneData((current) => { if (!current.has(id)) return current; const next = new Map(current); next.delete(id); laneDataRef.current = next; return next; });
-  }, []);
-  const pruneOffLaneData = useCallback(() => {
-    const active = new Set(workspaceRef.current.lanes.map((lane) => lane.id));
-    const offLane = laneDataLRU.current.filter((id) => laneDataRef.current.has(id) && !active.has(id));
-    const evict = new Set(offLane.slice(0, Math.max(0, offLane.length - 8)));
-    if (!evict.size) return;
-    laneDataLRU.current = laneDataLRU.current.filter((id) => !evict.has(id));
-    setLaneData((current) => { const next = new Map(current); evict.forEach((id) => next.delete(id)); laneDataRef.current = next; return next; });
-  }, []);
-
-  const ensureLaneData = useCallback(async (lane: WorkspaceLane) => {
-    if (laneDataRef.current.has(lane.id)) return;
-    const revision = openRevision.current;
-    try {
-      const loaded = lane.sourceId === "sample" ? { trajectory: initialTrajectory ?? sampleTrajectory, presentation: undefined } : await provider.loadTrajectory(lane.sourceId, lane.trajectoryId);
-      if (revision !== openRevision.current || !workspaceRef.current.lanes.some((item) => item.id === lane.id)) return;
-      const data: LaneData = { trajectory: loaded.trajectory, analysis: null, presentation: loaded.presentation };
-      if (lane.id === workspaceRef.current.active) setPresentation(loaded.presentation);
-      putLaneData(lane.id, data);
-      change((current) => ({ ...current, lanes: current.lanes.map((item) => item.id === lane.id && item.axis.end <= item.axis.start + 1 ? { ...item, selected: firstAnomaly(loaded.trajectory), axis: { start: loaded.trajectory.events[0]?.sequence ?? 0, end: loaded.trajectory.events.at(-1)?.sequence ?? 1 } } : item) }), false);
-      if (lane.sourceId !== "sample") provider.loadAnalysis(lane.sourceId, lane.trajectoryId).then((analysis) => setLaneData((current) => { const existing = current.get(lane.id); if (!existing) return current; const next = new Map(current).set(lane.id, { ...existing, analysis }); laneDataRef.current = next; return next; })).catch(() => undefined);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not load trajectory"); }
-  }, [change, initialTrajectory, provider, putLaneData]);
-
   useEffect(() => {
     const controller = new AbortController();
-    if (initialTrajectory) { setBrowse(fakeBrowse(initialTrajectory)); workspace.lanes.forEach((lane) => void ensureLaneData(lane)); return () => controller.abort(); }
+    if (initialTrajectory) { setBrowse(fakeBrowse(initialTrajectory)); return () => controller.abort(); }
     if (workspaceRef.current.lanes.length) {
-      provider.loadBrowse(controller.signal).then((collection) => { setBrowse(collection); workspaceRef.current.lanes.forEach((lane) => void ensureLaneData(lane)); }).catch((reason) => { if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not load viewer"); });
+      provider.loadBrowse(controller.signal).then(setBrowse).catch((reason) => { if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not load viewer"); });
       return () => controller.abort();
     }
     Promise.all([provider.loadInitial(controller.signal), provider.loadBrowse(controller.signal)]).then(([loaded, collection]) => {
@@ -479,24 +404,13 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
         const id = laneId(sourceId, loaded.trajectory.id);
         applyWorkspace({ ...workspaceRef.current, railExpanded: false, active: id, lanes: [{ id, sourceId, trajectoryId: loaded.trajectory.id, band: "focus", selected: firstAnomaly(loaded.trajectory), depth: 1, fidelity: 1, axis: { start: loaded.trajectory.events[0]?.sequence ?? 0, end: loaded.trajectory.events.at(-1)?.sequence ?? 1 }, descentStack: [] }] }, false);
       }
-      workspaceRef.current.lanes.forEach((lane) => void ensureLaneData(lane));
     }).catch((reason) => { if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not load viewer"); });
     return () => controller.abort();
-  }, [applyWorkspace, ensureLaneData, initialTrajectory, provider, putLaneData]);
+  }, [applyWorkspace, initialTrajectory, provider, putLaneData, workspaceRef]);
 
   useEffect(() => applyPresentationTheme(presentation), [presentation]);
   useEffect(() => { if (activeLane && laneData.has(activeLane.id)) setPresentation(laneData.get(activeLane.id)?.presentation); }, [activeLane, laneData]);
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
-  useEffect(() => { writeURL(workspaceRef.current, false); }, [writeURL]);
-  useEffect(() => {
-    const onPop = (event: PopStateEvent) => {
-      const next = normalizeWorkspace((event.state as { rlvizWorkspace?: unknown } | null)?.rlvizWorkspace) ?? workspaceFromSearch(location.search) ?? legacyWorkspace(location.search);
-      if (!next) return;
-      const serialized = JSON.stringify(next); let found = -1; for (let index = jumpList.current.length - 1; index >= 0; index--) { if (JSON.stringify(jumpList.current[index]) === serialized) { found = index; break; } } if (found >= 0) jumpIndex.current = found;
-      restoring.current = true; workspaceRef.current = next; setWorkspace(next); setBreadcrumb(snapshotLabel(next)); openRevision.current++; next.lanes.forEach((lane) => void ensureLaneData(lane)); restoring.current = false;
-    };
-    window.addEventListener("popstate", onPop); return () => window.removeEventListener("popstate", onPop);
-  }, [ensureLaneData]);
   useEffect(() => {
     const lane = workspace.lanes.find((item) => item.id === workspace.active); if (lane?.band === "focus") lastFocus.current = lane.id;
     const panelId = panelIdForTarget(workspace.active);
@@ -507,8 +421,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     let cancelled = false;
     const place = (attempt: number) => {
       if (cancelled) return;
-      const detailId = pinnedDetailLaneId(workspace.active);
-      const target = workspace.active === "rail" ? railRef.current : workspace.active === "detail" ? document.querySelector<HTMLElement>(".workspace-console:not([data-pinned='true'])") : detailId ? document.querySelector<HTMLElement>(`.workspace-console[data-detail-lane-id="${CSS.escape(detailId)}"]`) : document.querySelector<HTMLElement>(`[data-lane-id="${CSS.escape(workspace.active)}"]`);
+      const target = focusElementForTarget(workspace.active, railRef);
       if (target) {
         if (document.activeElement !== target && !(document.activeElement instanceof HTMLInputElement)) target.focus({ preventScroll: true });
         return;
@@ -522,7 +435,14 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   const loadRowIntoLane = useCallback(async (row: BrowseTrajectory, add: boolean, preserve?: WorkspaceLane) => {
     const id = rowKey(row); const existing = workspaceRef.current.lanes.find((lane) => lane.id === id);
     if (existing) { change((current) => ({ ...current, active: existing.id })); return; }
-    const loaded = row.source_id === "sample" ? { trajectory: initialTrajectory ?? sampleTrajectory, presentation: undefined } : await provider.loadTrajectory(row.source_id, row.trajectory.id);
+    const slot = preserve?.id ?? (add ? `add:${id}` : "focus-open");
+    const loaded = await loadForSlot(slot, row.source_id, row.trajectory.id);
+    if (!loaded) return;
+    if (workspaceRef.current.lanes.some((lane) => lane.id === id)) {
+      if (!add) change((current) => ({ ...current, active: id }));
+      return;
+    }
+    if (preserve && !workspaceRef.current.lanes.some((lane) => lane.id === preserve.id)) return;
     const focus = workspaceRef.current.lanes.filter((lane) => lane.band === "focus");
     const band = add && focus.length >= 2 ? "context" : "focus";
     const base: WorkspaceLane = { id, sourceId: row.source_id, trajectoryId: row.trajectory.id, band, selected: preserve?.selected ?? firstAnomaly(loaded.trajectory), depth: preserve?.depth ?? 1, fidelity: preserve?.fidelity ?? 1, axis: preserve?.axis ?? { start: loaded.trajectory.events[0]?.sequence ?? 0, end: loaded.trajectory.events.at(-1)?.sequence ?? 1 }, descentStack: preserve?.descentStack ?? [] };
@@ -538,8 +458,8 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
       return { ...current, lanes: current.lanes.map((lane) => lane.id === replaceId ? { ...base, band: "focus" } : lane), active: id, reference: current.reference === replaceId ? undefined : current.reference };
     });
     pruneOffLaneData();
-    if (row.source_id !== "sample") provider.loadAnalysis(row.source_id, row.trajectory.id).then((analysis) => setLaneData((current) => { const data = current.get(id); if (!data) return current; const next = new Map(current).set(id, { ...data, analysis }); laneDataRef.current = next; return next; })).catch(() => undefined);
-  }, [change, initialTrajectory, provider, pruneOffLaneData, putLaneData]);
+    void loadAnalysisForLane(id, row.source_id, row.trajectory.id);
+  }, [change, loadAnalysisForLane, loadForSlot, pruneOffLaneData, putLaneData, workspaceRef]);
 
   const openSelected = (add: boolean) => { if (selectedRow) void loadRowIntoLane(selectedRow, add).catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load trajectory")); };
   const updateLane = useCallback((id: string, update: (lane: WorkspaceLane, data?: LaneData) => WorkspaceLane, snapshot = true) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => lane.id === id ? update(lane, laneDataRef.current.get(id)) : lane) }), snapshot), [change]);
@@ -609,7 +529,6 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   };
   const closeActiveModule = () => { const detailLane = pinnedDetailLaneId(workspaceRef.current.active); if (detailLane) { change((current) => ({ ...current, details: current.details.filter((id) => id !== detailLane), active: detailLane })); return; } closeLane(); };
   const promoteDemote = () => { if (!activeLane) return; const counterpart = workspaceRef.current.lanes.find((item) => item.id !== activeLane.id && item.band !== activeLane.band); if (!counterpart) return; const activePanel = dockApiRef.current?.getPanel(lanePanelId(activeLane.id)); const counterpartPanel = dockApiRef.current?.getPanel(lanePanelId(counterpart.id)); const promoting = activeLane.band === "context"; change((current) => ({ ...current, lanes: current.lanes.map((item) => item.id === activeLane.id ? { ...item, band: counterpart.band } : item.id === counterpart.id ? { ...item, band: activeLane.band } : item) })); requestAnimationFrame(() => { const api = dockApiRef.current; if (!api || !activePanel || !counterpartPanel) return; const promoted = promoting ? activePanel : counterpartPanel, demoted = promoting ? counterpartPanel : activePanel; const focusAnchor = workspaceRef.current.lanes.filter((lane) => lane.band === "focus" && lane.id !== (promoting ? activeLane.id : counterpart.id)).map((lane) => api.getPanel(lanePanelId(lane.id))).find(Boolean) ?? api.getPanel("collection"); if (focusAnchor) promoted.api.moveTo({ group: focusAnchor.api.group, position: "right" }); demoted.api.moveTo({ group: promoted.api.group, position: "bottom" }); persistDockLayout(api); }); };
-  const jump = (delta: number) => { const nextIndex = jumpIndex.current + delta; if (nextIndex < 0 || nextIndex >= jumpList.current.length) return; jumpIndex.current = nextIndex; restoring.current = true; const next = jumpList.current[nextIndex]; applyWorkspace(next, false); next.lanes.forEach((lane) => void ensureLaneData(lane)); restoring.current = false; };
   const adjustFidelity = (delta: number) => {
     if (workspaceRef.current.active === "rail") { setRailFidelity((value) => Math.max(0, Math.min(2, value + delta))); return; }
     if (!activeLane || effectiveDepth(activeLane) !== 1) return;
@@ -660,46 +579,17 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     change((current) => ({ ...current, layout }), false);
   }, [change]);
 
-  const addDefaultPanel = useCallback((api: DockviewApi, id: string, kind: "collection" | "detail" | "lane", lane?: WorkspaceLane) => {
-    const panels = api.panels;
-    const firstLane = workspaceRef.current.lanes.map((item) => api.getPanel(lanePanelId(item.id))).find(Boolean);
-    const center = firstLane ?? panels.find((item) => item.id !== "collection" && item.id !== "detail") ?? panels[0];
-    if (kind === "collection") {
-      api.addPanel({ id, component: "workspace", tabComponent: "minimal", renderer: "always", title: "Collection", params: { kind, label: "collection" }, initialWidth: Math.max(220, api.width * 0.24), ...(center ? { position: { referencePanel: center, direction: "left" as const } } : {}) });
-      return;
-    }
-    if (kind === "detail") {
-      const pinnedLane = lane ? api.getPanel(lanePanelId(lane.id)) : undefined;
-      const bottom = workspaceRef.current.direction === "columns";
-      const anchor = pinnedLane ?? center;
-      api.addPanel({ id, component: "workspace", tabComponent: "minimal", renderer: "always", title: lane ? `Detail · ${lane.trajectoryId}` : "Detail", params: { kind, laneId: lane?.id, label: lane ? `detail · ${lane.trajectoryId}` : "detail" }, initialWidth: Math.max(260, api.width * 0.28), initialHeight: Math.max(150, api.height * 0.28), ...(anchor ? { position: { referencePanel: anchor, direction: lane ? "right" as const : bottom ? "below" as const : "right" as const } } : {}) });
-      setDetailPosition(bottom ? "bottom" : "right");
-      return;
-    }
-    const focusPanels = workspaceRef.current.lanes.filter((item) => item.band === "focus" && item.id !== lane?.id).map((item) => api.getPanel(lanePanelId(item.id))).filter(Boolean);
-    const contextPanel = workspaceRef.current.lanes.filter((item) => item.band === "context" && item.id !== lane?.id).map((item) => api.getPanel(lanePanelId(item.id))).find(Boolean);
-    const reference = lane?.band === "context" ? contextPanel ?? focusPanels[0] ?? center : focusPanels.at(-1) ?? center;
-    const direction = lane?.band === "context" ? (contextPanel ? "below" : "below") : workspaceRef.current.direction === "rows" && focusPanels.length ? "below" : "right";
-    api.addPanel({ id, component: "workspace", tabComponent: "minimal", renderer: "always", title: lane?.trajectoryId ?? "Lane", params: { kind, laneId: lane?.id, label: lane?.trajectoryId ?? "lane" }, initialHeight: lane?.band === "context" ? 92 : undefined, ...(reference ? { position: { referencePanel: reference, direction } } : {}) });
-  }, []);
-
   const reconcileDock = useCallback((api: DockviewApi) => {
-    let changed = false;
     syncingDock.current = true;
-
+    let changed = false;
     try {
-      const desired = new Set(["detail", ...(workspaceRef.current.railExpanded ? ["collection"] : []), ...workspaceRef.current.lanes.map((lane) => lanePanelId(lane.id)), ...workspaceRef.current.details.map(pinnedDetailTarget)]);
-      api.panels.filter((panel) => !desired.has(panel.id)).forEach((panel) => { changed = true; api.removePanel(panel); });
-      workspaceRef.current.lanes.forEach((lane) => { if (!api.getPanel(lanePanelId(lane.id))) { changed = true; addDefaultPanel(api, lanePanelId(lane.id), "lane", lane); } });
-      if (workspaceRef.current.railExpanded && !api.getPanel("collection")) { changed = true; addDefaultPanel(api, "collection", "collection"); }
-      if (!api.getPanel("detail")) { changed = true; addDefaultPanel(api, "detail", "detail"); }
-      workspaceRef.current.details.forEach((id) => { const lane = workspaceRef.current.lanes.find((item) => item.id === id); const panelId = pinnedDetailTarget(id); if (lane && !api.getPanel(panelId)) { changed = true; addDefaultPanel(api, panelId, "detail", lane); } });
+      changed = reconcileDockPanels(api, workspaceRef.current, setDetailPosition);
     } finally {
       syncingDock.current = false;
     }
     if (changed) setDockRevision((value) => value + 1);
     requestAnimationFrame(() => { annotateDockGeometry(api); persistDockLayout(api); });
-  }, [addDefaultPanel, annotateDockGeometry, persistDockLayout]);
+  }, [annotateDockGeometry, persistDockLayout, workspaceRef]);
 
   const onDockReady = useCallback((event: DockviewReadyEvent) => {
     const api = event.api; dockApiRef.current = api; syncingDock.current = true;
@@ -713,8 +603,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (document.activeElement && document.activeElement !== document.body) return;
       const active = workspaceRef.current.active;
-      const detailLane = pinnedDetailLaneId(active);
-      const target = active === "rail" ? railRef.current : active === "detail" ? document.querySelector<HTMLElement>(".workspace-console:not([data-pinned='true'])") : detailLane ? document.querySelector<HTMLElement>(`.workspace-console[data-detail-lane-id="${CSS.escape(detailLane)}"]`) : document.querySelector<HTMLElement>(`[data-lane-id="${CSS.escape(active)}"]`);
+      const target = focusElementForTarget(active, railRef);
       target?.focus({ preventScroll: true });
     }));
     api.onDidActivePanelChange(({ panel }) => {
@@ -739,8 +628,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
       requestAnimationFrame(() => {
         if (document.activeElement && document.activeElement !== document.body) return;
         const active = workspaceRef.current.active;
-        const detailLane = pinnedDetailLaneId(active);
-        const target = active === "rail" ? railRef.current : active === "detail" ? document.querySelector<HTMLElement>(".workspace-console:not([data-pinned='true'])") : detailLane ? document.querySelector<HTMLElement>(`.workspace-console[data-detail-lane-id="${CSS.escape(detailLane)}"]`) : document.querySelector<HTMLElement>(`[data-lane-id="${CSS.escape(active)}"]`);
+        const target = focusElementForTarget(active, railRef);
         target?.focus({ preventScroll: true });
       });
     });
@@ -804,8 +692,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
           panel.api.setActive();
           change((current) => ({ ...current, active: target }), false);
           requestAnimationFrame(() => {
-            const detailLane = pinnedDetailLaneId(target);
-            const node = target === "rail" ? railRef.current : target === "detail" ? document.querySelector<HTMLElement>(".workspace-console:not([data-pinned='true'])") : detailLane ? document.querySelector<HTMLElement>(`.workspace-console[data-detail-lane-id="${CSS.escape(detailLane)}"]`) : document.querySelector<HTMLElement>(`[data-lane-id="${CSS.escape(target)}"]`);
+            const node = focusElementForTarget(target, railRef);
             node?.focus({ preventScroll: true });
           });
         }
@@ -852,7 +739,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   return <ViewerProviderContext.Provider value={provider}><DockContentContext.Provider value={dockContent}><div className={`instrument-shell workspace-rack rail-${workspace.railExpanded ? "open" : "closed"}`} data-filter={workspace.railQuery} data-direction={workspace.direction} data-active-zone={workspace.active} data-move-mode={moveMode ? "true" : "false"} data-resize-mode={resizeMode ? "true" : "false"}>
     <button className="theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`} onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}>{theme}</button>
     {error && <div className="instrument-error" role="alert">{error}</div>}{presentation?.notices?.map((notice) => <div className="presentation-notice" role="status" key={notice}>{notice}</div>)}
-    <section className="workspace-stage" aria-label="Trajectory stage"><DockviewReact className="rlviz-dockview" components={dockComponents} tabComponents={dockTabComponents} defaultTabComponent={MinimalTab} onReady={onDockReady} disableFloatingGroups noPanelsOverlay="emptyGroup" keyboardNavigation={false} announcements={false} />{!workspace.lanes.length && <div className="empty-stage"><b>Open a rollout from the rail.</b><small>Enter replaces · A adds · t toggles the rail</small></div>}</section>
+    <section className="workspace-stage" aria-label="Trajectory stage"><DockviewReact className="rlviz-dockview" components={dockComponents} tabComponents={dockTabComponents} defaultTabComponent={MinimalTab} onReady={onDockReady} disableFloatingGroups noPanelsOverlay="emptyGroup" keyboardNavigation={false} announcements={false} /></section>
     <KeyBar module={workspace.active === "rail" ? "collection" : workspace.active === "detail" || !!pinnedDetailLaneId(workspace.active) ? "detail" : "lane"} mode={moveMode ? "move" : resizeMode ? "resize" : undefined} onModeArrow={(key) => moveMode ? moveActiveModule(key) : resizeNearest(key)} onModeExit={() => { setMoveMode(false); setResizeMode(false); }} selection={activeLane && laneData.get(activeLane.id)?.trajectory.events[activeLane.selected] ? `#${laneData.get(activeLane.id)!.trajectory.events[Math.min(activeLane.selected, laneData.get(activeLane.id)!.trajectory.events.length - 1)].sequence}` : undefined} />
     {help && <HelpOverlay onClose={() => setHelp(false)} />}
   </div></DockContentContext.Provider></ViewerProviderContext.Provider>;

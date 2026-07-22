@@ -10,7 +10,9 @@ describe("workspace arrangements", () => {
     workspace.layout = { grid: { root: { type: "leaf", data: { id: "group" }, size: 100 }, width: 1000, height: 700, orientation: 0 }, panels: {} } as never;
     const encoded = serializeWorkspace(workspace);
     expect(workspaceFromSearch(`?workspace=${encodeURIComponent(encoded)}`)).toEqual(workspace);
-    expect(workspaceURL(workspace, { pathname: "/view", search: "?trajectory=old&mode=read", hash: "#token=x" } as Location)).toContain("workspace=");
+    const url = workspaceURL(workspace, { pathname: "/view", search: "?trajectory=old&mode=read", hash: "#token=x" } as Location);
+    expect(url).toContain("workspace=");
+    expect(JSON.parse(new URL(url, "http://local").searchParams.get("workspace")!)).not.toHaveProperty("layout");
   });
 
   it("round-trips rollout-pinned detail modules and drops orphaned details", () => {
@@ -48,6 +50,15 @@ describe("workspace arrangements", () => {
   it("falls back to the default layout for corrupt workspace and dockview input", () => {
     expect(normalizeWorkspace({ version: 99 })).toEqual(emptyWorkspace());
     const normalized = normalizeWorkspace({ ...emptyWorkspace(), layout: { grid: "bad", panels: [] } })!;
+    expect(normalized.layout).toBeUndefined();
+  });
+
+  it("rejects dock layouts beyond the local restore bounds", () => {
+    const panels = Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`panel-${index}`, {}]));
+    const normalized = normalizeWorkspace({
+      ...emptyWorkspace(),
+      layout: { grid: { root: { type: "leaf", data: { id: "group" }, size: 100 }, width: 1000, height: 700, orientation: 0 }, panels },
+    })!;
     expect(normalized.layout).toBeUndefined();
   });
 
