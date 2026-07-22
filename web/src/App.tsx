@@ -100,7 +100,7 @@ function Rail({ root, rows, workspace, fidelity, onActivate, onSelect, onOpen, o
     <section className={`browse-list rail-fidelity-${fidelity}`} role="listbox" aria-label="Trajectory collection" data-fidelity-level={`L${fidelity}`}>
       {rows.map((row, index) => <button key={rowKey(row)} role="option" aria-selected={index === selected} data-fidelity-level={`L${fidelity}`} data-columns={fidelity >= 2 ? "true" : "false"} className={`browse-row ${index === selected ? "selected" : ""}`} onClick={() => onSelect(index)} onDoubleClick={onOpen}>
         {fidelity >= 1 && <span className="verdict">{verdictGlyph(row)}</span>}<span className="identity"><b>{row.trajectory.id}</b>{fidelity >= 2 && <small>{row.case_name ?? row.group_name ?? row.source_name}</small>}</span><CollectionStrip row={row} fidelity={fidelity} />
-        {fidelity >= 4 && <><span className="numeric events-column">{String(metric(row, "event_count") ?? "—")} ev</span><span className="numeric reward-column">{metric(row, "reward") === undefined ? "" : `r ${String(metric(row, "reward"))}`}</span></>}
+        {fidelity >= 2 && <><span className="numeric events-column">{String(metric(row, "event_count") ?? "—")} ev</span><span className="numeric reward-column">{metric(row, "reward") === undefined ? "" : `r ${String(metric(row, "reward"))}`}</span></>}
         {fidelity >= 2 && <span className="row-state">{row.source_name}{row.group_name ? ` · ${row.group_name}` : ""}</span>}
       </button>)}
       {!rows.length && <p className="empty-state">No trajectories match this filter.</p>}
@@ -285,7 +285,7 @@ const KEYBAR_LANE: CommandId[] = [commandIds.trajectory.next, commandIds.traject
 function KeyBar({ module, selection }: { module: "collection" | "lane"; selection?: string }) {
   const ids = module === "collection" ? KEYBAR_COLLECTION : KEYBAR_LANE;
   return <footer className="keybar" aria-label="Active module keys">
-    {ids.map((id) => { const command = commandDefinition(id); return <button key={id} className="keybar-chip" onClick={() => dispatchCommand(id)}><kbd>{bindingLabel(id)}</kbd><span>{command.label}</span></button>; })}
+    {ids.map((id) => { const command = commandDefinition(id); return <button key={id} className="keybar-chip" tabIndex={-1} onMouseDown={(event) => event.preventDefault()} onClick={() => dispatchCommand(id)}><kbd>{bindingLabel(id)}</kbd><span>{command.label}</span></button>; })}
     {selection && <span className="selection-address">{selection}</span>}
   </footer>;
 }
@@ -563,7 +563,7 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
         <div ref={focusRef} className={`focus-band direction-${workspace.direction}`} aria-label="Focus band">
           {focus.map((lane, index) => <div className="focus-slot" key={lane.id} style={{ flexBasis: focus.length > 1 ? `calc(${(index === 0 ? workspace.seams.focusLane : 1 - workspace.seams.focusLane) * 100}% - 2.5px)` : "100%" }}><LaneTrack lane={lane} data={laneData.get(lane.id)} active={workspace.active === lane.id} reference={workspace.reference === lane.id} hover={hover[lane.id]} onActivate={() => change((current) => ({ ...current, active: lane.id }))} onSelect={(value) => selectEvent(lane.id, value)} onHover={(value) => setHover((current) => ({ ...current, [lane.id]: value }))} onDescend={(episode) => descendLane(lane.id, episode)} onAscend={() => ascendLane(lane.id)} /></div>)}
           {focus.length > 1 && <Sash name="focusLane" orientation={workspace.direction === "rows" ? "horizontal" : "vertical"} onPointerDown={beginResize} onReset={resetSeam} />}
-          {!focus.length && <div className="empty-stage"><span>Stage</span><b>Open a rollout from the rail.</b><small>Enter replaces · A adds · t toggles the rail</small></div>}
+          {!focus.length && <div className="empty-stage"><b>Open a rollout from the rail.</b><small>Enter replaces · A adds · t toggles the rail</small></div>}
         </div>
         <Sash name="focusContext" orientation="horizontal" onPointerDown={beginResize} onReset={resetSeam} />
         <ContextBand lanes={context} workspace={workspace} laneData={laneData} hover={hover} activate={(id) => change((current) => ({ ...current, active: id }))} select={selectEvent} setLaneHover={(id, value) => setHover((current) => ({ ...current, [id]: value }))} />

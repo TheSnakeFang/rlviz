@@ -36,7 +36,7 @@ const layeredEvents = [
   { id: "layered-reward", sequence: 40, kind: "reward", title: "Final reward", alignment_key: "stage:outcome", data: { total: -0.2 } },
   { id: "layered-grader", sequence: 50, kind: "grader", title: "Verifier", alignment_key: "stage:outcome" },
 ];
-const longEvents = Array.from({ length: 250 }, (_, sequence) => ({ id: `long-${sequence}`, sequence, kind: sequence === 249 ? "error" : "message", title: sequence === 249 ? "Terminal error" : `Event ${sequence}`, alignment_key: "stage:bulk" }));
+const longEvents = Array.from({ length: 250 }, (_, sequence) => ({ id: `long-${sequence}`, sequence, kind: sequence === 173 ? "error" : "message", title: sequence === 173 ? "Interior error" : `Event ${sequence}`, alignment_key: "stage:bulk" }));
 
 const browse = {
   sources: [{ id: "source-1", path: "/tmp/demo.ndjson", index_state: "complete" }], count: rows.length,

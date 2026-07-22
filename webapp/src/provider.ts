@@ -2,6 +2,7 @@ import { completeEventPage, normalizeTrajectoryResponse } from "../../web/src/ap
 import type { LoadResult } from "../../web/src/api";
 import type { ViewerProvider } from "../../web/src/provider";
 import type { AnalysisResponse, BrowseResponse, ComparisonResponse, TrajectoryResponse } from "../../web/src/types";
+import { summarizeShape } from "../../web/src/instrument";
 import { analyze, compare } from "./wasm";
 
 export interface BrowserCollection {
@@ -11,7 +12,14 @@ export interface BrowserCollection {
 }
 
 export function createInMemoryProvider(collection: BrowserCollection, collectionId: string): ViewerProvider {
-  const first = collection.browse.trajectories[0];
+  const browse = {
+    ...collection.browse,
+    trajectories: collection.browse.trajectories.map((row) => ({
+      ...row,
+      shape: summarizeShape(collection.trajectories[row.trajectory.id]?.events ?? []),
+    })),
+  };
+  const first = browse.trajectories[0];
   if (!first) throw new Error("Trace contains no trajectories");
   const load = (id: string): LoadResult => {
     const value = collection.trajectories[id];
@@ -26,7 +34,7 @@ export function createInMemoryProvider(collection: BrowserCollection, collection
   };
   return {
     async loadInitial() { return load(first.trajectory.id); },
-    async loadBrowse() { return collection.browse; },
+    async loadBrowse() { return browse; },
     async loadTrajectory(_sourceId, trajectoryId) { return load(trajectoryId); },
     async loadAnalysis(_sourceId, trajectoryId) { return analyze(collectionId, trajectoryId) as Promise<AnalysisResponse>; },
     async loadComparison(_sourceId, left, right) { return compare(collectionId, left, right) as Promise<ComparisonResponse>; },

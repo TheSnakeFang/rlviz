@@ -66,23 +66,30 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("Browse into a multi-lane workspace preserves the instrument invariants", async ({ page }) => {
-	await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
-	await expect(page.getByRole("option").first()).toContainText("candidate");
-	await expect(page.getByRole("button", { name: "caterpillars" })).toHaveCount(0);
-	await expect(page.getByRole("button", { name: "table" })).toHaveCount(0);
-	await expect(page.getByRole("listbox", { name: "Trajectory collection" })).toHaveAttribute("data-fidelity-level", "L3");
-	await expect(page.locator(".cat-glyphs").first()).toContainText("✕");
+  await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
+  await expect(page.getByRole("option").first()).toContainText("candidate");
+  await expect(page.getByRole("listbox", { name: "Trajectory collection" })).toHaveAttribute("data-fidelity-level", "L1");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("glyphs");
+  await expect(page.getByRole("option").first()).toHaveAttribute("data-columns", "false");
 
   await page.keyboard.press("]");
-  await expect(page.locator(".fidelity-readout b")).toHaveText("previews");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("detail");
+  await expect(page.getByRole("option").first()).toHaveAttribute("data-columns", "true");
+  await page.keyboard.press("[");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("glyphs");
+  await page.keyboard.press("[");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("hairline");
+  await page.keyboard.press("]");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("glyphs");
   await page.keyboard.press("Space");
   await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "candidate");
   await page.keyboard.press("Tab");
   await page.keyboard.press("j");
   await page.keyboard.press("a");
   await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveCount(2);
+  await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Shift+A");
-  await expect(page.getByTestId("reference-name")).toHaveText("partial");
+  await expect(page.getByTestId("reference-name")).toHaveText("reference");
   await page.keyboard.press("Shift+Tab");
   await expect(page.locator(".lane-track.active-zone")).toHaveAttribute("data-trajectory", "candidate");
   await expect(page.locator(".moment.selected b")).toHaveText("Policy error");
