@@ -1,144 +1,129 @@
-# Workspace specification (v2 architecture)
+# Workspace specification (v3)
 
-Supersedes the mode-swap architecture in `interaction-spec.md` §1. All other
-interaction-spec sections (selection model, depth/fidelity/zoom semantics,
-compare alignment, tiers, command-ID rules, color budget, invariants) remain
-binding and apply within this structure.
+Supersedes v2 and the mode model in `interaction-spec.md` §1. Everything else
+in the interaction spec (selection, depth/zoom semantics, compare alignment,
+tiers, command-ID rules, color budget) remains binding. RLViz is a **generic
+trajectory viewer** — for one trajectory or many — not a triage or
+observability product. Cohort-analysis capabilities arrive later as explicit,
+opt-in modes.
 
-## The rack
+## 0. Non-negotiable rendering and copy rules
 
-One screen, always. Three fixed zones; no floating windows, no
-drag-to-rearrange:
+1. **Truth-first rendering.** Every visual mark corresponds to a real event at
+   its true axis position. Density is handled by *aggregation* (binning),
+   never by geometric scaling; marks and text have fixed pixel sizes.
+   Errors, context events, and evidence marks survive aggregation as
+   guaranteed-visible landmarks. Anything decorative is deleted.
+2. **No decor text.** Every visible string must earn its place: labels only
+   where the user needs the word to act. No zone eyebrows (RAIL/CONSOLE),
+   no taglines, no internal vocabulary ("surface", "focus band", "context
+   band") in the UI. Depth positions use plain words — overview, episodes,
+   events, raw — shown only as the active lane's breadcrumb.
+3. **A legend exists.** The `?` overlay includes a marks key explaining every
+   glyph and color in one screen.
 
-- **Rail** (left, collapsible `t`): the collection — sources, cases,
-  rollouts; attention ordering, filter, and verdict tags. The rail has one
-  view governed by the fidelity ladder: L0 hairlines for shape scan, L1 marks
-  for failure spotting, L2 texture and L3 glyph caterpillars for event mix,
-  L4 one-line previews with event/reward columns for triage, and L5 complete
-  rows for metadata inspection.
-  Selecting in the rail feeds the stage; it never navigates away.
-- **Stage** (center): trace lanes in two bands.
-  - **Focus band**: up to 2 full-height lanes — depth descent, zoom, and
-    the detail region live here. Rows (top→bottom) is the default
-    direction; `Shift+V`/`Shift+H` toggles columns.
-  - **Context band**: any number of fixed-height thin lanes (Surface strip
-    + verdict glyph), scrollable/virtualized. Never resized by focus-band
-    activity.
-- **Console** (bottom): active selection detail, per-judge verdicts,
-  alignment readout when a reference is pinned, breadcrumb, keys.
+## 1. Modules and docking
 
-Former modes are **arrangements** of this one screen: Browse = rail
-expanded + empty stage; Read = one focus lane maximized; Compare = 2+
-lanes with a pinned reference and the alignment overlay. Deep links encode
-arrangements; legacy mode URLs map onto them.
+The screen is a set of **modules** in a docked layout, managed by a
+constrained VSCode-style docking engine (implementation: `dockview-react`,
+MIT, with floating panels and popout windows disabled):
 
-## Lane grammar (complete)
+- Modules: **collection** (the trajectory list), **lane** (one trajectory,
+  0..N instances), **detail** (selected event content — the former console,
+  now a peer module, docked right by default when lanes flow as rows),
+  and future modules (compare readout, artifacts).
+- Users move modules between dock positions by drag or keyboard; seams
+  resize; **empty dock areas collapse to nothing** (no labeled voids).
+- Layouts serialize into deep links and the config file; the flow harness
+  enumerates and tests arrangements exactly as before.
+- Keyboard: `Tab`/`Shift+Tab` cycle modules; **arrow-key spatial navigation**
+  (`Alt+←↑↓→`) moves focus to the neighboring module; a move-module mode
+  relocates the active module with the same arrows.
 
-| Command | Effect |
-|---|---|
-| `Enter`/`Space` on rail row | open in active focus lane (replace) |
-| `A` | add as new lane (fills focus band, then context band) |
-| `x` | close active lane |
-| `Tab` / `Shift+Tab` | cycle active lane (rail included) |
-| `n` / `p` | sweep active lane through rail's filtered order, preserving that lane's depth/zoom/axis |
-| `Shift+Enter` | promote/demote: swap active context lane with a focus lane (discrete animated swap; total layout constant) |
-| `Shift+A` | pin active lane as reference: alignment overlay renders all lanes against it |
-| `[` `]`, `+` `-` `0` | fidelity / axis zoom, active lane |
-| `{` `}` | fidelity down/up, all lanes |
-| `<` `>` `)` | zoom out / in / fit, all lanes (`+` is already Shift+=, so all-lane zoom has its own characters) |
+## 2. The collection module
 
-Workspace state = (rail state, ordered lane list with per-lane view state,
-direction, reference, active lane, seam ratios). Fully serializable to the
-deep link; every state reachable and testable.
+- One list, one representation control: the **fidelity ladder** `[` `]` with
+  exactly three levels, each with a stated purpose:
+  - **hairline** — the cohort's shape at a glance: one thin strip per
+    trajectory, length ∝ events, landmarks (errors, context) at their true
+    positions. Answers *"what does this set look like?"*
+  - **glyphs** — one glyph per real event (kind-mapped, truncation shown
+    honestly with a count), errors in place. Answers *"what happened in
+    this one?"*
+  - **detail** — glyph strip plus columns (events, reward, source) and
+    metadata. Answers *"which one is this exactly?"*
+- Default ordering is **source order**. No attention ordering, no
+  "unresolved" counts, no verdict tags in the default product.
+- Filter narrows by substring; **grouping** (by source, case, and later by
+  sidecar-provided buckets) is a collection view option, not a mode.
+- `Enter` opens in the active lane (focus moves to the lane); **`a` adds a
+  lane and keeps focus in the collection** for rapid multi-add; `x` closes
+  the active lane.
 
-**Anti-jitter invariant:** a lane's track height/width never changes as a
-side effect. Depth, fidelity, and zoom re-render a lane's interior only.
-The only geometry changes are the explicit promote/demote swap and seam
-drags.
+## 3. Lanes
 
-## Seams
+- A lane renders one trajectory at a **depth** (overview → episodes →
+  events → raw) with an **axis zoom** (`+ - 0`, anchored, ascent restores
+  the pre-descend axis). Per-lane fidelity is removed — depth and zoom are
+  the lane's only representation controls.
+- The strip renders in pixel space: fixed-size marks, positions from
+  measured width; when density passes the legibility threshold the nominal
+  marks aggregate into density bars (waveform-style) while landmark events
+  stay discrete.
+- Lane count is unbounded; primary lanes render full height, additional
+  lanes render as thin strips in a collapsible dock area (plain-language
+  header only when occupied). `Shift+Enter` swaps a thin lane with a full
+  one. `n`/`p` sweep the active lane through the collection's current
+  filtered order.
 
-Fixed regions separated by draggable sashes (the VSCode model — no
-floating windows):
+## 4. Keys: one bar, always accurate
 
-- Four continuous ratios: rail width, focus/context split, focus-lane
-  split, console height.
-- Drag to resize; double-click a sash resets its default; ratios persist
-  and serialize with the workspace.
-- Keyboard route: `Ctrl+w` enters resize mode, arrows adjust the seam
-  nearest the active zone, `Esc` exits.
+A single keybar at the bottom of the screen renders the **active module's
+actual bindings** from the command registry (top ~8 by relevance, `?` for
+all). Per-module footers are removed. Every binding shown is live; every
+live binding is discoverable through `?`. Clicking a keybar chip executes
+its command.
 
-## Layers within a lane
+## 5. Settings, onboarding, and agents
 
-Depth is a real representation change (this retires the decorative depth
-counter):
+- All preferences are **data** in one config file (Tier C): keymap remaps,
+  palette, default fidelity, layout/docking arrangement, per-trace-type
+  presets (glyph bindings, landmark definitions, episode anchors).
+- **First-run onboarding**: an in-app setup flow (and `rlviz init` in the
+  CLI) that walks layout, theme, and keymap choices and writes the config.
+- The config file's location and schema are documented so **the user's
+  coding agent can adjust it** — trace-type-specific setup (private event
+  kinds, custom glyphs, episode anchor rules) is expected to be done by
+  agents; RLViz ships correct deterministic defaults for everything
+  universal.
+- Hosted viewer stays display-only: no agent hooks, no MCP, no network for
+  trace data. Local CLI is the agent surface.
 
-- **Surface**: shape strip only (context-lane rendering).
-- **Episodes**: episode bands are the reading unit; bands come from adapter
-  episode/alignment keys, with deterministic tool-run, error, and context
-  boundaries as fallback. Width reflects event extent; the selected band's
-  detail reports event-kind counts, errors, and span addresses. `j`/`k` move
-  by episode; **click a band = descend into it** (zoom to its extent).
-- **Events**: event stream scoped to the current episode, compressed strip
-  above; click the strip = ascend one level. Landmark jumps switch episode
-  and pan when their target is outside the current scope.
-- **Source**: raw record + provenance for the selected event, with the
-  compressed strip retained above.
-- `Enter`/`Esc` are the keyboard equivalents of the click grammar. Anchor
-  stability holds across every transition.
-- Context-band lanes always render Surface regardless of their stored depth.
-  Promoting one back to focus restores that stored depth.
-- Every descent stores its pre-descent axis with the prior depth. Ascent
-  restores the axis you descended from; strip-click and `Esc` are identical,
-  and jumplist snapshots include the full descent stack.
-- With a reference pinned, stage anchors draw as vertical alignment lines
-  across all lanes (including context lanes' tick marks).
+## 6. One site
 
-## History
+`rlviz.dev` is the only URL: a short product landing (what it is, install,
+open-a-trace drop zone) where dropping a file transitions the page into the
+viewer in place. `app.rlviz.dev` redirects. Docs are written for external
+users (what/why, quickstart, formats, adapters, FAQ); contributor and
+architecture docs stay in the repo.
 
-Every arrangement change (lane open/close/swap, depth change, reference
-pin/unpin, rail jump) pushes a workspace snapshot onto a jumplist.
-`Ctrl+o` back, `Ctrl+i` forward (vim semantics). Browser back/forward map
-to the same jumplist in the web surfaces. The console shows a short
-breadcrumb.
+## 7. Flow QA
 
-## Agent analysis workbooks
+Unchanged in structure. Arrangements remain enumerable via layout
+serialization; flows must cover module moves, arrow navigation, empty-dock
+collapse, fidelity ladder (three levels, each with a distinguishing
+truthful observable), and the density-binning threshold (a marks-mode strip
+and a binned strip assert different structures on the same data at
+different widths).
 
-RLViz never calls a model. `rlviz analyze <kind>` prints the prompt and
-file paths for the user's own coding agent, which writes schema-validated
-sidecar JSON that the UI renders with `agent` provenance. Kinds:
-`failure-groups` (cohort failure buckets → rail filter
-chips), `cross-session` (pass-vs-fail behavioral findings per stage →
-console + anchor annotations), `root-cause` (hypothesis chain for one
-rollout), `stage-labels` (semantic episode names). Validation rule: every
-claim must carry event addresses as evidence; claims without evidence fail
-validation and are not rendered. Deleting a sidecar restores the
-deterministic view. With no agent available, RLViz is a pure Tier-D
-display instrument.
+## 8. Build order (agreed Jul 22)
 
-## Flow QA
-
-The arrangement space is a finite state machine; the flow harness
-(`web/e2e/flows.ts`) walks its edges forward, backward via the jumplist,
-and across via `Tab`, keyboard-only plus pointer variants that must land
-in identical states. Required additional flows for this architecture:
-lane add/close/swap, promote/demote, reference pin with overlay
-assertions, seam resize (pointer + keyboard) with persistence, jumplist
-restoration depth, layer pointer/keyboard parity, cross-episode landmarks,
-anchor stability, and the rail fidelity ladder with lanes open.
-
-## TUI mapping
-
-Rail = left pane; focus band = one full pane (two on wide terminals);
-context band = stacked single-row caterpillars; seams = fixed steps via
-the same `Ctrl+w` resize mode; no pointer requirements.
-
-## Build phases
-
-1. **Shell**: rack zones, lanes + tracks, grammar commands, seams,
-   jumplist, arrangement deep links, flow tests for all of the above.
-2. **Layers**: real per-depth representations with the click grammar.
-3. **Alignment overlay**: reference pin, cross-lane anchors, divergence
-   readout in console, context-lane ticks.
-4. **Workbooks**: `rlviz analyze`, sidecar schemas, rail/console
-   renderings.
+1. Truth-first rendering nucleus: strip layout math (binning, pixel space)
+   + honest collection strips + legend; remove per-lane fidelity; remove
+   triage defaults and decor text.
+2. Keybar + discoverability + interaction fixes (add-stays, arrows,
+   empty-collapse, close affordance).
+3. Docking migration to dockview (constrained), detail module to the side,
+   layout serialization + onboarding flow.
+4. One-site merge + user-facing docs rewrite.
+5. Then phases 3–4 from v2 (alignment overlay, agent workbooks) on top.

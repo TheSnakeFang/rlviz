@@ -185,3 +185,98 @@ export function stageChanged(left?: Stage, right?: Stage): boolean {
     .sort();
   return JSON.stringify(outcome(left)) !== JSON.stringify(outcome(right));
 }
+
+// ---------------------------------------------------------------------------
+// Truth-first strip layout (workspace-spec v3 §0.1).
+//
+// Every mark corresponds to a real event at its true pixel position. When
+// nominal marks would collide (spacing under `minSpacing` px), they aggregate
+// into density bins; landmark events (errors, context changes, evidence)
+// never aggregate — they stay discrete and individually visible at any
+// density. Nothing scales geometrically: callers render fixed-size marks at
+// the returned pixel positions.
+// ---------------------------------------------------------------------------
+
+export type LandmarkKind = "error" | "context" | "evidence";
+export type StripMarkKind = LandmarkKind | "tool" | "nominal";
+export type StripMark = { x: number; index: number; kind: StripMarkKind };
+export type StripBin = { x0: number; x1: number; count: number; tools: number };
+export type StripLayout =
+  | { mode: "marks"; marks: StripMark[] }
+  | { mode: "binned"; bins: StripBin[]; landmarks: StripMark[]; peak: number };
+
+export function stripMarkKind(event: TrajectoryEvent): StripMarkKind {
+  if (event.kind === "error") return "error";
+  if (event.context || event.alignment_key?.startsWith("context:")) return "context";
+  if (event.kind === "reward" || event.kind === "grader") return "evidence";
+  if (event.kind === "tool" || event.kind === "environment_action") return "tool";
+  return "nominal";
+}
+
+const isLandmark = (kind: StripMarkKind): kind is LandmarkKind =>
+  kind === "error" || kind === "context" || kind === "evidence";
+
+/** True pixel position of a sequence value inside the axis window. */
+export function stripX(sequence: number, window: AxisWindow, widthPx: number): number {
+  const span = Math.max(1e-9, window.end - window.start);
+  return ((sequence - window.start) / span) * widthPx;
+}
+
+export function layoutStrip(
+  events: TrajectoryEvent[],
+  window: AxisWindow,
+  widthPx: number,
+  options: { minSpacing?: number; binWidth?: number } = {},
+): StripLayout {
+  const minSpacing = options.minSpacing ?? 7;
+  const binWidth = options.binWidth ?? 4;
+  const width = Math.max(1, widthPx);
+  const visible: StripMark[] = [];
+  events.forEach((event, index) => {
+    if (event.sequence < window.start || event.sequence > window.end) return;
+    visible.push({ x: stripX(event.sequence, window, width), index, kind: stripMarkKind(event) });
+  });
+  if (visible.length * minSpacing <= width) return { mode: "marks", marks: visible };
+
+  const binCount = Math.max(1, Math.floor(width / binWidth));
+  const bins: StripBin[] = Array.from({ length: binCount }, (_, bin) => ({
+    x0: (bin / binCount) * width, x1: ((bin + 1) / binCount) * width, count: 0, tools: 0,
+  }));
+  const landmarks: StripMark[] = [];
+  for (const mark of visible) {
+    if (isLandmark(mark.kind)) { landmarks.push(mark); continue; }
+    const bin = bins[Math.min(binCount - 1, Math.floor((mark.x / width) * binCount))];
+    bin.count += 1;
+    if (mark.kind === "tool") bin.tools += 1;
+  }
+  const peak = Math.max(1, ...bins.map((bin) => bin.count));
+  return { mode: "binned", bins, landmarks, peak };
+}
+
+// ---------------------------------------------------------------------------
+// Honest collection strips (the three-level fidelity ladder, §2).
+//
+// The collection list renders each trajectory from a compact *shape summary*
+// rather than full events: a fixed number of slots, each recording how many
+// events landed there and whether a landmark did. Summaries are computed
+// from real events (locally or server-side) — never synthesized.
+// ---------------------------------------------------------------------------
+
+export type ShapeSlot = { count: number; tools: number; landmark?: LandmarkKind };
+export type ShapeSummary = { events: number; slots: ShapeSlot[] };
+
+export function summarizeShape(events: TrajectoryEvent[], slotCount = 48): ShapeSummary {
+  const slots: ShapeSlot[] = Array.from({ length: slotCount }, () => ({ count: 0, tools: 0 }));
+  if (!events.length) return { events: 0, slots };
+  const first = events[0].sequence, last = events[events.length - 1].sequence;
+  const span = Math.max(1e-9, last - first);
+  const landmarkPriority: Record<LandmarkKind, number> = { error: 3, context: 2, evidence: 1 };
+  events.forEach((event) => {
+    const slot = slots[Math.min(slotCount - 1, Math.floor(((event.sequence - first) / span) * slotCount))];
+    slot.count += 1;
+    const kind = stripMarkKind(event);
+    if (kind === "tool") slot.tools += 1;
+    if (isLandmark(kind) && (!slot.landmark || landmarkPriority[kind] > landmarkPriority[slot.landmark])) slot.landmark = kind;
+  });
+  return { events: events.length, slots };
+}

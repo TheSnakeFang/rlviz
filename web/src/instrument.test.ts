@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { attentionScore, axisX, episodesFor, episodeWindow, stageChanged, stagesFor } from "./instrument";
-import type { BrowseTrajectory, ComparisonSide } from "./types";
+import { attentionScore, axisX, episodesFor, episodeWindow, layoutStrip, stageChanged, stagesFor, summarizeShape } from "./instrument";
+import type { BrowseTrajectory, ComparisonSide, TrajectoryEvent } from "./types";
 
 const row = (id: string, values: { errors?: number; pass?: boolean; reward?: number }): BrowseTrajectory => ({
   source_id: "source",
@@ -106,5 +106,69 @@ describe("instrument projections", () => {
 	const changed = { ...left, events: [left.events[1], { ...left.events[0], output: { ok: false } }] };
 	expect(stageChanged(left, permuted)).toBe(false);
 	expect(stageChanged(left, changed)).toBe(true);
+  });
+});
+
+describe("layoutStrip (truth-first)", () => {
+  const event = (sequence: number, kind = "message", extra: Partial<TrajectoryEvent> = {}): TrajectoryEvent =>
+    ({ id: `e${sequence}`, sequence, kind, ...extra }) as TrajectoryEvent;
+  const window = { start: 0, end: 100 };
+
+  it("renders discrete marks at true pixel positions when spacing allows", () => {
+    const layout = layoutStrip([event(0), event(30, "error"), event(100)], window, 500);
+    expect(layout.mode).toBe("marks");
+    if (layout.mode !== "marks") return;
+    expect(layout.marks.map((mark) => Math.round(mark.x))).toEqual([0, 150, 500]);
+    expect(layout.marks[1].kind).toBe("error");
+  });
+
+  it("bins nominal events past the density threshold but keeps landmarks discrete", () => {
+    const events = Array.from({ length: 200 }, (_, index) => event(index * 0.5));
+    events[60] = event(30, "error");
+    const layout = layoutStrip(events, window, 300);
+    expect(layout.mode).toBe("binned");
+    if (layout.mode !== "binned") return;
+    expect(layout.landmarks).toHaveLength(1);
+    expect(Math.round(layout.landmarks[0].x)).toBe(90);
+    const binned = layout.bins.reduce((total, bin) => total + bin.count, 0);
+    expect(binned).toBe(199);
+    expect(layout.bins.at(-1)!.x1).toBeCloseTo(300, 5);
+  });
+
+  it("marks mode is not entered when marks would collide", () => {
+    const events = Array.from({ length: 100 }, (_, index) => event(index));
+    expect(layoutStrip(events, { start: 0, end: 99 }, 300).mode).toBe("binned");
+    expect(layoutStrip(events, { start: 0, end: 99 }, 3000).mode).toBe("marks");
+  });
+
+  it("excludes events outside the axis window", () => {
+    const layout = layoutStrip([event(-5), event(50), event(105)], window, 500);
+    expect(layout.mode).toBe("marks");
+    if (layout.mode === "marks") expect(layout.marks).toHaveLength(1);
+  });
+});
+
+describe("summarizeShape (honest collection strips)", () => {
+  const event = (sequence: number, kind = "message"): TrajectoryEvent =>
+    ({ id: `s${sequence}`, sequence, kind }) as TrajectoryEvent;
+
+  it("places landmarks in their true slot, not appended at the end", () => {
+    const events = [...Array.from({ length: 10 }, (_, index) => event(index * 10)), event(30, "error")];
+    events.sort((a, b) => a.sequence - b.sequence);
+    const shape = summarizeShape(events, 10);
+    expect(shape.slots[3].landmark).toBe("error");
+    expect(shape.slots.filter((slot) => slot.landmark).length).toBe(1);
+    expect(shape.slots.at(-1)!.landmark).toBeUndefined();
+  });
+
+  it("error outranks context in a shared slot and counts stay truthful", () => {
+    const shape = summarizeShape([event(0), event(1, "error"), { ...event(2), context: { operation: "compaction" } } as TrajectoryEvent], 1);
+    expect(shape.slots[0].landmark).toBe("error");
+    expect(shape.slots[0].count).toBe(3);
+    expect(shape.events).toBe(3);
+  });
+
+  it("handles empty input", () => {
+    expect(summarizeShape([], 8).slots).toHaveLength(8);
   });
 });
