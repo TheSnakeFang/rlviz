@@ -152,6 +152,8 @@ Keep existing bindings. Additions (conflict-checked per scope):
 | Command ID | Default | Scope |
 |---|---|---|
 | `trajectory.nextRollout` / `previousRollout` | `n` / `p` | trajectory |
+| `workspace.openDetail` | `d` | trajectory |
+| `workspace.moveMode` | `Ctrl+m`, then arrows | workspace |
 | `trajectory.ascend` | `Escape` | trajectory |
 | `trajectory.markIn` / `markOut` | `i` / `Shift+O` | trajectory |
 | `trajectory.goto` | `:` | trajectory |

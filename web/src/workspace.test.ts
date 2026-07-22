@@ -4,12 +4,24 @@ import { effectiveDepth, emptyWorkspace, laneId, legacyWorkspace, normalizeWorks
 describe("workspace arrangements", () => {
   it("round-trips lanes, per-lane view state, and dockview layout JSON", () => {
     const workspace = emptyWorkspace();
-    workspace.lanes = [{ id: laneId("source", "one"), sourceId: "source", trajectoryId: "one", band: "focus", selected: 4, depth: 4, fidelity: 5, axis: { start: 10, end: 20 }, descentStack: [{ depth: 3, axis: { start: 0, end: 30 } }] }];
+    workspace.collectionView = "trials";
+    workspace.lanes = [{ id: laneId("source", "one"), sourceId: "source", trajectoryId: "one", band: "focus", selected: 4, depth: 4, fidelity: 2, axis: { start: 10, end: 20 }, descentStack: [{ depth: 3, axis: { start: 0, end: 30 } }] }];
     workspace.active = workspace.lanes[0].id;
     workspace.layout = { grid: { root: { type: "leaf", data: { id: "group" }, size: 100 }, width: 1000, height: 700, orientation: 0 }, panels: {} } as never;
     const encoded = serializeWorkspace(workspace);
     expect(workspaceFromSearch(`?workspace=${encodeURIComponent(encoded)}`)).toEqual(workspace);
     expect(workspaceURL(workspace, { pathname: "/view", search: "?trajectory=old&mode=read", hash: "#token=x" } as Location)).toContain("workspace=");
+  });
+
+  it("round-trips rollout-pinned detail modules and drops orphaned details", () => {
+    const workspace = emptyWorkspace();
+    const id = laneId("source", "one");
+    workspace.lanes = [{ id, sourceId: "source", trajectoryId: "one", band: "focus", selected: 0, depth: 1, fidelity: 1, axis: { start: 0, end: 1 }, descentStack: [] }];
+    workspace.details = [id, "missing"];
+    workspace.active = `detail:${id}`;
+    const normalized = normalizeWorkspace(workspace)!;
+    expect(normalized.details).toEqual([id]);
+    expect(normalized.active).toBe(`detail:${id}`);
   });
 
   it("uses Surface as context's effective depth without discarding stored focus depth", () => {

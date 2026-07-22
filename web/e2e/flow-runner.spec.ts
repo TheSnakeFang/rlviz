@@ -140,6 +140,13 @@ async function observe(page: Page, observable: Observable, boxes: Map<string, Aw
   if (!observable.attribute && observable.contains !== undefined) await expect(locator.first()).toContainText(observable.contains);
   if (observable.boxEquals) expect(await locator.first().boundingBox()).toEqual(boxes.get(observable.boxEquals));
   if (observable.boxNotEquals) expect(await locator.first().boundingBox()).not.toEqual(boxes.get(observable.boxNotEquals));
+  if (observable.boxBelow) {
+    const actual = await locator.first().boundingBox(), reference = boxes.get(observable.boxBelow);
+    expect(actual).not.toBeNull(); expect(reference).not.toBeNull();
+    // Dockview splits the reference group to make room, so its captured
+    // pre-split height is stale. The row contract is the relative Y ordering.
+    expect(actual!.y).toBeGreaterThan(reference!.y);
+  }
   if (observable.boxFills) {
     const actual = await locator.first().boundingBox(), expected = boxes.get(observable.boxFills);
     expect(actual).not.toBeNull(); expect(expected).not.toBeNull();

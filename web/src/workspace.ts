@@ -1,5 +1,6 @@
 export type LaneBand = "focus" | "context";
 export type WorkspaceDirection = "rows" | "columns";
+export type CollectionView = "rollouts" | "trials";
 export type WorkspaceTarget = "rail" | string;
 
 export interface AxisWindow { start: number; end: number }
@@ -27,7 +28,10 @@ export interface WorkspaceState {
   railExpanded: boolean;
   railQuery: string;
   railSelected: number;
+  collectionView: CollectionView;
   lanes: WorkspaceLane[];
+  /** Rollout-pinned detail modules. Values are lane IDs. */
+  details: string[];
   direction: WorkspaceDirection;
   reference?: string;
   active: WorkspaceTarget;
@@ -43,7 +47,9 @@ export function emptyWorkspace(): WorkspaceState {
     railExpanded: true,
     railQuery: "",
     railSelected: 0,
+    collectionView: "rollouts",
     lanes: [],
+    details: [],
     direction: "rows",
     active: "rail",
   };
@@ -80,7 +86,7 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
       id, sourceId: lane.sourceId, trajectoryId: lane.trajectoryId, band: lane.band,
       selected: clamp(finite(lane.selected) ? Math.round(lane.selected) : 0, 0, Number.MAX_SAFE_INTEGER),
       depth: clamp(finite(lane.depth) ? Math.round(lane.depth) : 1, 1, 4),
-      fidelity: clamp(finite(lane.fidelity) ? Math.round(lane.fidelity) : 3, 0, 5), axis, descentStack,
+      fidelity: clamp(finite(lane.fidelity) ? Math.round(lane.fidelity) : 1, 0, 2), axis, descentStack,
     } satisfies WorkspaceLane];
   });
   // A restored malformed link cannot overfill the focus band.
@@ -90,17 +96,21 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
     else if (lane.band === "focus") lane.band = "context";
   });
   const ids = new Set(lanes.map((lane) => lane.id));
+  const details = Array.isArray(raw.details) ? [...new Set(raw.details.filter((id): id is string => typeof id === "string" && ids.has(id)))] : [];
+  const detailTargets = new Set(details.map((id) => `detail:${id}`));
   const railExpanded = raw.railExpanded !== false || lanes.length === 0;
-  const requestedActive = raw.active === "rail" || raw.active === "detail" || (typeof raw.active === "string" && ids.has(raw.active)) ? raw.active : "rail";
+  const requestedActive = raw.active === "rail" || raw.active === "detail" || (typeof raw.active === "string" && (ids.has(raw.active) || detailTargets.has(raw.active))) ? raw.active : "rail";
   const layout = input.version === 3 ? normalizeDockLayout(raw.layout) : undefined;
   return {
     version: 3,
     railExpanded,
     railQuery: typeof raw.railQuery === "string" ? raw.railQuery.slice(0, 500) : "",
     railSelected: clamp(finite(raw.railSelected) ? Math.round(raw.railSelected) : 0, 0, Number.MAX_SAFE_INTEGER),
+    collectionView: raw.collectionView === "trials" ? "trials" : "rollouts",
     lanes,
+    details,
     direction: raw.direction === "columns" ? "columns" : "rows",
-    reference: typeof raw.reference === "string" && ids.has(raw.reference) ? raw.reference : undefined,
+    ...(typeof raw.reference === "string" && ids.has(raw.reference) ? { reference: raw.reference } : {}),
     active: requestedActive === "rail" && !railExpanded ? lanes[0].id : requestedActive,
     ...(layout ? { layout } : {}),
   };
@@ -146,7 +156,7 @@ export function legacyWorkspace(search: string): WorkspaceState | undefined {
   const workspace = emptyWorkspace();
   const ids = left && right ? [left, right] : [trajectoryId!];
   workspace.railExpanded = false;
-  workspace.lanes = ids.map((id) => ({ id: laneId(sourceId, id), sourceId, trajectoryId: id, band: "focus", selected: 0, depth: 1, fidelity: 3, axis: { start: 0, end: 1 }, descentStack: [] }));
+  workspace.lanes = ids.map((id) => ({ id: laneId(sourceId, id), sourceId, trajectoryId: id, band: "focus", selected: 0, depth: 1, fidelity: 1, axis: { start: 0, end: 1 }, descentStack: [] }));
   workspace.active = workspace.lanes[0].id;
   if (ids.length === 2) workspace.reference = workspace.lanes[0].id;
   return workspace;
@@ -156,7 +166,8 @@ export function snapshotLabel(workspace: WorkspaceState): string {
   if (!workspace.lanes.length) return "Browse";
   const focus = workspace.lanes.filter((lane) => lane.band === "focus").length;
   const context = workspace.lanes.length - focus;
-  const active = workspace.active === "rail" ? "rail" : workspace.active === "detail" ? "detail" : workspace.lanes.find((lane) => lane.id === workspace.active)?.trajectoryId ?? "lane";
+  const detailLane = workspace.active.startsWith("detail:") ? workspace.active.slice(7) : undefined;
+  const active = workspace.active === "rail" ? "rail" : workspace.active === "detail" ? "detail" : detailLane ? `detail ${workspace.lanes.find((lane) => lane.id === detailLane)?.trajectoryId ?? "rollout"}` : workspace.lanes.find((lane) => lane.id === workspace.active)?.trajectoryId ?? "lane";
   return `${workspace.lanes.length} lane${workspace.lanes.length === 1 ? "" : "s"} · ${focus} focus${context ? ` + ${context} context` : ""} · ${active}`;
 }
 import type { SerializedDockview } from "dockview";

@@ -84,15 +84,16 @@ test("Browse into a multi-lane workspace preserves the instrument invariants", a
   await page.keyboard.press("Space");
   await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "candidate");
   await page.keyboard.press("Tab");
+  await page.keyboard.press("Tab");
   await page.keyboard.press("j");
   await page.keyboard.press("a");
   await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveCount(2);
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Shift+A");
-  await expect(page.getByTestId("reference-name")).toHaveText("reference");
+  await expect(page.getByTestId("reference-name")).toHaveText("candidate");
   await page.keyboard.press("Shift+Tab");
-  await expect(page.locator(".lane-track.active-zone")).toHaveAttribute("data-trajectory", "candidate");
-  await expect(page.locator(".moment.selected b")).toHaveText("Policy error");
+  await expect(page.locator(".lane-track.active-zone")).toHaveAttribute("data-trajectory", "reference");
+  await expect(page.locator(".moment.selected b")).toHaveText("Task prompt");
 
   const strip = page.locator(".lane-track.active-zone .shape-strip");
   const anchor = await strip.getAttribute("data-selected-x");
@@ -129,4 +130,17 @@ test("theme control switches computed high-contrast palette values", async ({ pa
   expect(computed).toEqual(target === "dark"
     ? { page: "#000000", ctx: "#66aaff" }
     : { page: "#ffffff", ctx: "#005fcc" });
+});
+
+test("collection trial groups keep rollout options and the keybar in view", async ({ page }) => {
+  await page.getByRole("button", { name: "trials" }).click();
+  await expect(page.getByRole("main", { name: "Browse trajectories" })).toHaveAttribute("data-collection-view", "trials");
+  await expect(page.getByRole("group", { name: "policy demo" })).toContainText("3 rollouts");
+  await expect(page.getByRole("option")).toHaveCount(3);
+  const layout = await page.locator(".workspace-rack").evaluate((rack) => {
+    const keybar = rack.querySelector(".keybar")!.getBoundingClientRect();
+    return { keybarBottom: keybar.bottom, viewport: window.innerHeight, scrollbar: getComputedStyle(rack).scrollbarColor };
+  });
+  expect(layout.keybarBottom).toBeLessThanOrEqual(layout.viewport);
+  expect(layout.scrollbar).not.toBe("auto");
 });

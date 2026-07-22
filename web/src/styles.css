@@ -159,7 +159,11 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 
 /* Workspace v3: Dockview owns every module allocation. Lane depth, collection
    fidelity, and axis zoom never participate in panel sizing. */
-.workspace-rack { height: 100vh; min-height: 620px; display: grid; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; }
+.workspace-rack { height: 100vh; min-height: 620px; display: grid; grid-template-rows: minmax(0, 1fr) max-content; overflow: hidden; scrollbar-color: color-mix(in srgb, var(--ink) 34%, transparent) transparent; scrollbar-width: thin; }
+.workspace-rack *::-webkit-scrollbar { width: 8px; height: 8px; }
+.workspace-rack *::-webkit-scrollbar-track { background: transparent; }
+.workspace-rack *::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 8px; background: color-mix(in srgb, var(--ink) 34%, transparent); background-clip: padding-box; }
+.workspace-rack *::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--ink) 58%, transparent); background-clip: padding-box; }
 .workspace-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface); }
 .rlviz-dockview { width: 100%; height: 100%;
   --dv-group-view-background-color: var(--surface);
@@ -191,7 +195,7 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .rlviz-dockview .dv-tab-close-button, .rlviz-dockview .dv-tabs-and-actions-container .dv-icon { display: none !important; }
 .rlviz-dockview .dv-sash { background: var(--hairline); }
 .rlviz-dockview .dv-content-container, .rlviz-dockview .dv-content-container > div, .focus-slot { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
-.workspace-rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; outline: none; background: var(--surface); border-right: 1px solid var(--hairline); }
+.workspace-rail { width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; outline: none; background: var(--surface); border-right: 1px solid var(--hairline); }
 .workspace-rail > header { min-height: 78px; padding: 12px 14px 8px; border-bottom: 1px solid var(--hairline); }
 .workspace-rail h1, .workspace-console h2 { margin: 1px 0; font-size: 15px; }
 .workspace-rail p, .workspace-console p { margin: 0; color: var(--ink-secondary); font-size: 11px; }
@@ -199,8 +203,9 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .rail-controls label { display: flex; align-items: center; gap: 6px; color: var(--ink-secondary); font-size: 11px; }
 .rail-controls input { min-width: 0; width: 100%; padding: 4px 6px; border: 1px solid var(--hairline); background: var(--page); }
 .rail-controls > div { display: flex; gap: 4px; }
+.rail-view-toggle { align-items: center; }.rail-view-toggle > span { margin-right: auto; color: var(--ink-secondary); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .rail-controls button { padding: 3px 6px; font-size: 11px; }.rail-controls button.active { border-color: var(--ink); font-weight: 650; }
-.workspace-rail .fidelity-readout { padding: 5px 12px; }.workspace-rail .browse-list { min-height: 0; flex: 1; overflow: auto; padding: 6px 8px 52px; }
+.workspace-rail .fidelity-readout { padding: 5px 12px; }.workspace-rail .browse-list { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; touch-action: pan-y; padding: 6px 8px 52px; }
 .workspace-rail .browse-row { gap: 6px; padding: 4px 6px; }
 .workspace-rail .rail-fidelity-0 .browse-row { grid-template-columns: minmax(80px, 1fr); min-height: 18px; padding-block: 1px; }
 .workspace-rail .rail-fidelity-0 .browse-row > .cat-line { grid-column: 1; }
@@ -210,15 +215,24 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .workspace-rail .rail-fidelity-2 .events-column { grid-column: 3; grid-row: 1; }
 .workspace-rail .rail-fidelity-2 .reward-column { grid-column: 4; grid-row: 1; }
 .workspace-rail .browse-row > .row-state { grid-column: 2 / -1; }
+.rail-trial-group { display: contents; }.rail-trial-group > header { position: sticky; top: -6px; z-index: 2; display: flex; justify-content: space-between; gap: 8px; padding: 6px 6px 4px; border-bottom: 1px solid var(--hairline); background: var(--surface); color: var(--ink-secondary); text-transform: uppercase; letter-spacing: .06em; }
+.rail-trial-group > header b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }.rail-trial-group > header small { white-space: nowrap; font-size: 9px; font-weight: 500; }
 .workspace-rail .cat-glyphs { max-width: 100%; }.workspace-rail .numeric { display: inline; }.workspace-rail .row-state { min-height: 13px; }
 .rail-actions { position: absolute; left: 8px; bottom: 18px; z-index: 3; display: none; }
 .lane-track { width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; outline: none; border: 1px solid transparent; background: var(--surface); }
-.lane-track.active-zone, .workspace-rail.active-zone { border-color: var(--ctx); box-shadow: inset 0 0 0 1px var(--ctx); }
+.lane-track.active-zone, .workspace-rail.active-zone, .workspace-console.active-zone { border-color: var(--ctx); box-shadow: inset 0 0 0 1px var(--ctx); }
 .lane-track.reference-lane > header { border-left: 3px solid var(--ink); }
 .lane-track > header { min-height: 38px; padding: 5px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; border-bottom: 1px solid var(--hairline); }
 .lane-track > header span:first-child { min-width: 0; }.lane-track > header b, .lane-track > header small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lane-track > header small, .lane-state { color: var(--ink-secondary); font-size: 10px; }.lane-state { font-family: ui-monospace, monospace; white-space: nowrap; }
+.lane-body { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .lane-track .shape-strip { height: auto; min-height: 0; flex: 1; padding: 4px 8px; border: 0; }.lane-track .shape-strip svg { min-height: 90px; }
+.lane-track.depth-1.fidelity-0 .shape-strip svg { min-height: 44px; }
+.lane-track.depth-1.focus-lane.fidelity-2 .lane-body { display: grid; grid-template-rows: minmax(80px, .8fr) minmax(72px, 1.2fr); }
+.overview-steps { min-height: 0; overflow: auto; border-top: 1px solid var(--hairline); padding: 3px 8px; }
+.overview-steps > button { width: 100%; display: grid; grid-template-columns: 54px 24px minmax(0, 1fr); gap: 8px; align-items: center; padding: 4px 6px; border: 0; border-bottom: 1px solid var(--hairline); background: transparent; text-align: left; }
+.overview-steps > button.selected { outline: 1.5px solid var(--ctx); outline-offset: -1.5px; background: color-mix(in srgb, var(--ctx) 7%, transparent); }
+.overview-steps small, .overview-steps b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.overview-steps small { color: var(--ink-secondary); font-size: 10px; }
 .lane-track.depth-3 .shape-strip, .lane-track.depth-4 .shape-strip { height: 64px; min-height: 64px; flex: 0 0 64px; cursor: zoom-out; border-bottom: 1px solid var(--hairline); }
 .lane-track.depth-3 .shape-strip svg, .lane-track.depth-4 .shape-strip svg { min-height: 52px; }
 .episode-strip { min-height: 0; flex: 1; display: grid; grid-template-rows: minmax(105px, 1fr) auto; overflow: hidden; }
@@ -243,6 +257,13 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .console-meta { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--ink-secondary); font-size: 11px; }.console-meta strong { color: var(--ctx); }
 .workspace-console .judge-list { margin-left: 0; }.workspace-console .judge-list button { min-width: 72px; padding: 3px 7px; }
 .workspace-console .detail-region { min-height: 0; flex: 1; width: min(1000px, 96%); overflow: auto; padding: 5px 0 40px; }.workspace-console .moment { padding: 4px 8px; }.workspace-console .moment.selected { padding: 7px 8px; }
+.axis-navigator { position: relative; flex: 0 0 34px; min-height: 34px; border-top: 1px solid var(--hairline); background: var(--page); }
+.axis-map { position: absolute; inset: 9px 12px; overflow: hidden; background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.axis-mark { position: absolute; top: 3px; bottom: 3px; width: 1px; background: var(--muted); }.axis-mark.tool { width: 2px; background: var(--ink-secondary); }.axis-mark.error { width: 3px; background: var(--fail-policy); }
+.axis-window { position: absolute; top: 0; bottom: 0; left: var(--axis-start); width: var(--axis-width); min-width: 8px; border: 1.5px solid var(--ctx); background: color-mix(in srgb, var(--ctx) 9%, transparent); }
+.axis-navigator input[type="range"] { position: absolute; z-index: 2; inset: 6px 8px; width: calc(100% - 16px); height: 22px; margin: 0; pointer-events: none; opacity: 0; }
+.axis-navigator input[type="range"]::-webkit-slider-thumb { pointer-events: auto; width: 14px; height: 26px; cursor: ew-resize; }
+.axis-navigator input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 14px; height: 26px; cursor: ew-resize; }
 .virtual-list { position: relative; }.virtual-row { position: absolute; top: 0; left: 0; right: 0; }
 @media (max-width: 900px) { .workspace-rack { min-width: 760px; }.console-header .judge-list { display: none; } }
 
@@ -263,7 +284,7 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .density-bin.tool-heavy { fill: var(--ink-secondary); }
 
 /* --- global keybar: the active module's real bindings --- */
-.keybar { display: flex; gap: 2px; align-items: center; padding: 5px 12px; border-top: 1px solid var(--hairline); background: var(--surface); overflow-x: auto; }
+.keybar { min-width: 0; min-height: 33px; flex: none; display: flex; gap: 2px; align-items: center; padding: 5px 12px; border-top: 1px solid var(--hairline); background: var(--surface); overflow-x: auto; }
 .keybar-chip { display: inline-flex; gap: 6px; align-items: baseline; border: 0; background: none; color: var(--ink-secondary); font: inherit; font-size: 11px; padding: 3px 7px; cursor: pointer; white-space: nowrap; }
 .keybar-chip:hover { background: var(--page); color: var(--ink); }
 .keybar-chip kbd { font-family: ui-monospace, Menlo, monospace; font-size: 10px; border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; color: var(--ink); background: var(--surface); }

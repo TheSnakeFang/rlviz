@@ -37,8 +37,9 @@ MIT, with floating panels and popout windows disabled):
 - Layouts serialize into deep links and the config file; the flow harness
   enumerates and tests arrangements exactly as before.
 - Keyboard: `Tab`/`Shift+Tab` cycle modules; **arrow-key spatial navigation**
-  (`Alt+←↑↓→`) moves focus to the neighboring module; a move-module mode
-  relocates the active module with the same arrows.
+  (`Alt+←↑↓→`) moves focus to the neighboring module. `Ctrl+m` enters a
+  move-module mode where the same arrows relocate the active module; `Esc`
+  exits it. Both routes are shown in the active-module keybar.
 
 ## 2. The collection module
 
@@ -54,8 +55,11 @@ MIT, with floating panels and popout windows disabled):
     metadata. Answers *"which one is this exactly?"*
 - Default ordering is **source order**. No attention ordering, no
   "unresolved" counts, no verdict tags in the default product.
-- Filter narrows by substring; **grouping** (by source, case, and later by
-  sidecar-provided buckets) is a collection view option, not a mode.
+- Filter narrows by substring. The explicit **rollouts** view is flat source
+  order; **trials** groups the same rows by case/group identity without
+  changing keyboard order or selection. Later sidecars may add named buckets.
+  The collection is its own scroll container and `j/k` keeps the selected row
+  visible.
 - `Enter` opens in the active lane (focus moves to the lane); **`a` adds a
   lane and keeps focus in the collection** for rapid multi-add; `x` closes
   the active lane.
@@ -64,17 +68,25 @@ MIT, with floating panels and popout windows disabled):
 
 - A lane renders one trajectory at a **depth** (overview → episodes →
   events → raw) with an **axis zoom** (`+ - 0`, anchored, ascent restores
-  the pre-descend axis). Per-lane fidelity is removed — depth and zoom are
-  the lane's only representation controls.
+  the pre-descend axis). At overview depth, `[` / `]` use the same
+  hairline → glyphs → detail fidelity ladder as the collection. Detail
+  fidelity names every visible real step, including its tool-call name when
+  present. Fidelity does not replace depth and is inactive below overview.
 - The strip renders in pixel space: fixed-size marks, positions from
   measured width; when density passes the legibility threshold the nominal
   marks aggregate into density bars (waveform-style) while landmark events
   stay discrete.
-- Lane count is unbounded; primary lanes render full height, additional
-  lanes render as thin strips in a collapsible dock area (plain-language
-  header only when occupied). `Shift+Enter` swaps a thin lane with a full
-  one. `n`/`p` sweep the active lane through the collection's current
-  filtered order.
+- Lane count is unbounded; lanes stack as rows by default so adding rollouts
+  never squeezes each one into another narrow column. Additional lanes may
+  render as thin rows in a collapsible dock area. `Shift+Enter` swaps a thin
+  lane with a full one. `n`/`p` sweep the active lane through the collection's
+  current filtered order.
+- Every lane has a full-rollout timeline at its bottom. It shows the current
+  axis window and exposes adjustable start/end handles, like a video editor's
+  viewport control.
+- `d` opens a detail module pinned to the active rollout. Its `j`/`k` and
+  landmark keys operate on that rollout even after another module becomes
+  active; closing the pinned detail does not close the rollout lane.
 
 ## 4. Keys: one bar, always accurate
 
@@ -82,7 +94,7 @@ A single keybar at the bottom of the screen renders the **active module's
 actual bindings** from the command registry (top ~8 by relevance, `?` for
 all). Per-module footers are removed. Every binding shown is live; every
 live binding is discoverable through `?`. Clicking a keybar chip executes
-its command.
+its command. Dock content cannot shrink, cover, or scroll this bar away.
 
 ## 5. Settings, onboarding, and agents
 

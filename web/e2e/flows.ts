@@ -9,6 +9,7 @@ export type Observable = {
   count?: number;
   boxEquals?: string;
   boxNotEquals?: string;
+  boxBelow?: string;
   boxFills?: string;
   attributeEqualsCapture?: string;
   attributeNotEqualsCapture?: string;
@@ -36,7 +37,7 @@ const mode = (target: Observable["target"]): Observable => ({ target });
 const selectedRow = (id: string): Observable => ({ target: "selected-row", contains: id });
 const selectedEvent = (text: string): Observable => ({ target: "selected-event", contains: text });
 const attr = (target: Observable["target"], attribute: string, equals: string): Observable => ({ target, attribute, equals });
-const depth = (level: 1 | 2 | 3 | 4): Observable[] => [attr("read", "data-depth", String(level)), { target: "rail", selector: ".lane-track.active-zone .lane-state", equals: ["", "overview", "episodes", "events", "raw"][level] }];
+const depth = (level: 1 | 2 | 3 | 4): Observable[] => [attr("read", "data-depth", String(level)), { target: "rail", selector: ".lane-track.active-zone .lane-state", ...(level === 1 ? { contains: "overview" } : { equals: ["", "overview", "episodes", "events", "raw"][level] }) }];
 
 export const flows: Flow[] = [
   {
@@ -83,6 +84,7 @@ export const flows: Flow[] = [
       { action: { kind: "filter", value: "demo" }, expect: [attr("browse", "data-filter", "demo")] },
       { action: { kind: "key", value: "Escape" }, expect: [mode("browse"), attr("browse", "data-filter", "demo")] },
       { action: { kind: "key", value: "Enter" }, expect: [attr("read", "data-trajectory", "candidate")] },
+      { action: { kind: "capture-box", target: ".focus-lane[data-trajectory='candidate']", key: "first-lane" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "key", value: "+" }, expect: [{ target: "strip", attribute: "data-visible-events", equals: "3" }, attr("read", "data-axis-start", "15.0000"), attr("read", "data-axis-end", "40.0000")] },
       { action: { kind: "key", value: "Enter" }, expect: [...depth(2)] },
       { action: { kind: "key", value: "n" }, expect: [attr("read", "data-trajectory", "partial"), ...depth(2), attr("read", "data-axis-start", "15.0000"), attr("read", "data-axis-end", "40.0000"), attr("shell", "data-filter", "demo")] },
@@ -95,10 +97,11 @@ export const flows: Flow[] = [
   {
     id: "d", name: "lane-add-close-swap", keyboardOnly: true, surfaces: ["daemon"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [attr("read", "data-trajectory", "candidate")] },
+      { action: { kind: "capture-box", target: ".focus-lane[data-trajectory='candidate']", key: "first-lane" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
       { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "rail")] },
       { action: { kind: "key", value: "j" }, expect: [selectedRow("partial")] },
-      { action: { kind: "key", value: "a" }, expect: [{ target: "focus-lane", count: 2 }] },
+      { action: { kind: "key", value: "a" }, expect: [{ target: "focus-lane", count: 2 }, { target: "focus-lane", selector: ".focus-lane[data-trajectory='partial']", boxBelow: "first-lane" }] },
       { action: { kind: "key", value: "Shift+Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
       { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", attribute: "data-trajectory", equals: "partial" }] },
       { action: { kind: "key", value: "+" }, expect: [{ target: "focus-lane", selector: ".focus-lane[data-trajectory='candidate']", attribute: "data-axis-start", equals: "0.0000" }, { target: "focus-lane", selector: ".focus-lane[data-trajectory='partial']", attribute: "data-axis-start", equals: "15.0000" }] },
@@ -368,6 +371,17 @@ export const flows: Flow[] = [
     id: "v", name: "empty-dock-group-collapses", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 0 }, { target: "stage", selector: ".empty-stage", contains: "Open a rollout" }, { target: "stage", selector: ".dv-groupview:has(.lane-track)", absent: true }] },
+    ],
+  },
+  {
+    id: "w", name: "spatial-navigation-overview-fidelity-timeline-and-pinned-detail", keyboardOnly: true, surfaces: ["daemon"], steps: [
+      { action: { kind: "key", value: "Enter" }, expect: [attr("read", "data-trajectory", "candidate"), attr("read", "data-fidelity", "glyphs"), { target: "read", selector: ".axis-navigator" }] },
+      { action: { kind: "key", value: "Alt+ArrowLeft" }, expect: [attr("shell", "data-active-zone", "rail")] },
+      { action: { kind: "key", value: "Alt+ArrowRight" }, expect: [attr("shell", "data-active-zone", "source-1:candidate")] },
+      { action: { kind: "key", value: "]" }, expect: [attr("read", "data-fidelity", "detail"), { target: "read", selector: ".overview-steps", contains: "Run tool" }] },
+      { action: { kind: "key", value: "d" }, expect: [attr("shell", "data-active-zone", "detail:source-1:candidate"), { target: "console", selector: ".workspace-console[data-pinned='true']", attribute: "data-detail-lane-id", equals: "source-1:candidate" }] },
+      { action: { kind: "key", value: "j" }, expect: [{ target: "selected-event", selector: ".workspace-console[data-pinned='true'] .moment.selected", contains: "Final reward" }] },
+      { action: { kind: "key", value: "x" }, expect: [{ target: "console", selector: ".workspace-console[data-pinned='true']", absent: true }, attr("read", "data-trajectory", "candidate")] },
     ],
   },
 ];

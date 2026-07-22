@@ -45,6 +45,34 @@ describe("instrument viewer", () => {
     expect(screen.queryByRole("button", { name: "caterpillars" })).not.toBeInTheDocument();
   });
 
+  it("reveals keyboard collection selection and applies wheel deltas to the collection scroller", () => {
+    const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.getAttribute("role") === "listbox") return { top: 100, bottom: 300 } as DOMRect;
+      if (this.getAttribute("role") === "option") return { top: 320, bottom: 360 } as DOMRect;
+      return { top: 0, bottom: 0 } as DOMRect;
+    });
+    render(<App initialTrajectory={sampleTrajectory} />);
+    const list = screen.getByRole("listbox", { name: "Trajectory collection" });
+    expect(list.scrollTop).toBe(60);
+    Object.defineProperty(list, "scrollHeight", { configurable: true, value: 900 });
+    Object.defineProperty(list, "clientHeight", { configurable: true, value: 200 });
+    fireEvent.keyDown(window, { key: "j" });
+    fireEvent.wheel(list, { deltaY: 80 });
+    expect(list.scrollTop).toBe(140);
+    bounds.mockRestore();
+  });
+
+  it("switches the collection between flat rollouts and trial groups", () => {
+    render(<App initialTrajectory={sampleTrajectory} />);
+    const trials = screen.getByRole("button", { name: "trials" });
+    fireEvent.click(trials);
+    expect(screen.getByRole("main", { name: "Browse trajectories" })).toHaveAttribute("data-collection-view", "trials");
+    expect(trials).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelector(".rail-trial-group")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "rollouts" }));
+    expect(document.querySelector(".rail-trial-group")).not.toBeInTheDocument();
+  });
+
   it("keeps pointer and keyboard layer transitions anchored to the selected moment", async () => {
     await openRead();
     const surfaceAnchor = screen.getByRole("region", { name: "Trajectory shape" }).getAttribute("data-selected-x");
@@ -210,7 +238,7 @@ describe("instrument viewer", () => {
 	fireEvent.keyDown(window, { key: "Escape" });
 	expect(screen.getByText("episodes")).toBeInTheDocument();
 	fireEvent.keyDown(window, { key: "Escape" });
-	expect(screen.getByText("overview")).toBeInTheDocument();
+	expect(screen.getByText(/overview · glyphs/)).toBeInTheDocument();
 	fireEvent.keyDown(window, { key: "Escape" });
 	expect(screen.getByRole("main", { name: "Browse trajectories" })).toBeInTheDocument();
   });
@@ -322,6 +350,41 @@ describe("instrument viewer", () => {
     first.unmount();
     render(<App initialTrajectory={sampleTrajectory} />);
     expect(await screen.findByRole("region", { name: "Workspace console" })).toHaveAttribute("data-dock-position", "bottom");
+  });
+
+  it("changes overview fidelity in the active lane and names every visible step at detail fidelity", async () => {
+    await openRead();
+    const lane = screen.getByRole("main", { name: "Read trajectory" });
+    expect(lane).toHaveAttribute("data-fidelity", "glyphs");
+    fireEvent.keyDown(window, { key: "]" });
+    expect(lane).toHaveAttribute("data-fidelity", "detail");
+    expect(screen.getByRole("region", { name: "Rollout steps" })).toHaveTextContent("submit_order");
+    expect(screen.getByRole("region", { name: "Rollout steps" }).querySelectorAll("button")).toHaveLength(sampleTrajectory.events.length);
+    fireEvent.keyDown(window, { key: "[" });
+    fireEvent.keyDown(window, { key: "[" });
+    expect(lane).toHaveAttribute("data-fidelity", "hairline");
+  });
+
+  it("exposes an adjustable full-rollout timeline viewport", async () => {
+    await openRead();
+    const lane = screen.getByRole("main", { name: "Read trajectory" });
+    const timeline = screen.getByRole("region", { name: "Rollout timeline viewport" });
+    expect(timeline).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("slider", { name: "Viewport start" }), { target: { value: "3" } });
+    expect(lane).toHaveAttribute("data-axis-start", "3.0000");
+    expect(timeline.querySelector(".axis-window")).toBeInTheDocument();
+  });
+
+  it("opens a rollout-pinned detail module whose navigation acts on that rollout", async () => {
+    await openRead();
+    fireEvent.keyDown(window, { key: "d" });
+    const detail = await screen.findByRole("region", { name: `Detail for ${sampleTrajectory.id}` });
+    expect(detail).toHaveAttribute("data-pinned", "true");
+    await waitFor(() => expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", `detail:${laneId("sample", sampleTrajectory.id)}`));
+    expect(detail.querySelector(".moment.selected")).toHaveTextContent("Stale confirmation token");
+    fireEvent.keyDown(window, { key: "j" });
+    expect(detail.querySelector(".moment.selected")).toHaveTextContent("Task completion grader");
+    expect(screen.getByRole("contentinfo", { name: "Active module keys" })).toHaveTextContent("Previous event");
   });
 
   it("removes the empty lane group when the final lane closes", async () => {
