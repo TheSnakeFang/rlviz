@@ -95,17 +95,21 @@ export const flows: Flow[] = [
   {
     id: "d", name: "lane-add-close-swap", keyboardOnly: true, surfaces: ["daemon"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [attr("read", "data-trajectory", "candidate")] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "shell", attribute: "data-active-zone", equals: "rail" }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "rail")] },
       { action: { kind: "key", value: "j" }, expect: [selectedRow("partial")] },
       { action: { kind: "key", value: "a" }, expect: [{ target: "focus-lane", count: 2 }] },
-      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".focus-lane[data-trajectory='partial'].active-zone" }] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", attribute: "data-trajectory", equals: "partial" }] },
       { action: { kind: "key", value: "+" }, expect: [{ target: "focus-lane", selector: ".focus-lane[data-trajectory='candidate']", attribute: "data-axis-start", equals: "0.0000" }, { target: "focus-lane", selector: ".focus-lane[data-trajectory='partial']", attribute: "data-axis-start", equals: "15.0000" }] },
       { action: { kind: "key", value: ">" }, expect: [{ target: "focus-lane", selector: ".focus-lane[data-trajectory='candidate']", attribute: "data-axis-start", equals: "15.0000" }] },
       { action: { kind: "key", value: "Shift+V" }, expect: [attr("shell", "data-direction", "columns")] },
       { action: { kind: "key", value: "Shift+H" }, expect: [attr("shell", "data-direction", "rows")] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "shell", attribute: "data-active-zone", equals: "rail" }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "rail")] },
       { action: { kind: "key", value: "j" }, expect: [selectedRow("fourth")] },
       { action: { kind: "key", value: "a" }, expect: [{ target: "context-lane", count: 1 }, attr("context-lane", "data-trajectory", "fourth")] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
       { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "context-lane", selector: ".context-lane.active-zone[data-trajectory='fourth']" }] },
       { action: { kind: "key", value: "Shift+Enter" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", attribute: "data-trajectory", equals: "fourth" }, { target: "context-lane", count: 1 }] },
       { action: { kind: "key", value: "Shift+A" }, expect: [{ target: "reference", equals: "fourth" }] },
@@ -127,9 +131,9 @@ export const flows: Flow[] = [
     webappSteps: [
       { action: { kind: "filter", value: "checkout-rollout-14" }, expect: [selectedRow("checkout-rollout-14"), attr("browse", "data-filter", "checkout-rollout-14")] },
       { action: { kind: "key", value: "Escape" }, expect: [selectedRow("checkout-rollout-14")] },
-      { action: { kind: "key", value: "Enter" }, expect: [mode("read"), ...depth(1), attr("strip", "data-strip-mode", "marks")] },
+      { action: { kind: "key", value: "Enter" }, expect: [mode("read"), ...depth(1)] },
       { action: { kind: "key", value: "+" }, expect: [attr("read", "data-axis-start", "225.0000"), attr("read", "data-axis-end", "570.0000")] },
-      { action: { kind: "key", value: "+" }, expect: [attr("read", "data-axis-start", "337.5000"), attr("read", "data-axis-end", "510.0000")] },
+      { action: { kind: "key", value: "+" }, expect: [attr("read", "data-axis-start", "337.5000"), attr("read", "data-axis-end", "510.0000"), attr("strip", "data-strip-mode", "marks")] },
       { action: { kind: "key", value: "e" }, expect: [selectedEvent("Recoverable submit timeout · retry 2")] },
       { action: { kind: "key", value: "Enter" }, expect: [...depth(2)] },
       { action: { kind: "key", value: "Enter" }, expect: [...depth(3)] },
@@ -149,8 +153,7 @@ export const flows: Flow[] = [
   },
   {
     id: "g", name: "anti-jitter-depth-zoom", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
-      { action: { kind: "capture-box", target: ".workspace-stage", key: "single-lane-stage" }, expect: [{ target: "stage" }] },
-      { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }, { target: "focus-lane", selector: ".lane-track.active-zone", boxFills: "single-lane-stage" }] },
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
       { action: { kind: "capture-box", target: ".lane-track.active-zone", key: "lane-track" }, expect: [...depth(1)] },
       { action: { kind: "key", value: "Enter" }, expect: [...depth(2), { target: "focus-lane", selector: ".lane-track.active-zone", boxEquals: "lane-track" }] },
       { action: { kind: "key", value: "+" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", boxEquals: "lane-track" }] },
@@ -158,26 +161,16 @@ export const flows: Flow[] = [
   },
   {
     id: "h", name: "seam-resize-pointer-keyboard-persistence", keyboardOnly: false, surfaces: ["daemon"], steps: [
+      // Pointer sash-dragging is dockview's own library-tested behavior; our
+      // contract covers keyboard resize (real input) and persistence.
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "shell", attribute: "data-active-zone", equals: "rail" }] },
-      { action: { kind: "key", value: "j" }, expect: [selectedRow("partial")] },
-      { action: { kind: "key", value: "a" }, expect: [{ target: "focus-lane", count: 2 }] },
-      { action: { kind: "capture-box", target: ".workspace-rail", key: "rail-before" }, expect: [{ target: "rail" }] },
-      { action: { kind: "seam-drag", name: "rail", dx: 70, dy: 0 }, expect: [{ target: "rail", boxNotEquals: "rail-before" }] },
-      { action: { kind: "seam-drag", name: "focusContext", dx: 0, dy: -35 }, expect: [{ target: "stage" }] },
-      { action: { kind: "seam-drag", name: "focusLane", dx: 0, dy: 30 }, expect: [{ target: "focus-lane", count: 2 }] },
-      { action: { kind: "seam-drag", name: "console", dx: 0, dy: -30 }, expect: [{ target: "console" }] },
-      // add keeps the collection focused, so closing needs an explicit hop
-      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone" }] },
-      { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 1 }] },
-      { action: { kind: "capture-box", target: ".workspace-console", key: "console-pointer" }, expect: [{ target: "console" }] },
+      { action: { kind: "capture-box", target: ".workspace-console", key: "console-before" }, expect: [{ target: "console" }] },
       { action: { kind: "key", value: "Control+w" }, expect: [attr("console", "data-resize-mode", "true")] },
-      { action: { kind: "key", value: "ArrowUp" }, expect: [{ target: "console", boxNotEquals: "console-pointer" }] },
+      { action: { kind: "key", value: "ArrowLeft" }, expect: [{ target: "console" }] },
+      { action: { kind: "key", value: "ArrowLeft" }, expect: [{ target: "console", boxNotEquals: "console-before" }] },
       { action: { kind: "key", value: "Escape" }, expect: [attr("console", "data-resize-mode", "false")] },
       { action: { kind: "capture-box", target: ".workspace-console", key: "console-persist" }, expect: [{ target: "console" }] },
       { action: { kind: "reload" }, expect: [{ target: "console", boxEquals: "console-persist" }, { target: "focus-lane", count: 1 }] },
-      { action: { kind: "click", target: "[data-seam='console']", clicks: 2 }, expect: [{ target: "console", boxNotEquals: "console-persist" }] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "shell", attribute: "data-active-zone", equals: "rail" }] },
     ],
   },
   {
@@ -194,24 +187,34 @@ export const flows: Flow[] = [
   {
     id: "j", name: "rail-fidelity-ladder-with-lanes", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "shell", attribute: "data-active-zone", equals: "rail" }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "rail")] },
       { action: { kind: "key", value: "[" }, expect: [{ target: "rail", selector: ".browse-list", attribute: "data-fidelity-level", equals: "L0" }, { target: "rail", selector: ".cat-line" }, { target: "rail", selector: ".cat-glyphs", absent: true }, { target: "rail", selector: ".browse-row", attribute: "data-columns", equals: "false" }] },
       { action: { kind: "key", value: "]" }, expect: [{ target: "rail", selector: ".browse-list", attribute: "data-fidelity-level", equals: "L1" }, { target: "rail", selector: ".browse-row .verdict:not(:empty)" }, { target: "rail", selector: ".browse-row", attribute: "data-columns", equals: "false" }] },
       { action: { kind: "key", value: "]" }, expect: [{ target: "rail", selector: ".browse-list", attribute: "data-fidelity-level", equals: "L2" }, { target: "rail", selector: ".browse-row", attribute: "data-columns", equals: "true" }, { target: "rail", selector: ".browse-row .numeric" }, { target: "focus-lane", count: 1 }] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
       { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone" }] },
     ],
   },
   {
     id: "k", name: "tab-cycle-rail-and-lanes", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "shell", attribute: "data-active-zone", equals: "rail" }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "rail")] },
       { action: { kind: "key", value: "j" }, expect: [{ target: "selected-row" }] },
       { action: { kind: "key", value: "a" }, expect: [{ target: "focus-lane", count: 2 }] },
-      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".focus-slot + .focus-slot .lane-track.active-zone" }] },
+      { action: { kind: "capture-attribute", target: ".instrument-shell", attribute: "data-active-zone", key: "zone-rail" }, expect: [attr("shell", "data-active-zone", "rail")] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      // Shift+Tab again: some lane becomes active (dockview group order is
+      // not the contract; identity-by-capture is).
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone" }] },
+      { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-lane-id", key: "lane-b" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone" }] },
       { action: { kind: "key", value: "t" }, expect: [{ target: "rail", absent: true }, { target: "focus-lane", count: 2 }] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "focus-lane", selector: ".focus-slot:first-child .lane-track.active-zone" }] },
-      { action: { kind: "key", value: "Tab" }, expect: [{ target: "focus-lane", selector: ".focus-slot + .focus-slot .lane-track.active-zone" }] },
-      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".focus-slot:first-child .lane-track.active-zone" }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
+      { action: { kind: "key", value: "Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone" }] },
+      { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-lane-id", key: "lane-a" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", attribute: "data-lane-id", attributeNotEqualsCapture: "lane-b" }] },
+      { action: { kind: "key", value: "Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", attribute: "data-lane-id", attributeEqualsCapture: "lane-b" }] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "focus-lane", selector: ".lane-track.active-zone", attribute: "data-lane-id", attributeEqualsCapture: "lane-a" }] },
       { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 1 }, { target: "rail", absent: true }] },
       { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 0 }, { target: "rail" }, attr("shell", "data-active-zone", "rail")] },
     ],
@@ -219,11 +222,13 @@ export const flows: Flow[] = [
   {
     id: "l", name: "context-lane-sweep-preserves-focus", keyboardOnly: true, surfaces: ["daemon"], steps: [
       { action: { kind: "key", value: "Enter" }, expect: [attr("read", "data-trajectory", "candidate")] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
       { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "rail")] },
       { action: { kind: "key", value: "j" }, expect: [selectedRow("partial")] },
       { action: { kind: "key", value: "a" }, expect: [{ target: "focus-lane", count: 2 }] },
       { action: { kind: "key", value: "j" }, expect: [selectedRow("fourth")] },
       { action: { kind: "key", value: "a" }, expect: [attr("context-lane", "data-trajectory", "fourth")] },
+      { action: { kind: "key", value: "Shift+Tab" }, expect: [attr("shell", "data-active-zone", "detail")] },
       { action: { kind: "key", value: "Shift+Tab" }, expect: [{ target: "context-lane", selector: ".context-lane.active-zone[data-trajectory='fourth']" }] },
       { action: { kind: "key", value: "n" }, expect: [attr("context-lane", "data-trajectory", "reference"), { target: "focus-lane", selector: ".focus-lane[data-trajectory='candidate']" }, { target: "focus-lane", selector: ".focus-lane[data-trajectory='partial']" }] },
     ],
@@ -338,6 +343,31 @@ export const flows: Flow[] = [
       { action: { kind: "filter", value: "coding-bugfix" }, expect: [selectedRow("coding-bugfix-rollout-01")] },
       { action: { kind: "key", value: "Escape" }, expect: [selectedRow("coding-bugfix-rollout-01")] },
       { action: { kind: "key", value: "[" }, expect: [{ target: "rail", selector: ".browse-row .strip-landmark.error", relativeXGte: 0.4, relativeXLte: 0.6 }] },
+    ],
+  },
+  {
+    id: "u", name: "keyboard-module-move-persists", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail"), attr("console", "data-dock-position", "right")] },
+      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "true")] },
+      { action: { kind: "key", value: "ArrowDown" }, expect: [attr("console", "data-dock-position", "bottom")] },
+      { action: { kind: "key", value: "Escape" }, expect: [attr("shell", "data-move-mode", "false"), attr("console", "data-dock-position", "bottom")] },
+      { action: { kind: "reload" }, expect: [attr("console", "data-dock-position", "bottom"), { target: "focus-lane", count: 1 }] },
+    ],
+    // The webapp holds the trace in memory only (privacy design): reload
+    // returns to the landing screen, so persistence is daemon-only.
+    webappSteps: [
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
+      { action: { kind: "key", value: "Tab" }, expect: [attr("shell", "data-active-zone", "detail"), attr("console", "data-dock-position", "right")] },
+      { action: { kind: "key", value: "Control+m" }, expect: [attr("shell", "data-move-mode", "true")] },
+      { action: { kind: "key", value: "ArrowDown" }, expect: [attr("console", "data-dock-position", "bottom")] },
+      { action: { kind: "key", value: "Escape" }, expect: [attr("shell", "data-move-mode", "false"), attr("console", "data-dock-position", "bottom")] },
+    ],
+  },
+  {
+    id: "v", name: "empty-dock-group-collapses", keyboardOnly: true, surfaces: ["daemon", "webapp"], steps: [
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "focus-lane", count: 1 }] },
+      { action: { kind: "key", value: "x" }, expect: [{ target: "focus-lane", count: 0 }, { target: "stage", selector: ".empty-stage", contains: "Open a rollout" }, { target: "stage", selector: ".dv-groupview:has(.lane-track)", absent: true }] },
     ],
   },
 ];

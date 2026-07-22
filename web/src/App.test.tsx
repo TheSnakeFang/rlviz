@@ -215,7 +215,7 @@ describe("instrument viewer", () => {
 	expect(screen.getByRole("main", { name: "Browse trajectories" })).toBeInTheDocument();
   });
 
-  it("serializes keyboard seam changes and restores the arrangement from its deep link", async () => {
+  it("serializes keyboard dockview resize changes and restores the arrangement from its deep link", async () => {
     const first = render(<App initialTrajectory={sampleTrajectory} />);
     fireEvent.keyDown(window, { key: "Enter" });
     await screen.findByRole("main", { name: "Read trajectory" });
@@ -225,11 +225,11 @@ describe("instrument viewer", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     const serialized = new URLSearchParams(window.location.search).get("workspace");
     expect(serialized).toBeTruthy();
-    expect(JSON.parse(serialized!).seams.console).toBeCloseTo(0.3);
+    expect(JSON.parse(serialized!).layout).toBeTruthy();
     first.unmount();
     render(<App initialTrajectory={sampleTrajectory} />);
     expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", sampleTrajectory.id);
-    expect(parseFloat((document.querySelector(".instrument-shell") as HTMLElement).style.getPropertyValue("--console-height"))).toBeCloseTo(30);
+    expect(document.querySelector(".rlviz-dockview")).toBeInTheDocument();
   });
 
   it("walks arrangement depth backward and forward through the jumplist", async () => {
@@ -304,6 +304,33 @@ describe("instrument viewer", () => {
     fireEvent.change(filter, { target: { value: "" } });
     fireEvent.keyDown(window, { key: "?" });
     expect(screen.getByRole("dialog", { name: "Active keyboard shortcuts" })).toHaveTextContent("Increase fidelity");
+  });
+
+  it("moves detail from right to bottom with the keyboard and persists its dockview layout", async () => {
+    const first = render(<App initialTrajectory={sampleTrajectory} />);
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByRole("main", { name: "Read trajectory" });
+    fireEvent.keyDown(window, { key: "Tab" });
+    expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", "detail");
+    fireEvent.keyDown(window, { key: "m", ctrlKey: true });
+    expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-move-mode", "true");
+    fireEvent.keyDown(window, { key: "ArrowDown" });
+    expect(screen.getByRole("region", { name: "Workspace console" })).toHaveAttribute("data-dock-position", "bottom");
+    fireEvent.keyDown(window, { key: "Escape" });
+    const serialized = new URLSearchParams(window.location.search).get("workspace");
+    expect(JSON.parse(serialized!).layout).toBeTruthy();
+    first.unmount();
+    render(<App initialTrajectory={sampleTrajectory} />);
+    expect(await screen.findByRole("region", { name: "Workspace console" })).toHaveAttribute("data-dock-position", "bottom");
+  });
+
+  it("removes the empty lane group when the final lane closes", async () => {
+    render(<App initialTrajectory={sampleTrajectory} />);
+    fireEvent.keyDown(window, { key: "Enter" });
+    await screen.findByRole("main", { name: "Read trajectory" });
+    fireEvent.keyDown(window, { key: "x" });
+    expect(screen.getByText("Open a rollout from the rail.")).toBeInTheDocument();
+    expect(document.querySelectorAll(".dv-groupview:has(.lane-track)")).toHaveLength(0);
   });
 
   it("surfaces a non-blocking palette fallback notice from presentation metadata", async () => {

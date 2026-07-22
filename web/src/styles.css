@@ -1,3 +1,5 @@
+@import "dockview-react/dist/styles/dockview.css";
+
 :root {
   color-scheme: light;
   color: var(--ink); background: var(--page); font: 14px/1.4 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
@@ -155,10 +157,40 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 @media (max-width: 800px) { .browse-row { grid-template-columns: 20px 1fr 1.5fr; }.browse-row .numeric, .row-state { display: none; }.judge-list { overflow-x: auto; }.compare-detail { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 
-/* Workspace v2 rack. Track allocation lives only in these grids/flex ratios;
-   lane depth, fidelity, and axis zoom never participate in sizing. */
-.workspace-rack { height: 100vh; min-height: 620px; display: grid; grid-template-rows: minmax(0, calc(100vh - var(--console-height) - 5px)) 5px var(--console-height); overflow: hidden; }
-.rack-body { min-height: 0; display: grid; grid-template-columns: var(--rail-width) 5px minmax(0, 1fr); }
+/* Workspace v3: Dockview owns every module allocation. Lane depth, collection
+   fidelity, and axis zoom never participate in panel sizing. */
+.workspace-rack { height: 100vh; min-height: 620px; display: grid; grid-template-rows: minmax(0, 1fr) auto; overflow: hidden; }
+.workspace-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface); }
+.rlviz-dockview { width: 100%; height: 100%;
+  --dv-group-view-background-color: var(--surface);
+  --dv-tabs-and-actions-container-background-color: var(--surface);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--surface);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--surface);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--surface);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--surface);
+  --dv-activegroup-visiblepanel-tab-color: var(--ink);
+  --dv-activegroup-hiddenpanel-tab-color: var(--ink);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--ink);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--ink);
+  --dv-tab-divider-color: var(--hairline);
+  --dv-separator-border: var(--hairline);
+  --dv-paneview-header-border-color: var(--hairline);
+  --dv-sash-color: var(--hairline);
+  --dv-active-sash-color: var(--ink);
+  --dv-drag-over-background-color: var(--surface);
+  --dv-drag-over-border-color: var(--ink);
+  --dv-icon-hover-background-color: var(--hairline);
+  --dv-tabs-container-scrollbar-color: var(--hairline);
+  --dv-scrollbar-background-color: var(--hairline);
+  --dv-tabs-and-actions-container-height: 24px;
+  --dv-tabs-and-actions-container-font-size: 11px;
+  --dv-spacing-padding: 0;
+}
+.workspace-tab { display: block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; color: var(--ink); }
+.rlviz-dockview .dv-tabs-and-actions-container { border-bottom: 1px solid var(--hairline); }
+.rlviz-dockview .dv-tab-close-button, .rlviz-dockview .dv-tabs-and-actions-container .dv-icon { display: none !important; }
+.rlviz-dockview .dv-sash { background: var(--hairline); }
+.rlviz-dockview .dv-content-container, .rlviz-dockview .dv-content-container > div, .focus-slot { width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; }
 .workspace-rail { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; outline: none; background: var(--surface); border-right: 1px solid var(--hairline); }
 .workspace-rail > header { min-height: 78px; padding: 12px 14px 8px; border-bottom: 1px solid var(--hairline); }
 .workspace-rail h1, .workspace-console h2 { margin: 1px 0; font-size: 15px; }
@@ -179,14 +211,7 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .workspace-rail .rail-fidelity-2 .reward-column { grid-column: 4; grid-row: 1; }
 .workspace-rail .browse-row > .row-state { grid-column: 2 / -1; }
 .workspace-rail .cat-glyphs { max-width: 100%; }.workspace-rail .numeric { display: inline; }.workspace-rail .row-state { min-height: 13px; }
-.rail-actions { position: absolute; left: 8px; bottom: calc(var(--console-height) + 18px); z-index: 3; display: none; }
-.workspace-stage { min-width: 0; min-height: 0; display: grid; grid-template-rows: minmax(0, var(--focus-height)) 5px minmax(0, calc(100% - var(--focus-height) - 5px)); overflow: hidden; background: var(--page); }
-.workspace-stage:has(> .focus-band > .focus-slot:only-child):not(:has(> .context-band)) { grid-template-rows: minmax(0, 1fr) 0 0; }
-.workspace-stage:has(> .focus-band > .focus-slot:only-child):not(:has(> .context-band)) > [data-seam="focusContext"] { display: none; }
-.focus-band { min-height: 0; min-width: 0; display: flex; overflow: hidden; }
-.focus-band.direction-rows { flex-direction: column; }.focus-band.direction-columns { flex-direction: row; }
-.focus-slot { min-height: 0; min-width: 0; flex-grow: 0; flex-shrink: 1; overflow: hidden; }
-.focus-band > [data-seam="focusLane"] { order: 1; flex: 0 0 5px; }.focus-band > .focus-slot:first-child { order: 0; }.focus-band > .focus-slot:nth-of-type(2) { order: 2; }
+.rail-actions { position: absolute; left: 8px; bottom: 18px; z-index: 3; display: none; }
 .lane-track { width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; outline: none; border: 1px solid transparent; background: var(--surface); }
 .lane-track.active-zone, .workspace-rail.active-zone { border-color: var(--ctx); box-shadow: inset 0 0 0 1px var(--ctx); }
 .lane-track.reference-lane > header { border-left: 3px solid var(--ink); }
@@ -210,15 +235,9 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .lane-source { min-height: 0; flex: 1; display: grid; grid-template-columns: minmax(180px, .7fr) minmax(0, 2fr); gap: 14px; overflow: auto; padding: 12px 16px; }
 .lane-source h3 { margin: 0 0 8px; font-size: 12px; }.lane-source pre { margin: 0; min-height: 100%; white-space: pre-wrap; overflow-wrap: anywhere; padding: 10px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--ink) 3%, transparent); font: 11px/1.45 ui-monospace, monospace; }
 .source-provenance dl { display: grid; grid-template-columns: auto 1fr; gap: 5px 9px; margin: 0; font: 11px ui-monospace, monospace; }.source-provenance dt { color: var(--ink-secondary); }.source-provenance dd { margin: 0; overflow-wrap: anywhere; }
-.context-band { min-height: 0; overflow: auto; padding: 3px 4px; background: color-mix(in srgb, var(--ink) 2%, transparent); }
-.context-band .context-lane { height: 68px; margin-bottom: 3px; }.context-band .lane-track > header { min-height: 24px; height: 24px; padding: 2px 8px; }.context-band .shape-strip { height: 42px; flex: 0 0 42px; }
-.context-empty { display: block; padding: 8px; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
-.empty-stage { width: 100%; display: grid; place-content: center; gap: 5px; text-align: center; color: var(--ink-secondary); }.empty-stage small { color: var(--muted); }
+.empty-stage { position: absolute; z-index: 5; inset: 24px 28% 0 24%; display: grid; place-content: center; gap: 5px; text-align: center; color: var(--ink-secondary); pointer-events: none; background: var(--surface); }.empty-stage small { color: var(--muted); }
 .lane-loading { flex: 1; display: grid; place-items: center; color: var(--muted); }
-.workspace-sash { z-index: 6; background: var(--hairline); touch-action: none; position: relative; }
-.workspace-sash::after { content: ""; position: absolute; inset: -3px; }.workspace-sash:hover, .workspace-sash:active { background: var(--ctx); }
-.workspace-sash.vertical { width: 5px; cursor: col-resize; }.workspace-sash.horizontal { height: 5px; cursor: row-resize; }
-.workspace-console { min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
+.workspace-console { width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
 .console-header { min-height: 62px; padding: 7px 12px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--hairline); }
 .console-header > div:first-child { min-width: 190px; }.workspace-breadcrumb { font-family: ui-monospace, monospace; }
 .console-meta { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--ink-secondary); font-size: 11px; }.console-meta strong { color: var(--ctx); }

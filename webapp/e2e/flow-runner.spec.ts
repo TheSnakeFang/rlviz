@@ -111,7 +111,7 @@ for (const flow of flows.filter((item) => item.surfaces.includes("webapp"))) {
     const text = await selected.textContent();
     await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
     expect(await selected.textContent()).toBe(text);
-    await expect(page.locator("main:focus")).toBeVisible();
+    await expect(page.locator("main:focus, .workspace-console:focus")).toBeVisible();
     await expect(page.getByRole("alert")).toHaveCount(0);
   });
 }

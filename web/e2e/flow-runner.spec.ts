@@ -164,7 +164,7 @@ async function invariants(page: Page) {
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
   expect(await page.locator("[role=option][aria-selected=true], .moment.selected, .stage-row.selected").first().getAttribute("class")).toBe(selected);
   expect(await page.locator("[role=option][aria-selected=true], .moment.selected, .stage-row.selected").first().textContent()).toBe(selectedText);
-  await expect(page.locator("main:focus")).toBeVisible();
+  await expect(page.locator("main:focus, .workspace-console:focus")).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
 }
 

@@ -47,10 +47,12 @@ describe("Browse Read Compare flow", () => {
     fireEvent.keyDown(window, { key: "Enter" });
     expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "candidate");
     fireEvent.keyDown(window, { key: "Tab" });
+    fireEvent.keyDown(window, { key: "Tab" });
     fireEvent.keyDown(window, { key: "j" });
     fireEvent.keyDown(window, { key: "a" });
     await waitFor(() => expect(screen.getAllByRole("main", { name: "Read trajectory" })).toHaveLength(2));
     expect(screen.getAllByRole("main", { name: "Read trajectory" }).map((lane) => lane.getAttribute("data-trajectory"))).toEqual(["candidate", "reference"]);
+    fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
     fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
     fireEvent.keyDown(window, { key: "+", code: "Equal", shiftKey: true });
     expect(screen.getAllByRole("main", { name: "Read trajectory" })[1]).toHaveAttribute("data-axis-end", "7.0000");
@@ -175,11 +177,12 @@ describe("Browse Read Compare flow", () => {
 		fireEvent.keyDown(window, { key: "Enter" });
 		await screen.findByRole("main", { name: "Read trajectory" });
 		// `a` piles lanes in while focus stays in the collection.
-		fireEvent.keyDown(window, { key: "Tab" }); fireEvent.keyDown(window, { key: "j" }); fireEvent.keyDown(window, { key: "a" });
+		fireEvent.keyDown(window, { key: "Tab" }); fireEvent.keyDown(window, { key: "Tab" }); fireEvent.keyDown(window, { key: "j" }); fireEvent.keyDown(window, { key: "a" });
 		await waitFor(() => expect(screen.getAllByRole("main", { name: "Read trajectory" })).toHaveLength(2));
 		// add keeps the collection focused, so the next add needs no Tab round-trip
 		fireEvent.keyDown(window, { key: "j" }); fireEvent.keyDown(window, { key: "a" });
 		await screen.findByRole("main", { name: "Context lane third" });
+		fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
 		fireEvent.keyDown(window, { key: "Tab", shiftKey: true });
 		fireEvent.keyDown(window, { key: "n" });
 		await screen.findByRole("main", { name: "Context lane fourth" });

@@ -22,15 +22,8 @@ export function effectiveDepth(lane: WorkspaceLane): number {
   return lane.band === "context" ? 1 : lane.depth;
 }
 
-export interface SeamRatios {
-  rail: number;
-  focusContext: number;
-  focusLane: number;
-  console: number;
-}
-
 export interface WorkspaceState {
-  version: 2;
+  version: 3;
   railExpanded: boolean;
   railQuery: string;
   railSelected: number;
@@ -38,22 +31,21 @@ export interface WorkspaceState {
   direction: WorkspaceDirection;
   reference?: string;
   active: WorkspaceTarget;
-  seams: SeamRatios;
+  /** Dockview's canonical layout. Undefined means build the default layout. */
+  layout?: SerializedDockview;
 }
 
-export const workspaceStorageKey = "rlviz.workspace.v2";
-export const defaultSeams: SeamRatios = { rail: 0.24, focusContext: 0.78, focusLane: 0.5, console: 0.28 };
+export const workspaceStorageKey = "rlviz.workspace.v3";
 
 export function emptyWorkspace(): WorkspaceState {
   return {
-    version: 2,
+    version: 3,
     railExpanded: true,
     railQuery: "",
     railSelected: 0,
     lanes: [],
     direction: "rows",
     active: "rail",
-    seams: { ...defaultSeams },
   };
 }
 
@@ -65,11 +57,12 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 const clamp = (value: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(maximum, value));
 
 export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
-  const raw = value as Partial<WorkspaceState>;
-  if (raw.version !== 2 || !Array.isArray(raw.lanes)) return undefined;
+  if (!value || typeof value !== "object" || Array.isArray(value)) return emptyWorkspace();
+  const input = value as Record<string, unknown> & { version?: number; lanes?: unknown[]; layout?: unknown };
+  if ((input.version !== 2 && input.version !== 3) || !Array.isArray(input.lanes)) return emptyWorkspace();
+  const raw = input as unknown as Partial<WorkspaceState>;
   const seen = new Set<string>();
-  const lanes = raw.lanes.flatMap((candidate) => {
+  const lanes = input.lanes.flatMap((candidate) => {
     if (!candidate || typeof candidate !== "object") return [];
     const lane = candidate as Partial<WorkspaceLane>;
     if (typeof lane.sourceId !== "string" || typeof lane.trajectoryId !== "string" || (lane.band !== "focus" && lane.band !== "context")) return [];
@@ -97,11 +90,11 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
     else if (lane.band === "focus") lane.band = "context";
   });
   const ids = new Set(lanes.map((lane) => lane.id));
-  const seams = raw.seams ?? defaultSeams;
   const railExpanded = raw.railExpanded !== false || lanes.length === 0;
-  const requestedActive = raw.active === "rail" || (typeof raw.active === "string" && ids.has(raw.active)) ? raw.active : "rail";
+  const requestedActive = raw.active === "rail" || raw.active === "detail" || (typeof raw.active === "string" && ids.has(raw.active)) ? raw.active : "rail";
+  const layout = input.version === 3 ? normalizeDockLayout(raw.layout) : undefined;
   return {
-    version: 2,
+    version: 3,
     railExpanded,
     railQuery: typeof raw.railQuery === "string" ? raw.railQuery.slice(0, 500) : "",
     railSelected: clamp(finite(raw.railSelected) ? Math.round(raw.railSelected) : 0, 0, Number.MAX_SAFE_INTEGER),
@@ -109,13 +102,21 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
     direction: raw.direction === "columns" ? "columns" : "rows",
     reference: typeof raw.reference === "string" && ids.has(raw.reference) ? raw.reference : undefined,
     active: requestedActive === "rail" && !railExpanded ? lanes[0].id : requestedActive,
-    seams: {
-      rail: clamp(finite(seams.rail) ? seams.rail : defaultSeams.rail, 0.14, 0.42),
-      focusContext: clamp(finite(seams.focusContext) ? seams.focusContext : defaultSeams.focusContext, 0.42, 0.9),
-      focusLane: clamp(finite(seams.focusLane) ? seams.focusLane : defaultSeams.focusLane, 0.2, 0.8),
-      console: clamp(finite(seams.console) ? seams.console : defaultSeams.console, 0.18, 0.52),
-    },
+    ...(layout ? { layout } : {}),
   };
+}
+
+function normalizeDockLayout(value: unknown): SerializedDockview | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const layout = value as Partial<SerializedDockview>;
+  if (!layout.grid || typeof layout.grid !== "object" || !layout.grid.root || typeof layout.grid.root !== "object" ||
+      !layout.panels || typeof layout.panels !== "object" || Array.isArray(layout.panels) ||
+      !finite(layout.grid.width) || !finite(layout.grid.height)) return undefined;
+  // Floating and popout state is never accepted, even from a crafted link.
+  const clone = JSON.parse(JSON.stringify(layout)) as SerializedDockview;
+  delete clone.floatingGroups;
+  delete clone.popoutGroups;
+  return clone;
 }
 
 export function serializeWorkspace(workspace: WorkspaceState): string {
@@ -133,7 +134,7 @@ export function workspaceFromSearch(search: string): WorkspaceState | undefined 
   const encoded = new URLSearchParams(search).get("workspace");
   if (!encoded) return undefined;
   try { return normalizeWorkspace(JSON.parse(encoded)); }
-  catch { return undefined; }
+  catch { return emptyWorkspace(); }
 }
 
 export function legacyWorkspace(search: string): WorkspaceState | undefined {
@@ -155,6 +156,7 @@ export function snapshotLabel(workspace: WorkspaceState): string {
   if (!workspace.lanes.length) return "Browse";
   const focus = workspace.lanes.filter((lane) => lane.band === "focus").length;
   const context = workspace.lanes.length - focus;
-  const active = workspace.active === "rail" ? "rail" : workspace.lanes.find((lane) => lane.id === workspace.active)?.trajectoryId ?? "lane";
+  const active = workspace.active === "rail" ? "rail" : workspace.active === "detail" ? "detail" : workspace.lanes.find((lane) => lane.id === workspace.active)?.trajectoryId ?? "lane";
   return `${workspace.lanes.length} lane${workspace.lanes.length === 1 ? "" : "s"} · ${focus} focus${context ? ` + ${context} context` : ""} · ${active}`;
 }
+import type { SerializedDockview } from "dockview";

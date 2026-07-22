@@ -6,6 +6,11 @@ afterEach(cleanup);
 
 Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => {}, writable: true });
 globalThis.requestAnimationFrame = (callback: FrameRequestCallback) => { callback(0); return 0; };
+globalThis.ResizeObserver = class ResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+} as typeof ResizeObserver;
 
 // Node 26 exposes an unavailable experimental localStorage unless launched
 // with a backing file. Keep browser tests isolated and deterministic instead.
