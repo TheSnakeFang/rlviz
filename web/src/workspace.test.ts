@@ -48,7 +48,8 @@ describe("workspace arrangements", () => {
   });
 
   it("falls back to the default layout for corrupt workspace and dockview input", () => {
-    expect(normalizeWorkspace({ version: 99 })).toEqual(emptyWorkspace());
+    expect(normalizeWorkspace(undefined)).toBeUndefined();
+    expect(normalizeWorkspace({ version: 99 })).toBeUndefined();
     const normalized = normalizeWorkspace({ ...emptyWorkspace(), layout: { grid: "bad", panels: [] } })!;
     expect(normalized.layout).toBeUndefined();
   });

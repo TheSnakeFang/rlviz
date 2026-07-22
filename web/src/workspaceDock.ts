@@ -13,7 +13,7 @@ export function focusElementForTarget(target: string, railRef: RefObject<HTMLEle
   const detailLane = pinnedDetailLaneId(target);
   if (target === "rail") return railRef.current;
   if (target === "detail") return document.querySelector<HTMLElement>(".workspace-console:not([data-pinned='true'])");
-  if (detailLane) return document.querySelector<HTMLElement>(`.workspace-console[data-detail-lane-id="${CSS.escape(detailLane)}"]`);
+  if (detailLane) return document.querySelector<HTMLElement>(`.workspace-console[data-pinned='true'][data-detail-lane-id="${CSS.escape(detailLane)}"]`);
   return document.querySelector<HTMLElement>(`[data-lane-id="${CSS.escape(target)}"]`);
 }
 

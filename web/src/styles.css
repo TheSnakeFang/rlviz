@@ -270,9 +270,10 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .workspace-console .judge-list { margin-left: 0; }.workspace-console .judge-list button { min-width: 72px; padding: 3px 7px; }
 .workspace-console .detail-region { min-height: 0; flex: 1; width: min(1000px, 96%); overflow: auto; padding: 5px 0 40px; }.workspace-console .moment { padding: 4px 8px; }.workspace-console .moment.selected { padding: 7px 8px; }
 .axis-navigator { position: relative; flex: 0 0 34px; min-height: 34px; border-top: 1px solid var(--hairline); background: var(--page); }
-.axis-map { position: absolute; inset: 9px 12px; overflow: hidden; background: color-mix(in srgb, var(--ink) 5%, transparent); }
+.axis-map { position: absolute; inset: 9px 12px; overflow: hidden; background: color-mix(in srgb, var(--ink) 5%, transparent); cursor: crosshair; touch-action: none; }
 .axis-mark { position: absolute; top: 3px; bottom: 3px; width: 1px; background: var(--muted); }.axis-mark.tool { width: 2px; background: var(--ink-secondary); }.axis-mark.error { width: 3px; background: var(--fail-policy); }
-.axis-window { position: absolute; top: 0; bottom: 0; left: var(--axis-start); width: var(--axis-width); min-width: 8px; border: 1.5px solid var(--ctx); background: color-mix(in srgb, var(--ctx) 9%, transparent); }
+.axis-window { position: absolute; top: 0; bottom: 0; left: var(--axis-start); width: var(--axis-width); min-width: 8px; border: 1.5px solid var(--ctx); background: color-mix(in srgb, var(--ctx) 9%, transparent); cursor: grab; pointer-events: none; }
+.axis-handle { position: absolute; top: -1px; bottom: -1px; width: 5px; background: var(--ctx); opacity: .7; }.axis-handle.start { left: -2px; }.axis-handle.end { right: -2px; }
 .axis-navigator input[type="range"] { position: absolute; z-index: 2; inset: 6px 8px; width: calc(100% - 16px); height: 22px; margin: 0; pointer-events: none; opacity: 0; }
 .axis-navigator input[type="range"]::-webkit-slider-thumb { pointer-events: auto; width: 14px; height: 26px; cursor: ew-resize; }
 .axis-navigator input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 14px; height: 26px; cursor: ew-resize; }

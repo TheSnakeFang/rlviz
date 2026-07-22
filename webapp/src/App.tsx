@@ -94,7 +94,7 @@ export function BrowserApp() {
     <input ref={adapterInput} hidden type="file" accept=".wasm,application/wasm" onChange={(event) => void chooseAdapter(event.target.files?.[0])} />
   </>;
 
-  return <div className="browser-app" onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void openFile(event.dataTransfer.files[0]); }}>
+  return <div className={`browser-app ${provider ? "viewer-open" : ""}`} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); void openFile(event.dataTransfer.files[0]); }}>
     {picker}
     {!provider ? <main className={`landing ${dragging ? "dragging" : ""}`}>
       <nav><a className="wordmark" href="https://rlviz.dev">RLViz</a><button onClick={() => setHelp(true)}>adapter help</button></nav>

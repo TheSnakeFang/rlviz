@@ -27,6 +27,8 @@ export type FlowAction =
   | { kind: "capture-box"; target: string; key: string }
   | { kind: "capture-attribute"; target: string; attribute: string; key: string }
   | { kind: "seam-drag"; name: "rail" | "focusContext" | "focusLane" | "console"; dx: number; dy: number }
+  | { kind: "timeline-click"; ratio: number }
+  | { kind: "timeline-drag"; part: "window" | "start" | "end"; dx: number }
   | { kind: "reload" }
   | { kind: "history-back" };
 
@@ -382,6 +384,19 @@ export const flows: Flow[] = [
       { action: { kind: "key", value: "d" }, expect: [attr("shell", "data-active-zone", "detail:source-1:candidate"), { target: "console", selector: ".workspace-console[data-pinned='true']", attribute: "data-detail-lane-id", equals: "source-1:candidate" }] },
       { action: { kind: "key", value: "j" }, expect: [{ target: "selected-event", selector: ".workspace-console[data-pinned='true'] .moment.selected", contains: "Final reward" }] },
       { action: { kind: "key", value: "x" }, expect: [{ target: "console", selector: ".workspace-console[data-pinned='true']", absent: true }, attr("read", "data-trajectory", "candidate")] },
+    ],
+  },
+  {
+    id: "x", name: "timeline-pointer-center-pan-and-resize", keyboardOnly: false, surfaces: ["daemon", "webapp"], steps: [
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "read", selector: ".axis-navigator" }] },
+      { action: { kind: "key", value: "+" }, expect: [{ target: "read", selector: ".axis-navigator" }] },
+      { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-axis-start", key: "timeline-start-before-click" }, expect: [{ target: "read" }] },
+      { action: { kind: "timeline-click", ratio: 0.95 }, expect: [{ target: "read", attribute: "data-axis-start", attributeNotEqualsCapture: "timeline-start-before-click" }] },
+      { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-axis-start", key: "timeline-start-before-pan" }, expect: [{ target: "read" }] },
+      { action: { kind: "timeline-drag", part: "window", dx: -40 }, expect: [{ target: "read", attribute: "data-axis-start", attributeNotEqualsCapture: "timeline-start-before-pan" }] },
+      { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-axis-start", key: "timeline-start-before-resize" }, expect: [{ target: "read" }] },
+      { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-axis-end", key: "timeline-end-before-resize" }, expect: [{ target: "read" }] },
+      { action: { kind: "timeline-drag", part: "start", dx: 20 }, expect: [{ target: "read", attribute: "data-axis-start", attributeNotEqualsCapture: "timeline-start-before-resize" }, { target: "read", attribute: "data-axis-end", attributeEqualsCapture: "timeline-end-before-resize" }] },
     ],
   },
 ];

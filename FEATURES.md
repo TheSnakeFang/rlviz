@@ -48,7 +48,7 @@ work, and `later` is an intended capability without a committed release.
 ### Rollout inspection
 
 - `current` Four semantic depths: overview, episodes, events, and source.
-- `current` Independent zoom and timeline viewport controls.
+- `current` Independent zoom and timeline viewport controls with click-to-center, drag-to-pan, and edge resizing.
 - `current` Overview fidelity from hairline to every visible step, including tool-call names.
 - `current` Event, error, reward/grader, context, finding, artifact, and marker navigation.
 - `current` Selected-event detail with payload, provenance, signals, and artifacts.

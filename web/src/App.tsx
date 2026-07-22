@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import { DockviewReact } from "dockview-react";
-import type { DockviewApi, DockviewReadyEvent, GroupNavigationDirection, IDockviewPanelHeaderProps, IDockviewPanelProps, Position } from "dockview-react";
+import type { IDockviewPanelHeaderProps, IDockviewPanelProps } from "dockview-react";
 import { daemonProvider, ViewerProviderContext } from "./provider";
 import type { ViewerProvider } from "./provider";
 import { commandDefinition, commandIds, commands, dispatchCommand, firstBindingLabel, useCommands, useKeymapRevision } from "./commands";
@@ -18,9 +18,10 @@ import type { WorkspaceLane, WorkspaceState } from "./workspace";
 import { useWorkspaceController } from "./workspaceController";
 import { useLaneDataLoader } from "./laneLoader";
 import type { LaneData } from "./laneLoader";
-import { focusElementForTarget, lanePanelId, panelIdForTarget, pinnedDetailLaneId, pinnedDetailTarget, reconcileDockPanels, targetFromPanelId } from "./workspaceDock";
+import { lanePanelId, pinnedDetailLaneId, pinnedDetailTarget } from "./workspaceDock";
 import { collectionMetadataKey, useViewerMetadata } from "./viewerMetadata";
 import type { EditableMetadata } from "./viewerMetadata";
+import { useWorkspaceDock } from "./useWorkspaceDock";
 
 const fidelityNames = ["hairline", "glyphs", "detail"];
 
@@ -264,17 +265,67 @@ function OverviewSteps({ trajectory, axis, selected, onSelect }: { trajectory: T
 }
 
 function AxisNavigator({ trajectory, axis, onChange }: { trajectory: Trajectory; axis: { start: number; end: number }; onChange: (axis: { start: number; end: number }) => void }) {
+  const drag = useRef<{ mode: "pan" | "start" | "end"; originX: number; start: number; end: number } | undefined>(undefined);
   const min = trajectory.events[0]?.sequence ?? 0;
   const max = trajectory.events.at(-1)?.sequence ?? min + 1;
   const span = Math.max(1, max - min);
+  const minimumWindow = Math.max(1, span / 100);
   const start = Math.max(min, Math.min(axis.start, max));
   const end = Math.max(start, Math.min(axis.end, max));
   const startPct = ((start - min) / span) * 100;
   const widthPct = Math.max(0.75, ((end - start) / span) * 100);
+  const sequenceAt = (clientX: number, rect: DOMRect) => min + Math.max(0, Math.min(1, (clientX - rect.left) / Math.max(1, rect.width))) * span;
+  const panTo = (center: number, width: number) => {
+    const boundedWidth = Math.min(span, Math.max(minimumWindow, width));
+    const nextStart = Math.max(min, Math.min(max - boundedWidth, center - boundedWidth / 2));
+    return { start: nextStart, end: nextStart + boundedWidth };
+  };
   return <section className="axis-navigator" aria-label="Rollout timeline viewport" style={{ "--axis-start": `${startPct}%`, "--axis-width": `${widthPct}%` } as CSSProperties}>
-    <div className="axis-map" aria-hidden="true">{trajectory.events.map((event) => <i key={event.id} className={`axis-mark ${event.kind}`} style={{ left: `${((event.sequence - min) / span) * 100}%` }} />)}<span className="axis-window" /></div>
-    <input aria-label="Viewport start" type="range" min={min} max={max} step="any" value={start} onChange={(event) => onChange({ start: Math.min(Number(event.target.value), end - Math.max(1, span / 100)), end })} />
-    <input aria-label="Viewport end" type="range" min={min} max={max} step="any" value={end} onChange={(event) => onChange({ start, end: Math.max(Number(event.target.value), start + Math.max(1, span / 100)) })} />
+    <div className="axis-map" aria-label="Timeline overview" onPointerDown={(event) => {
+      if (event.button !== undefined && event.button !== 0) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const startX = ((start - min) / span) * rect.width;
+      const endX = ((end - min) / span) * rect.width;
+      const edge = Math.max(6, Math.min(12, rect.width * 0.02));
+      let mode: "pan" | "start" | "end" = "pan";
+      let origin = { start, end };
+      if (Math.abs(x - startX) <= edge) mode = "start";
+      else if (Math.abs(x - endX) <= edge) mode = "end";
+      else if (x < startX || x > endX) {
+        origin = panTo(sequenceAt(event.clientX, rect), end - start);
+        onChange(origin);
+      }
+      drag.current = { mode, originX: event.clientX, ...origin };
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+      event.currentTarget.closest<HTMLElement>("main")?.focus();
+    }} onPointerMove={(event) => {
+      const current = drag.current;
+      if (!current) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const delta = ((event.clientX - current.originX) / Math.max(1, rect.width)) * span;
+      if (current.mode === "pan") {
+        const width = current.end - current.start;
+        const nextStart = Math.max(min, Math.min(max - width, current.start + delta));
+        onChange({ start: nextStart, end: nextStart + width });
+      } else if (current.mode === "start") onChange({ start: Math.max(min, Math.min(current.end - minimumWindow, current.start + delta)), end: current.end });
+      else onChange({ start: current.start, end: Math.min(max, Math.max(current.start + minimumWindow, current.end + delta)) });
+    }} onPointerUp={(event) => {
+      drag.current = undefined;
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+      const surface = event.currentTarget.closest<HTMLElement>("main");
+      surface?.focus();
+      requestAnimationFrame(() => (surface?.isConnected ? surface : document.querySelector<HTMLElement>(".lane-track.active-zone"))?.focus());
+    }} onPointerCancel={(event) => {
+      drag.current = undefined;
+      event.currentTarget.closest<HTMLElement>("main")?.focus();
+    }}>
+      {trajectory.events.map((event) => <i aria-hidden="true" key={event.id} className={`axis-mark ${event.kind}`} style={{ left: `${((event.sequence - min) / span) * 100}%` }} />)}
+      <span className="axis-window"><i className="axis-handle start" /><i className="axis-handle end" /></span>
+    </div>
+    <input aria-label="Viewport start" type="range" min={min} max={max} step="any" value={start} onChange={(event) => onChange({ start: Math.min(Number(event.target.value), end - minimumWindow), end })} onPointerUp={(event) => event.currentTarget.closest<HTMLElement>("main")?.focus()} />
+    <input aria-label="Viewport end" type="range" min={min} max={max} step="any" value={end} onChange={(event) => onChange({ start, end: Math.max(Number(event.target.value), start + minimumWindow) })} onPointerUp={(event) => event.currentTarget.closest<HTMLElement>("main")?.focus()} />
   </section>;
 }
 
@@ -405,15 +456,10 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   const [railFidelity, setRailFidelity] = useState(1);
   const [hover, setHover] = useState<Record<string, number | undefined>>({});
   const [help, setHelp] = useState(false); const [resizeMode, setResizeMode] = useState(false); const [moveMode, setMoveMode] = useState(false); const [error, setError] = useState("");
-  const [dockReady, setDockReady] = useState(false);
-  const [dockRevision, setDockRevision] = useState(0);
-  const [detailPosition, setDetailPosition] = useState<"right" | "bottom">(workspace.direction === "columns" ? "bottom" : "right");
   const [presentation, setPresentation] = useState<PresentationConfig>();
   const [theme, setTheme] = useState<"light" | "dark">(() => document.documentElement.getAttribute("data-theme") === "dark" || (!document.documentElement.getAttribute("data-theme") && window.matchMedia?.("(prefers-color-scheme: dark)").matches) ? "dark" : "light");
-  const railRef = useRef<HTMLElement>(null); const dockApiRef = useRef<DockviewApi | null>(null); const syncingDock = useRef(false);
+  const railRef = useRef<HTMLElement>(null);
   const lastFocus = useRef<string | undefined>(undefined);
-  const openingPinned = useRef<string | undefined>(undefined);
-  const tabPointerAt = useRef(0);
   const legacyReadIntent = useRef((() => { const params = new URLSearchParams(window.location.search); return (params.get("mode") === "read" || params.get("view") === "read") && !params.get("trajectory_id"); })());
 
   const { laneData, laneDataRef, putLaneData, deleteLaneData, pruneOffLaneData, loadForSlot, loadAnalysisForLane } = useLaneDataLoader({
@@ -429,6 +475,27 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
 
   const ordered = browse.trajectories;
   const collectionKey = useMemo(() => collectionMetadataKey(browse.sources.map((source) => source.id)), [browse.sources]);
+  const trajectoryTitles = useMemo(() => Object.fromEntries(Object.entries(viewerMetadata.trajectories).map(([id, metadata]) => [id, metadata.title])), [viewerMetadata.trajectories]);
+  const {
+    apiRef: dockApiRef,
+    detailPosition,
+    onReady: onDockReady,
+    persistLayout: persistDockLayout,
+    arrangeLanes,
+    moveActiveModule,
+    resizeNearest,
+    activateTarget,
+    activateAdjacent,
+    beginPinnedOpen,
+    canActivateContent,
+  } = useWorkspaceDock({
+    workspace,
+    workspaceRef,
+    railRef,
+    change,
+    collectionTitle: viewerMetadata.collections[collectionKey]?.title,
+    trajectoryTitles,
+  });
   const filtered = useMemo(() => ordered.filter((row) => !workspace.railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(workspace.railQuery.toLowerCase())), [ordered, viewerMetadata.trajectories, workspace.railQuery]);
   const boundedRail = Math.min(workspace.railSelected, Math.max(0, filtered.length - 1)); const selectedRow = filtered[boundedRail];
   const pinnedActiveLane = pinnedDetailLaneId(workspace.active);
@@ -457,25 +524,9 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   useEffect(() => { if (activeLane && laneData.has(activeLane.id)) setPresentation(laneData.get(activeLane.id)?.presentation); }, [activeLane, laneData]);
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
   useEffect(() => {
-    const lane = workspace.lanes.find((item) => item.id === workspace.active); if (lane?.band === "focus") lastFocus.current = lane.id;
-    const panelId = panelIdForTarget(workspace.active);
-    const panel = dockApiRef.current?.getPanel(panelId);
-    if (panel && dockApiRef.current?.activePanel?.id !== panelId) panel.api.setActive();
-    // Panel content mounts a frame or two after dockReady; retry briefly so
-    // boot/reload always lands focus on the active module.
-    let cancelled = false;
-    const place = (attempt: number) => {
-      if (cancelled) return;
-      const target = focusElementForTarget(workspace.active, railRef);
-      if (target) {
-        if (document.activeElement !== target && !(document.activeElement instanceof HTMLInputElement)) target.focus({ preventScroll: true });
-        return;
-      }
-      if (attempt < 90) requestAnimationFrame(() => place(attempt + 1));
-    };
-    place(0);
-    return () => { cancelled = true; };
-  }, [dockReady, dockRevision, workspace.active, workspace.lanes.length]);
+    const lane = workspace.lanes.find((item) => item.id === workspace.active);
+    if (lane?.band === "focus") lastFocus.current = lane.id;
+  }, [workspace.active, workspace.lanes]);
 
   const loadRowIntoLane = useCallback(async (row: BrowseTrajectory, add: boolean, preserve?: WorkspaceLane) => {
     const id = rowKey(row); const existing = workspaceRef.current.lanes.find((lane) => lane.id === id);
@@ -550,27 +601,12 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     selectEvent(activeLane.id, Math.max(0, Math.min(events.length - 1, activeLane.selected + delta)));
   };
   const jumpEvent = (predicate: (event: TrajectoryEvent) => boolean) => { if (!activeLane) return; const events = laneData.get(activeLane.id)?.trajectory.events; if (!events) return; const next = events.findIndex((event, index) => index > activeLane.selected && predicate(event)), wrapped = events.findIndex(predicate); if (next >= 0 || wrapped >= 0) selectEvent(activeLane.id, next >= 0 ? next : wrapped); };
-  const cycleZone = (delta: number) => { const zones = [...(workspaceRef.current.railExpanded ? ["rail"] : []), ...workspaceRef.current.lanes.map((lane) => lane.id), "detail", ...workspaceRef.current.details.map(pinnedDetailTarget)]; if (!zones.length) return; const index = zones.indexOf(workspaceRef.current.active); const active = zones[((index < 0 ? 0 : index) + delta + zones.length) % zones.length]; const panel = dockApiRef.current?.getPanel(panelIdForTarget(active)); panel?.api.setActive(); change((current) => ({ ...current, active })); };
+  const cycleZone = (delta: number) => { const zones = [...(workspaceRef.current.railExpanded ? ["rail"] : []), ...workspaceRef.current.lanes.map((lane) => lane.id), "detail", ...workspaceRef.current.details.map(pinnedDetailTarget)]; if (!zones.length) return; const index = zones.indexOf(workspaceRef.current.active); const active = zones[((index < 0 ? 0 : index) + delta + zones.length) % zones.length]; activateTarget(active); change((current) => ({ ...current, active })); };
   const sweep = (delta: number) => { if (!activeLane || !filtered.length) return; const occupied = new Set(workspaceRef.current.lanes.filter((lane) => lane.id !== activeLane.id).map((lane) => lane.id)); const candidates = filtered.filter((row) => !occupied.has(rowKey(row))); if (!candidates.length) return; const index = candidates.findIndex((row) => rowKey(row) === activeLane.id); const row = candidates[((index < 0 ? 0 : index) + delta + candidates.length) % candidates.length]; change((current) => ({ ...current, railSelected: filtered.indexOf(row) }), false); void loadRowIntoLane(row, false, activeLane); };
   const closeLane = () => { if (!activeLane) return; deleteLaneData(activeLane.id); change((current) => { const lanes = current.lanes.filter((lane) => lane.id !== activeLane.id); return { ...current, lanes, details: current.details.filter((id) => id !== activeLane.id), railExpanded: lanes.length ? current.railExpanded : true, active: lanes[0]?.id ?? "rail", reference: current.reference === activeLane.id ? undefined : current.reference }; }); };
   const openPinnedDetail = () => {
     if (!activeLane) return;
-    const laneId = activeLane.id, target = pinnedDetailTarget(laneId);
-    openingPinned.current = target;
-    change((current) => ({ ...current, details: current.details.includes(laneId) ? current.details : [...current.details, laneId], active: target }));
-    const focusPinned = (attempt: number) => {
-      const panel = dockApiRef.current?.getPanel(target);
-      const node = document.querySelector<HTMLElement>(`.workspace-console[data-detail-lane-id="${CSS.escape(laneId)}"]`);
-      if (panel && node) {
-        panel.api.setActive();
-        change((current) => ({ ...current, active: target }), false);
-        node.focus({ preventScroll: true });
-        requestAnimationFrame(() => { if (openingPinned.current === target) openingPinned.current = undefined; });
-        return;
-      }
-      if (attempt < 30) requestAnimationFrame(() => focusPinned(attempt + 1));
-    };
-    requestAnimationFrame(() => focusPinned(0));
+    beginPinnedOpen(activeLane.id);
   };
   const closeActiveModule = () => { const detailLane = pinnedDetailLaneId(workspaceRef.current.active); if (detailLane) { change((current) => ({ ...current, details: current.details.filter((id) => id !== detailLane), active: detailLane })); return; } closeLane(); };
   const promoteDemote = () => { if (!activeLane) return; const counterpart = workspaceRef.current.lanes.find((item) => item.id !== activeLane.id && item.band !== activeLane.band); if (!counterpart) return; const activePanel = dockApiRef.current?.getPanel(lanePanelId(activeLane.id)); const counterpartPanel = dockApiRef.current?.getPanel(lanePanelId(counterpart.id)); const promoting = activeLane.band === "context"; change((current) => ({ ...current, lanes: current.lanes.map((item) => item.id === activeLane.id ? { ...item, band: counterpart.band } : item.id === counterpart.id ? { ...item, band: activeLane.band } : item) })); requestAnimationFrame(() => { const api = dockApiRef.current; if (!api || !activePanel || !counterpartPanel) return; const promoted = promoting ? activePanel : counterpartPanel, demoted = promoting ? counterpartPanel : activePanel; const focusAnchor = workspaceRef.current.lanes.filter((lane) => lane.band === "focus" && lane.id !== (promoting ? activeLane.id : counterpart.id)).map((lane) => api.getPanel(lanePanelId(lane.id))).find(Boolean) ?? api.getPanel("collection"); if (focusAnchor) promoted.api.moveTo({ group: focusAnchor.api.group, position: "right" }); demoted.api.moveTo({ group: promoted.api.group, position: "bottom" }); persistDockLayout(api); }); };
@@ -580,150 +616,6 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
     updateLane(activeLane.id, (lane) => ({ ...lane, fidelity: Math.max(0, Math.min(2, lane.fidelity + delta)) }), false);
   };
   const adjustZoom = (factor: number | "fit", all: boolean) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => { if (!all && lane.id !== current.active) return lane; const data = laneDataRef.current.get(lane.id); if (!data) return lane; const min = data.trajectory.events[0]?.sequence ?? 0, max = data.trajectory.events.at(-1)?.sequence ?? 1, sequence = data.trajectory.events[lane.selected]?.sequence ?? min; return { ...lane, axis: factor === "fit" ? { start: min, end: max } : zoomWindow(lane.axis, sequence, factor, min, max) }; }) }), false);
-
-  const resizeNearest = (key: string) => {
-    const api = dockApiRef.current;
-    const singleLane = workspaceRef.current.lanes.length === 1 && workspaceRef.current.lanes[0].id === workspaceRef.current.active;
-    const panel = singleLane ? api?.getPanel("detail") : api?.activePanel; const box = panel?.api.group.api.boundingBox;
-    if (!panel || !box) return;
-    const delta = key === "ArrowRight" || key === "ArrowDown" ? 24 : -24;
-    if (singleLane || key === "ArrowLeft" || key === "ArrowRight") panel.api.group.api.setSize({ width: Math.max(120, box.width + delta) });
-    else panel.api.group.api.setSize({ height: Math.max(72, box.height + delta) });
-  };
-
-  const annotateDockGeometry = useCallback((api = dockApiRef.current) => {
-    if (!api) return;
-    const modules = {
-      rail: document.querySelector<HTMLElement>(".workspace-rail"),
-      console: document.querySelector<HTMLElement>(".workspace-console"),
-      focusLane: document.querySelectorAll<HTMLElement>(".lane-track.focus-lane")[1],
-      focusContext: document.querySelector<HTMLElement>(".lane-track.context-lane"),
-    };
-    const sashes = [...document.querySelectorAll<HTMLElement>(".rlviz-dockview .dv-sash:not(.dv-disabled)")];
-    sashes.forEach((sash) => sash.removeAttribute("data-seam"));
-    const used = new Set<HTMLElement>();
-    for (const [name, module] of Object.entries(modules)) {
-      if (!module) continue; const box = module.getBoundingClientRect();
-      let best: HTMLElement | undefined, distance = Infinity;
-      for (const sash of sashes) {
-        if (used.has(sash)) continue; const candidate = sash.getBoundingClientRect();
-        const vertical = candidate.height > candidate.width;
-        const next = vertical ? Math.min(Math.abs(candidate.left - box.left), Math.abs(candidate.left - box.right)) : Math.min(Math.abs(candidate.top - box.top), Math.abs(candidate.top - box.bottom));
-        if (next < distance) { best = sash; distance = next; }
-      }
-      if (best) { best.dataset.seam = name; used.add(best); }
-    }
-    const detail = api.getPanel("detail")?.api.group.api.boundingBox;
-    const center = workspaceRef.current.lanes.map((lane) => api.getPanel(lanePanelId(lane.id))?.api.group.api.boundingBox).find(Boolean);
-    if (detail && center) setDetailPosition(detail.top >= center.top + center.height * 0.5 ? "bottom" : "right");
-  }, []);
-
-  const persistDockLayout = useCallback((api = dockApiRef.current) => {
-    if (!api || syncingDock.current || !api.totalPanels) return;
-    const layout = api.toJSON();
-    change((current) => ({ ...current, layout }), false);
-  }, [change]);
-
-  const reconcileDock = useCallback((api: DockviewApi) => {
-    syncingDock.current = true;
-    let changed = false;
-    try {
-      changed = reconcileDockPanels(api, workspaceRef.current, setDetailPosition);
-    } finally {
-      syncingDock.current = false;
-    }
-    if (changed) setDockRevision((value) => value + 1);
-    requestAnimationFrame(() => { annotateDockGeometry(api); persistDockLayout(api); });
-  }, [annotateDockGeometry, persistDockLayout, workspaceRef]);
-
-  const onDockReady = useCallback((event: DockviewReadyEvent) => {
-    const api = event.api; dockApiRef.current = api; syncingDock.current = true;
-    if (workspaceRef.current.layout) {
-      try { api.fromJSON(workspaceRef.current.layout); }
-      catch { api.clear(); }
-    }
-    syncingDock.current = false; reconcileDock(api);
-    // Deterministic boot/reload focus: place it the moment the dock exists,
-    // not after a frame-count guess.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (document.activeElement && document.activeElement !== document.body) return;
-      const active = workspaceRef.current.active;
-      const target = focusElementForTarget(active, railRef);
-      target?.focus({ preventScroll: true });
-    }));
-    api.onDidActivePanelChange(({ panel }) => {
-      // Modules already activate themselves on focus/click; the only signal
-      // this event uniquely carries is a TAB-HEADER interaction. Programmatic
-      // setActive/addPanel echoes must not write state — they fight keyboard
-      // cycling (Tab to detail was being bounced back by the echo).
-      if (syncingDock.current || !panel) return;
-      if (Date.now() - tabPointerAt.current > 400) return;
-      const active = targetFromPanelId(panel.id);
-      if (active) change((current) => ({ ...current, active }), false);
-    });
-    const onTabPointer = (event: PointerEvent) => {
-      if (event.target instanceof Element && event.target.closest(".dv-tabs-and-actions-container, .dv-tab")) tabPointerAt.current = Date.now();
-    };
-    document.addEventListener("pointerdown", onTabPointer, true);
-    api.onDidLayoutChange(() => {
-      annotateDockGeometry(api); persistDockLayout(api);
-      // Dockview re-parents module DOM on moves/mounts, which detaches the
-      // focused element and drops keyboard focus to <body>. Restore it to the
-      // active module so keyboard users never lose their place.
-      requestAnimationFrame(() => {
-        if (document.activeElement && document.activeElement !== document.body) return;
-        const active = workspaceRef.current.active;
-        const target = focusElementForTarget(active, railRef);
-        target?.focus({ preventScroll: true });
-      });
-    });
-    document.querySelectorAll(".dv-live-region, .dv-live-region-assertive").forEach((node) => node.removeAttribute("role"));
-    setDockReady(true);
-  }, [annotateDockGeometry, change, persistDockLayout, reconcileDock]);
-
-  useEffect(() => { if (dockApiRef.current) reconcileDock(dockApiRef.current); }, [reconcileDock, workspace.details, workspace.lanes, workspace.railExpanded]);
-  useEffect(() => {
-    const api = dockApiRef.current;
-    if (!api) return;
-    api.getPanel("collection")?.api.setTitle(viewerMetadata.collections[collectionKey]?.title ?? "Collection");
-    api.getPanel("detail")?.api.setTitle("Detail");
-    workspace.lanes.forEach((lane) => {
-      const title = viewerMetadata.trajectories[lane.id]?.title ?? lane.trajectoryId;
-      api.getPanel(lanePanelId(lane.id))?.api.setTitle(title);
-      api.getPanel(pinnedDetailTarget(lane.id))?.api.setTitle(`Detail · ${title}`);
-    });
-  }, [collectionKey, dockReady, viewerMetadata, workspace.lanes]);
-
-  const dockDetail = useCallback((position: "right" | "bottom") => {
-    const api = dockApiRef.current, detail = api?.getPanel("detail");
-    const center = workspaceRef.current.lanes.map((lane) => api?.getPanel(lanePanelId(lane.id))).find(Boolean) ?? api?.getPanel("collection");
-    if (!detail || !center || detail.id === center.id) return;
-    detail.api.moveTo({ group: center.api.group, position });
-    setDetailPosition(position);
-    requestAnimationFrame(() => persistDockLayout(api));
-  }, [persistDockLayout]);
-
-  const arrangeLanes = useCallback((direction: "rows" | "columns") => {
-    change((current) => ({ ...current, direction }));
-    requestAnimationFrame(() => {
-      const api = dockApiRef.current;
-      if (!api) return;
-      const panels = workspaceRef.current.lanes.map((lane) => api.getPanel(lanePanelId(lane.id))).filter((panel): panel is NonNullable<typeof panel> => !!panel);
-      for (let index = 1; index < panels.length; index++) panels[index].api.moveTo({ group: panels[index - 1].api.group, position: direction === "rows" ? "bottom" : "right" });
-      dockDetail(direction === "rows" ? "right" : "bottom");
-      requestAnimationFrame(() => persistDockLayout(api));
-    });
-  }, [change, dockDetail, persistDockLayout]);
-
-  const moveActiveModule = useCallback((key: string) => {
-    const api = dockApiRef.current, panel = api?.activePanel; if (!api || !panel) return;
-    const center = workspaceRef.current.lanes.map((lane) => api.getPanel(lanePanelId(lane.id))).find((candidate) => candidate && candidate.id !== panel.id) ?? api.panels.find((candidate) => candidate.id !== panel.id && candidate.id !== "collection" && candidate.id !== "detail") ?? api.panels.find((candidate) => candidate.id !== panel.id);
-    if (!center) return;
-    const position: Position = key === "ArrowLeft" ? "left" : key === "ArrowRight" ? "right" : key === "ArrowDown" ? "bottom" : "top";
-    panel.api.moveTo({ group: center.api.group, position });
-    if (panel.id === "detail") setDetailPosition(position === "bottom" ? "bottom" : "right");
-    requestAnimationFrame(() => persistDockLayout(api));
-  }, [persistDockLayout]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -739,23 +631,15 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
       }
       if (event.altKey && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
         event.preventDefault();
-        const direction = event.key.slice(5).toLowerCase() as GroupNavigationDirection;
-        const api = dockApiRef.current, group = api?.activePanel?.api.group;
-        const adjacent = api && group ? api.adjacentGroupInDirection(group, direction) : undefined;
-        const panel = adjacent?.activePanel;
-        const target = panel ? targetFromPanelId(panel.id) : undefined;
-        if (panel && target) {
-          panel.api.setActive();
+        event.stopImmediatePropagation();
+        const target = activateAdjacent(event.key);
+        if (target) {
           change((current) => ({ ...current, active: target }), false);
-          requestAnimationFrame(() => {
-            const node = focusElementForTarget(target, railRef);
-            node?.focus({ preventScroll: true });
-          });
         }
       }
     };
     window.addEventListener("keydown", onKey, true); return () => window.removeEventListener("keydown", onKey, true);
-  }, [change, help, moveActiveModule, moveMode, resizeMode]);
+  }, [activateAdjacent, change, help, moveActiveModule, moveMode, resizeMode]);
 
   useCommands("workspace", {
     [commandIds.workspace.toggleRail]: () => change((current) => { const railExpanded = !current.railExpanded; return { ...current, railExpanded, active: !railExpanded && current.active === "rail" && current.lanes.length ? current.lanes[0].id : current.active }; }),
@@ -788,9 +672,9 @@ export function App({ initialTrajectory, provider = daemonProvider }: { initialT
   }, !help);
 
   const dockContent: DockContent = {
-    collection: <Rail root={railRef} rows={filtered} workspace={{ ...workspace, railSelected: boundedRail }} fidelity={railFidelity} metadata={viewerMetadata.collections[collectionKey]} trajectoryMetadata={viewerMetadata.trajectories} onMetadata={(value) => updateCollection(collectionKey, value)} onActivate={() => change((current) => ({ ...current, active: "rail" }))} onSelect={(index) => change((current) => ({ ...current, railSelected: index, active: "rail" }))} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} onCollectionView={(collectionView) => change((current) => ({ ...current, collectionView }))} onQuery={(railQuery) => change((current) => { const next = ordered.filter((row) => !railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(railQuery.toLowerCase())); const kept = selectedRow ? next.findIndex((row) => rowKey(row) === rowKey(selectedRow)) : -1; return { ...current, railQuery, railSelected: kept >= 0 ? kept : 0 }; })} />,
-    lane: (id) => { const lane = workspace.lanes.find((item) => item.id === id); return lane ? <LaneTrack lane={lane} data={laneData.get(lane.id)} metadata={viewerMetadata.trajectories[lane.id]} active={workspace.active === lane.id} reference={workspace.reference === lane.id} hover={hover[lane.id]} onActivate={() => change((current) => ({ ...current, active: lane.id }))} onSelect={(value) => selectEvent(lane.id, value)} onHover={(value) => setHover((current) => ({ ...current, [lane.id]: value }))} onDescend={(episode) => descendLane(lane.id, episode)} onAscend={() => ascendLane(lane.id)} onAxisChange={(axis) => updateLane(lane.id, (current) => ({ ...current, axis }), false)} /> : null; },
-    detail: (id) => { const lane = id ? workspace.lanes.find((item) => item.id === id) : activeLane; const target = id ? pinnedDetailTarget(id) : "detail"; return <Console workspace={workspace} lane={lane} data={lane ? laneData.get(lane.id) : undefined} metadata={lane ? viewerMetadata.trajectories[lane.id] : undefined} breadcrumb={id && lane ? `${lane.trajectoryId} · detail` : breadcrumb} resizeMode={resizeMode} dockPosition={detailPosition} pinned={!!id} active={workspace.active === target} onMetadata={(value) => lane && updateTrajectory(lane.id, value)} onSelect={(index) => lane && selectEvent(lane.id, index)} onHelp={() => setHelp(true)} onActivate={() => { if (!id && openingPinned.current) return; change((current) => ({ ...current, active: target })); }} />; },
+    collection: <Rail root={railRef} rows={filtered} workspace={{ ...workspace, railSelected: boundedRail }} fidelity={railFidelity} metadata={viewerMetadata.collections[collectionKey]} trajectoryMetadata={viewerMetadata.trajectories} onMetadata={(value) => updateCollection(collectionKey, value)} onActivate={() => { if (canActivateContent("rail")) change((current) => ({ ...current, active: "rail" })); }} onSelect={(index) => change((current) => ({ ...current, railSelected: index, active: "rail" }))} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} onCollectionView={(collectionView) => change((current) => ({ ...current, collectionView }))} onQuery={(railQuery) => change((current) => { const next = ordered.filter((row) => !railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(railQuery.toLowerCase())); const kept = selectedRow ? next.findIndex((row) => rowKey(row) === rowKey(selectedRow)) : -1; return { ...current, railQuery, railSelected: kept >= 0 ? kept : 0 }; })} />,
+    lane: (id) => { const lane = workspace.lanes.find((item) => item.id === id); return lane ? <LaneTrack lane={lane} data={laneData.get(lane.id)} metadata={viewerMetadata.trajectories[lane.id]} active={workspace.active === lane.id} reference={workspace.reference === lane.id} hover={hover[lane.id]} onActivate={() => { if (canActivateContent(lane.id)) change((current) => ({ ...current, active: lane.id })); }} onSelect={(value) => selectEvent(lane.id, value)} onHover={(value) => setHover((current) => ({ ...current, [lane.id]: value }))} onDescend={(episode) => descendLane(lane.id, episode)} onAscend={() => ascendLane(lane.id)} onAxisChange={(axis) => updateLane(lane.id, (current) => ({ ...current, axis }), false)} /> : null; },
+    detail: (id) => { const lane = id ? workspace.lanes.find((item) => item.id === id) : activeLane; const target = id ? pinnedDetailTarget(id) : "detail"; return <Console workspace={workspace} lane={lane} data={lane ? laneData.get(lane.id) : undefined} metadata={lane ? viewerMetadata.trajectories[lane.id] : undefined} breadcrumb={id && lane ? `${lane.trajectoryId} · detail` : breadcrumb} resizeMode={resizeMode} dockPosition={detailPosition} pinned={!!id} active={workspace.active === target} onMetadata={(value) => lane && updateTrajectory(lane.id, value)} onSelect={(index) => lane && selectEvent(lane.id, index)} onHelp={() => setHelp(true)} onActivate={() => { if (canActivateContent(target)) change((current) => ({ ...current, active: target })); }} />; },
   };
   return <ViewerProviderContext.Provider value={provider}><DockContentContext.Provider value={dockContent}><div className={`instrument-shell workspace-rack rail-${workspace.railExpanded ? "open" : "closed"}`} data-filter={workspace.railQuery} data-direction={workspace.direction} data-active-zone={workspace.active} data-move-mode={moveMode ? "true" : "false"} data-resize-mode={resizeMode ? "true" : "false"}>
     <button className="theme-toggle" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`} onClick={() => setTheme((current) => current === "light" ? "dark" : "light")}>{theme}</button>

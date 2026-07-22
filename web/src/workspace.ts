@@ -67,9 +67,9 @@ const finite = (value: unknown): value is number => typeof value === "number" &&
 const clamp = (value: number, minimum: number, maximum: number) => Math.max(minimum, Math.min(maximum, value));
 
 export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return emptyWorkspace();
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   const input = value as Record<string, unknown> & { version?: number; lanes?: unknown[]; layout?: unknown };
-  if ((input.version !== 2 && input.version !== 3) || !Array.isArray(input.lanes)) return emptyWorkspace();
+  if ((input.version !== 2 && input.version !== 3) || !Array.isArray(input.lanes)) return undefined;
   const raw = input as unknown as Partial<WorkspaceState>;
   const seen = new Set<string>();
   const lanes = input.lanes.flatMap((candidate) => {

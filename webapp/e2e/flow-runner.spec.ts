@@ -58,6 +58,16 @@ async function act(page: Page, action: FlowAction, boxes: Map<string, Awaited<Re
     const seam = page.locator(`[data-seam="${action.name}"]`); const box = await seam.boundingBox(); if (!box) throw new Error(`missing ${action.name} seam`);
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.down(); await page.mouse.move(box.x + box.width / 2 + action.dx, box.y + box.height / 2 + action.dy); await page.mouse.up(); return;
   }
+  if (action.kind === "timeline-click") {
+    const map = page.getByLabel("Timeline overview"); const box = await map.boundingBox(); if (!box) throw new Error("missing timeline overview");
+    await page.mouse.click(box.x + box.width * action.ratio, box.y + box.height / 2); return;
+  }
+  if (action.kind === "timeline-drag") {
+    const part = action.part === "window" ? page.locator(".axis-window") : page.locator(`.axis-handle.${action.part}`);
+    const box = await part.boundingBox(); if (!box) throw new Error(`missing timeline ${action.part}`);
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + action.dx, y); await page.mouse.up(); return;
+  }
   if (action.kind === "reload") { await page.reload({ waitUntil: "domcontentloaded" }); await expect(page.locator(".workspace-rack")).toBeVisible(); return; }
   if (action.kind === "history-back") { await page.goBack(); return; }
   const shape = page.locator(`[data-event-index="${action.eventIndex}"]`);
@@ -83,7 +93,7 @@ async function observe(page: Page, observable: Observable, boxes: Map<string, Aw
     for (const key of ["x", "y", "width", "height"] as const) expect(Math.abs(actual![key] - expected![key])).toBeLessThanOrEqual(1);
   }
   if (observable.attribute && observable.attributeEqualsCapture) expect(await locator.first().getAttribute(observable.attribute)).toBe(attributes.get(observable.attributeEqualsCapture));
-  if (observable.attribute && observable.attributeNotEqualsCapture) expect(await locator.first().getAttribute(observable.attribute)).not.toBe(attributes.get(observable.attributeNotEqualsCapture));
+  if (observable.attribute && observable.attributeNotEqualsCapture) expect(await locator.first().getAttribute(observable.attribute), observable.attributeNotEqualsCapture).not.toBe(attributes.get(observable.attributeNotEqualsCapture));
   if (observable.attribute && observable.attributeNumberLte !== undefined) expect(Number(await locator.first().getAttribute(observable.attribute))).toBeLessThanOrEqual(observable.attributeNumberLte);
   if (observable.attribute && observable.attributeNumberGte !== undefined) expect(Number(await locator.first().getAttribute(observable.attribute))).toBeGreaterThanOrEqual(observable.attributeNumberGte);
   if (observable.relativeXGte !== undefined || observable.relativeXLte !== undefined) {

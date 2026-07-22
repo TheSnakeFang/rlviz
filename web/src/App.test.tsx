@@ -233,7 +233,7 @@ describe("instrument viewer", () => {
     expect(browse).toHaveFocus();
     fireEvent.keyDown(browse, { key: "Enter" });
     const read = await screen.findByRole("main", { name: "Read trajectory" });
-    expect(read).toHaveFocus();
+    await waitFor(() => expect(read).toHaveFocus());
     fireEvent.keyDown(read, { key: "j" });
     expect(screen.getByText(/^#/i, { selector: ".selection-address" })).toHaveTextContent("#10");
   });
@@ -285,6 +285,29 @@ describe("instrument viewer", () => {
     render(<App initialTrajectory={sampleTrajectory} />);
     expect(await screen.findByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", sampleTrajectory.id);
     expect(document.querySelector(".rlviz-dockview")).toBeInTheDocument();
+  });
+
+  it("restores a state-less history entry from its workspace URL", async () => {
+    render(<App initialTrajectory={sampleTrajectory} />);
+    const id = laneId("sample", sampleTrajectory.id);
+    const linked = emptyWorkspace();
+    linked.railExpanded = false;
+    linked.active = id;
+    linked.lanes = [{ id, sourceId: "sample", trajectoryId: sampleTrajectory.id, band: "focus", selected: 0, depth: 1, fidelity: 1, axis: { start: 0, end: 10 }, descentStack: [] }];
+    window.history.replaceState(null, "", `/?workspace=${encodeURIComponent(serializeWorkspace(linked))}`);
+    fireEvent(window, new PopStateEvent("popstate", { state: null }));
+    await waitFor(() => expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", id));
+  });
+
+  it("disposes its capture listener when the dock lifecycle unmounts", async () => {
+    const added = vi.spyOn(document, "addEventListener");
+    const removed = vi.spyOn(document, "removeEventListener");
+    const view = render(<App initialTrajectory={sampleTrajectory} />);
+    await screen.findByRole("main", { name: "Browse trajectories" });
+    const registrations = added.mock.calls.filter(([type, , options]) => type === "pointerdown" && options === true);
+    expect(registrations.length).toBeGreaterThan(0);
+    view.unmount();
+    expect(registrations.some(([, listener]) => removed.mock.calls.some(([type, removedListener, options]) => type === "pointerdown" && removedListener === listener && options === true))).toBe(true);
   });
 
   it("walks arrangement depth backward and forward through the jumplist", async () => {
@@ -414,12 +437,40 @@ describe("instrument viewer", () => {
     expect(timeline.querySelector(".axis-window")).toBeInTheDocument();
   });
 
+  it("recenters, pans, and resizes the timeline window with pointer gestures", async () => {
+    vi.stubGlobal("PointerEvent", MouseEvent);
+    await openRead();
+    const lane = screen.getByRole("main", { name: "Read trajectory" });
+    const map = screen.getByLabelText("Timeline overview");
+    vi.spyOn(map, "getBoundingClientRect").mockReturnValue({ left: 100, right: 300, top: 0, bottom: 20, width: 200, height: 20, x: 100, y: 0, toJSON: () => ({}) } as DOMRect);
+    fireEvent.change(screen.getByRole("slider", { name: "Viewport start" }), { target: { value: "3" } });
+    fireEvent.change(screen.getByRole("slider", { name: "Viewport end" }), { target: { value: "7" } });
+
+    fireEvent.pointerDown(map, { button: 0, pointerId: 1, clientX: 290 });
+    fireEvent.pointerUp(map, { pointerId: 1, clientX: 290 });
+    expect(Number(lane.getAttribute("data-axis-start"))).toBeCloseTo(6);
+    expect(Number(lane.getAttribute("data-axis-end"))).toBeCloseTo(10);
+
+    fireEvent.pointerDown(map, { button: 0, pointerId: 2, clientX: 256 });
+    fireEvent.pointerMove(map, { pointerId: 2, clientX: 216 });
+    fireEvent.pointerUp(map, { pointerId: 2, clientX: 216 });
+    expect(Number(lane.getAttribute("data-axis-start"))).toBeCloseTo(4.2);
+    expect(Number(lane.getAttribute("data-axis-end"))).toBeCloseTo(8.2);
+
+    fireEvent.pointerDown(map, { button: 0, pointerId: 3, clientX: 171 });
+    fireEvent.pointerMove(map, { pointerId: 3, clientX: 191 });
+    fireEvent.pointerUp(map, { pointerId: 3, clientX: 191 });
+    expect(Number(lane.getAttribute("data-axis-start"))).toBeCloseTo(5.1, 1);
+    expect(Number(lane.getAttribute("data-axis-end"))).toBeCloseTo(8.2);
+  });
+
   it("opens a rollout-pinned detail module whose navigation acts on that rollout", async () => {
     await openRead();
     fireEvent.keyDown(window, { key: "d" });
     const detail = await screen.findByRole("region", { name: `Detail for ${sampleTrajectory.id}` });
     expect(detail).toHaveAttribute("data-pinned", "true");
     await waitFor(() => expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", `detail:${laneId("sample", sampleTrajectory.id)}`));
+    await waitFor(() => expect(detail).toHaveFocus());
     expect(detail.querySelector(".moment.selected")).toHaveTextContent("Stale confirmation token");
     fireEvent.keyDown(window, { key: "j" });
     expect(detail.querySelector(".moment.selected")).toHaveTextContent("Task completion grader");

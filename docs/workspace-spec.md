@@ -90,8 +90,8 @@ the source trace or become part of a shared workspace URL.
   lane with a full one. `n`/`p` sweep the active lane through the collection's
   current filtered order.
 - Every lane has a full-rollout timeline at its bottom. It shows the current
-  axis window and exposes adjustable start/end handles, like a video editor's
-  viewport control.
+  axis window. Clicking recenters it, dragging pans it, and dragging either
+  edge resizes that side, like a video editor's viewport control.
 - `d` opens a detail module pinned to the active rollout. Its `j`/`k` and
   landmark keys operate on that rollout even after another module becomes
   active; closing the pinned detail does not close the rollout lane.
