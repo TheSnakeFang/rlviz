@@ -5,6 +5,7 @@ export type Observable = {
   equals?: string;
   notEquals?: string;
   contains?: string;
+  value?: string;
   absent?: boolean;
   count?: number;
   boxEquals?: string;
@@ -17,11 +18,14 @@ export type Observable = {
   attributeNumberGte?: number;
   relativeXGte?: number;
   relativeXLte?: number;
+  withinViewport?: boolean;
+  pageFitsViewport?: boolean;
 };
 
 export type FlowAction =
   | { kind: "key"; value: string }
   | { kind: "filter"; value: string }
+  | { kind: "fill"; target: string; value: string }
   | { kind: "click"; target: string; clicks?: number }
   | { kind: "strip-click"; eventIndex: number }
   | { kind: "capture-box"; target: string; key: string }
@@ -29,6 +33,7 @@ export type FlowAction =
   | { kind: "seam-drag"; name: "rail" | "focusContext" | "focusLane" | "console"; dx: number; dy: number }
   | { kind: "timeline-click"; ratio: number }
   | { kind: "timeline-drag"; part: "window" | "start" | "end"; dx: number }
+  | { kind: "viewport"; width: number; height: number }
   | { kind: "reload" }
   | { kind: "history-back" };
 
@@ -397,6 +402,46 @@ export const flows: Flow[] = [
       { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-axis-start", key: "timeline-start-before-resize" }, expect: [{ target: "read" }] },
       { action: { kind: "capture-attribute", target: ".lane-track.active-zone", attribute: "data-axis-end", key: "timeline-end-before-resize" }, expect: [{ target: "read" }] },
       { action: { kind: "timeline-drag", part: "start", dx: 20 }, expect: [{ target: "read", attribute: "data-axis-start", attributeNotEqualsCapture: "timeline-start-before-resize" }, { target: "read", attribute: "data-axis-end", attributeEqualsCapture: "timeline-end-before-resize" }] },
+    ],
+  },
+  {
+    id: "y", name: "local-metadata-edit-filter-and-restore", keyboardOnly: false, surfaces: ["daemon", "webapp"], steps: [
+      { action: { kind: "click", target: ".workspace-rail .metadata-edit" }, expect: [{ target: "rail", selector: ".metadata-editor.collection" }] },
+      { action: { kind: "fill", target: "[aria-label='collection title']", value: "Checkout reliability" }, expect: [{ target: "rail", selector: "[aria-label='collection title']", value: "Checkout reliability" }] },
+      { action: { kind: "fill", target: "[aria-label='collection description']", value: "Saved-card confirmation rollouts" }, expect: [{ target: "rail", selector: "[aria-label='collection description']", value: "Saved-card confirmation rollouts" }] },
+      { action: { kind: "click", target: ".workspace-rail .metadata-editor button[type='submit']" }, expect: [{ target: "rail", selector: ".editable-metadata h1", equals: "Checkout reliability" }, { target: "rail", selector: ".editable-metadata p", equals: "Saved-card confirmation rollouts" }] },
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "read" }, { target: "console", selector: ".metadata-edit" }] },
+      { action: { kind: "click", target: ".workspace-console .metadata-edit" }, expect: [{ target: "console", selector: ".metadata-editor.trajectory" }] },
+      { action: { kind: "fill", target: "[aria-label='trajectory title']", value: "Reviewed checkout" }, expect: [{ target: "console", selector: "[aria-label='trajectory title']", value: "Reviewed checkout" }] },
+      { action: { kind: "fill", target: "[aria-label='trajectory description']", value: "Confirmation path under review" }, expect: [{ target: "console", selector: "[aria-label='trajectory description']", value: "Confirmation path under review" }] },
+      { action: { kind: "click", target: ".workspace-console .metadata-editor button[type='submit']" }, expect: [{ target: "read", selector: ".lane-track header b", equals: "Reviewed checkout" }, { target: "console", selector: ".workspace-console .editable-metadata h2", equals: "Reviewed checkout" }, { target: "console", selector: ".workspace-console .editable-metadata p", equals: "Confirmation path under review" }] },
+      { action: { kind: "key", value: "Escape" }, expect: [{ target: "browse" }, { target: "rail", selector: ".editable-metadata h1", equals: "Checkout reliability" }] },
+      { action: { kind: "filter", value: "Reviewed checkout" }, expect: [{ target: "selected-row", contains: "Reviewed checkout" }] },
+      { action: { kind: "filter", value: "" }, expect: [{ target: "browse" }] },
+      { action: { kind: "key", value: "Escape" }, expect: [{ target: "browse" }] },
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "read", selector: ".lane-track header b", equals: "Reviewed checkout" }] },
+      { action: { kind: "reload" }, expect: [{ target: "rail", selector: ".editable-metadata h1", equals: "Checkout reliability" }, { target: "read", selector: ".lane-track header b", equals: "Reviewed checkout" }] },
+    ],
+    webappSteps: [
+      { action: { kind: "click", target: ".workspace-rail .metadata-edit" }, expect: [{ target: "rail", selector: ".metadata-editor.collection" }] },
+      { action: { kind: "fill", target: "[aria-label='collection title']", value: "Checkout reliability" }, expect: [{ target: "rail", selector: "[aria-label='collection title']", value: "Checkout reliability" }] },
+      { action: { kind: "fill", target: "[aria-label='collection description']", value: "Saved-card confirmation rollouts" }, expect: [{ target: "rail", selector: "[aria-label='collection description']", value: "Saved-card confirmation rollouts" }] },
+      { action: { kind: "click", target: ".workspace-rail .metadata-editor button[type='submit']" }, expect: [{ target: "rail", selector: ".editable-metadata h1", equals: "Checkout reliability" }] },
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "read" }, { target: "console", selector: ".metadata-edit" }] },
+      { action: { kind: "click", target: ".workspace-console .metadata-edit" }, expect: [{ target: "console", selector: ".metadata-editor.trajectory" }] },
+      { action: { kind: "fill", target: "[aria-label='trajectory title']", value: "Reviewed checkout" }, expect: [{ target: "console", selector: "[aria-label='trajectory title']", value: "Reviewed checkout" }] },
+      { action: { kind: "fill", target: "[aria-label='trajectory description']", value: "Confirmation path under review" }, expect: [{ target: "console", selector: "[aria-label='trajectory description']", value: "Confirmation path under review" }] },
+      { action: { kind: "click", target: ".workspace-console .metadata-editor button[type='submit']" }, expect: [{ target: "read", selector: ".lane-track header b", equals: "Reviewed checkout" }, { target: "console", selector: ".workspace-console .editable-metadata p", equals: "Confirmation path under review" }] },
+      { action: { kind: "key", value: "Escape" }, expect: [{ target: "browse" }] },
+      { action: { kind: "filter", value: "Reviewed checkout" }, expect: [{ target: "selected-row", contains: "Reviewed checkout" }] },
+      { action: { kind: "key", value: "Escape" }, expect: [{ target: "browse" }, { target: "selected-row", contains: "Reviewed checkout" }] },
+    ],
+  },
+  {
+    id: "z", name: "timeline-and-keybar-fit-desktop-and-compact-viewports", keyboardOnly: false, surfaces: ["daemon", "webapp"], steps: [
+      { action: { kind: "key", value: "Enter" }, expect: [{ target: "read" }] },
+      { action: { kind: "viewport", width: 1440, height: 900 }, expect: [{ target: "read", selector: ".lane-track.active-zone .axis-navigator", withinViewport: true }, { target: "rail", selector: ".keybar", withinViewport: true }, { target: "shell", pageFitsViewport: true }] },
+      { action: { kind: "viewport", width: 1024, height: 700 }, expect: [{ target: "read", selector: ".lane-track.active-zone .axis-navigator", withinViewport: true }, { target: "rail", selector: ".keybar", withinViewport: true }, { target: "shell", pageFitsViewport: true }] },
     ],
   },
 ];
