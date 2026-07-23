@@ -14,7 +14,7 @@ export function focusElementForTarget(target: string, railRef: RefObject<HTMLEle
   if (target === "rail") return railRef.current;
   if (target === "guide") return document.querySelector<HTMLElement>(".workspace-guide");
   if (target === "settings") return document.querySelector<HTMLElement>(".workspace-settings");
-  if (target === "detail") return document.querySelector<HTMLElement>(".workspace-console:not([data-pinned='true'])");
+  if (target === "detail") return document.querySelector<HTMLElement>(".workspace-console[data-shared-detail='true']");
   if (detailLane) return document.querySelector<HTMLElement>(`.workspace-console[data-pinned='true'][data-detail-lane-id="${CSS.escape(detailLane)}"]`);
   return document.querySelector<HTMLElement>(`[data-lane-id="${CSS.escape(target)}"]`);
 }
@@ -67,7 +67,7 @@ export function reconcileDockPanels(
 ): boolean {
   let changed = false;
   const desired = new Set([
-    ...(workspace.lanes.length ? ["detail"] : []),
+    ...(workspace.lanes.length && workspace.detailOpen ? ["detail"] : []),
     ...(workspace.guideOpen ? ["guide"] : []),
     ...(workspace.settingsOpen ? ["settings"] : []),
     ...(workspace.railExpanded ? ["collection"] : []),
@@ -93,7 +93,7 @@ export function reconcileDockPanels(
     changed = true;
     addDefaultPanel(api, workspace, "settings", "settings", undefined, onDetailPosition);
   }
-  if (workspace.lanes.length && !api.getPanel("detail")) {
+  if (workspace.lanes.length && workspace.detailOpen && !api.getPanel("detail")) {
     changed = true;
     addDefaultPanel(api, workspace, "detail", "detail", undefined, onDetailPosition);
   }

@@ -6,6 +6,7 @@ import formatsMarkdown from "../../internal/guide/pages/formats.md?raw";
 import agentsMarkdown from "../../internal/guide/pages/agents.md?raw";
 import privacyMarkdown from "../../internal/guide/pages/privacy.md?raw";
 import shortcutsMarkdown from "../../internal/guide/pages/shortcuts.md?raw";
+import patchNotesMarkdown from "../../internal/guide/pages/patch-notes.md?raw";
 import type { ViewerSetup } from "./Settings";
 
 type Block = { kind: "h1" | "h2" | "p" | "li" | "code"; text: string };
@@ -17,6 +18,7 @@ const pages = [
   { id: "formats", label: "Formats", markdown: formatsMarkdown },
   { id: "agents", label: "Agents", markdown: agentsMarkdown },
   { id: "privacy", label: "Privacy", markdown: privacyMarkdown },
+  { id: "patch-notes", label: "Patch notes", markdown: patchNotesMarkdown },
 ] as const;
 
 function blocks(markdown: string): Block[] {

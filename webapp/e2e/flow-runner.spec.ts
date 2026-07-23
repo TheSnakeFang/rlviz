@@ -28,6 +28,8 @@ test.beforeEach(async ({ page }) => {
     guideOpen: true,
     settingsOpen: true,
     lanes: [],
+    detailOpen: false,
+    detailCompact: false,
     details: [],
     direction: "rows",
     active: "rail",

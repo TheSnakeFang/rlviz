@@ -408,7 +408,7 @@ describe("instrument viewer", () => {
     expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-depth", "1");
     fireEvent.keyDown(window, { key: "i", ctrlKey: true });
     expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-depth", "2");
-    expect(document.querySelector(".workspace-breadcrumb")).toHaveTextContent("1 lane");
+    expect(screen.queryByRole("region", { name: "Workspace console" })).not.toBeInTheDocument();
   });
 
   it("keeps the descent axis stack in jumplist snapshots", async () => {
@@ -607,17 +607,35 @@ describe("instrument viewer", () => {
     view.unmount();
   });
 
-  it("opens a rollout-pinned detail module whose navigation acts on that rollout", async () => {
+  it("opens, pins, compacts, and closes the shared detail module", async () => {
     await openRead();
     fireEvent.keyDown(window, { key: "d" });
+    const following = await screen.findByRole("region", { name: "Workspace console" });
+    expect(following).toHaveAttribute("data-pinned", "false");
+    fireEvent.keyDown(window, { key: "D", shiftKey: true });
     const detail = await screen.findByRole("region", { name: `Detail for ${sampleTrajectory.id}` });
     expect(detail).toHaveAttribute("data-pinned", "true");
-    await waitFor(() => expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", `detail:${laneId("sample", sampleTrajectory.id)}`));
+    await waitFor(() => expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", "detail"));
     await waitFor(() => expect(detail).toHaveFocus());
     expect(detail.querySelector(".moment.selected")).toHaveTextContent("Stale confirmation token");
     fireEvent.keyDown(window, { key: "j" });
     expect(detail.querySelector(".moment.selected")).toHaveTextContent("Task completion grader");
+    fireEvent.keyDown(window, { key: "C", shiftKey: true });
+    expect(detail).toHaveAttribute("data-compact", "true");
+    expect(detail.querySelectorAll(".moment")).toHaveLength(1);
+    fireEvent.keyDown(window, { key: "d" });
+    await waitFor(() => expect(screen.queryByRole("region", { name: `Detail for ${sampleTrajectory.id}` })).not.toBeInTheDocument());
     expect(screen.getByRole("region", { name: "Active module shortcuts" })).toHaveTextContent("Previous event");
+  });
+
+  it("uses Enter for in-rollout sections and clears an unpinned side detail", async () => {
+    await openRead();
+    expect(screen.getByRole("region", { name: "Workspace console" })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Enter" });
+    expect(screen.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-depth", "2");
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Workspace console" })).not.toBeInTheDocument());
+    fireEvent.keyDown(window, { key: "d" });
+    expect(await screen.findByRole("region", { name: "Workspace console" })).toBeInTheDocument();
   });
 
   it("keeps the full rollout scrollable in Detail and foregrounds verifier design and evidence", async () => {

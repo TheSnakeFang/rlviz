@@ -267,6 +267,10 @@ describe("Browse Read Compare flow", () => {
 		fireEvent.keyDown(window, { key: "t" }); fireEvent.keyDown(window, { key: "Tab" });
 		expect(screen.queryByRole("main", { name: "Browse trajectories" })).not.toBeInTheDocument();
 		expect(document.querySelector(".instrument-shell")).not.toHaveAttribute("data-active-zone", "rail");
+		// Detail is now independently closeable. Closing it returns focus to the
+		// rollout; closing the final rollout then restores the collection.
+		fireEvent.keyDown(window, { key: "x" });
+		expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", "source-1:candidate");
 		fireEvent.keyDown(window, { key: "x" });
 		expect(await screen.findByRole("main", { name: "Browse trajectories" })).toBeInTheDocument();
 		expect(document.querySelector(".instrument-shell")).toHaveAttribute("data-active-zone", "rail");

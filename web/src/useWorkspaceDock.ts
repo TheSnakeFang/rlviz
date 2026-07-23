@@ -196,7 +196,7 @@ export function useWorkspaceDock({
   useEffect(() => {
     const api = apiRef.current;
     if (api) reconcile(api);
-  }, [reconcile, spotlightLane, workspace.details, workspace.guideOpen, workspace.settingsOpen, workspace.lanes, workspace.railExpanded]);
+  }, [reconcile, spotlightLane, workspace.detailOpen, workspace.details, workspace.guideOpen, workspace.settingsOpen, workspace.lanes, workspace.railExpanded]);
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;

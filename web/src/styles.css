@@ -327,8 +327,10 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .console-header { min-height: 62px; padding: 7px 12px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid var(--hairline); }
 .console-header > div:first-child { min-width: 190px; }.console-header > .editable-metadata, .console-header > .metadata-editor { flex: 1 1 340px; }.workspace-breadcrumb { font-family: ui-monospace, monospace; }
 .console-meta { margin-left: auto; display: flex; align-items: center; gap: 10px; color: var(--ink-secondary); font-size: 11px; }.console-meta strong { color: var(--ctx); }
+.console-actions { display: flex; gap: 4px; }.console-actions button { padding: 3px 6px; font-size: 10px; }
 .workspace-console .judge-list { margin-left: 0; }.workspace-console .judge-list button { min-width: 72px; padding: 3px 7px; }
 .workspace-console .detail-region { min-height: 0; flex: 1; width: min(1000px, 96%); overflow: auto; overscroll-behavior: contain; touch-action: pan-y; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; padding: 5px 0 40px; }.workspace-console .moment { padding: 4px 8px; }.workspace-console .moment.selected { padding: 7px 8px; }
+.workspace-console.compact-detail .console-header { min-height: 44px; padding-block: 4px; }.workspace-console.compact-detail .judge-list, .workspace-console.compact-detail .console-meta > span:not(.console-actions) { display: none; }.workspace-console.compact-detail .detail-region { padding-bottom: 8px; }.workspace-console.compact-detail .moment.selected { margin: 0; }
 .verifier-summary { margin: 3px 0 8px; border: 1px solid var(--hairline); background: color-mix(in srgb, var(--ink) 2%, var(--surface)); }
 .verifier-summary > header { display: flex; justify-content: space-between; gap: 10px; padding: 7px 9px; border-bottom: 1px solid var(--hairline); }
 .verifier-summary > header small { color: var(--ink-secondary); }
