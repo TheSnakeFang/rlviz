@@ -24,7 +24,7 @@ test("bundled sample opens automatically, keeps guide state, and walks Browse to
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("main", { name: "Browse trajectories" }).getByRole("option").first()).toContainText("checkout-rollout-01");
   await expect(page.getByRole("article", { name: "RLViz guide" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Install" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("region", { name: "RLViz settings" })).toBeVisible();
   await page.getByRole("article", { name: "RLViz guide" }).getByRole("button", { name: "close" }).click();
   await page.getByRole("region", { name: "RLViz settings" }).getByRole("button", { name: "close" }).click();
@@ -37,7 +37,7 @@ test("bundled sample opens automatically, keeps guide state, and walks Browse to
   await expect(page.getByRole("article", { name: "RLViz guide" })).toBeVisible();
   await page.keyboard.press("?");
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("main", { name: "Read trajectory" })).toBeVisible();
+  await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveCount(2);
   await expect(page.locator(".workspace-console .moment.selected .address")).not.toBeEmpty();
 
   expect(requests.some((request) => new URL(request.url).origin !== "http://127.0.0.1:4174")).toBe(false);
