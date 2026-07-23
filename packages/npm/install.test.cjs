@@ -79,6 +79,7 @@ test("rejects a symlink in place of the native binary", async (t) => {
 test("selects an exact checksum entry", () => {
   const digest = "a".repeat(64);
   assert.equal(expectedChecksum(`${"b".repeat(64)}  other.tar.gz\n${digest}  rlviz.tar.gz\n`, "rlviz.tar.gz"), digest);
+  assert.equal(expectedChecksum(`${digest}${" ".repeat(10_000)}*rlviz.tar.gz\n`, "rlviz.tar.gz"), digest);
   assert.throws(() => expectedChecksum(`${digest}  other.tar.gz\n`, "rlviz.tar.gz"), /not found/);
 });
 

@@ -32,8 +32,13 @@ function releaseURLs(version, target, base = "https://github.com/TheSnakeFang/rl
 
 function expectedChecksum(contents, archive) {
   for (const line of contents.split(/\r?\n/)) {
-    const match = line.trim().match(/^([a-f0-9]{64})\s+\*?(.+)$/);
-    if (match && match[2] === archive) return match[1];
+    const trimmed = line.trim();
+    if (trimmed.length <= 64) continue;
+    const digest = trimmed.slice(0, 64);
+    if (!/^[a-f0-9]{64}$/.test(digest)) continue;
+    let filename = trimmed.slice(64).trimStart();
+    if (filename.startsWith("*")) filename = filename.slice(1);
+    if (filename === archive) return digest;
   }
   throw new Error(`checksum not found for ${archive}`);
 }
