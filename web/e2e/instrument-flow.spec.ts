@@ -69,18 +69,18 @@ test("Browse into a multi-lane workspace preserves the instrument invariants", a
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
   await expect(page.getByRole("option").first()).toContainText("candidate");
   await expect(page.getByRole("listbox", { name: "Trajectory collection" })).toHaveAttribute("data-fidelity-level", "L1");
-  await expect(page.locator(".fidelity-readout b")).toHaveText("glyphs");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("signals");
   await expect(page.getByRole("option").first()).toHaveAttribute("data-columns", "false");
 
   await page.keyboard.press("]");
-  await expect(page.locator(".fidelity-readout b")).toHaveText("detail");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("summary");
   await expect(page.getByRole("option").first()).toHaveAttribute("data-columns", "true");
   await page.keyboard.press("[");
-  await expect(page.locator(".fidelity-readout b")).toHaveText("glyphs");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("signals");
   await page.keyboard.press("[");
-  await expect(page.locator(".fidelity-readout b")).toHaveText("hairline");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("compact");
   await page.keyboard.press("]");
-  await expect(page.locator(".fidelity-readout b")).toHaveText("glyphs");
+  await expect(page.locator(".fidelity-readout b")).toHaveText("signals");
   await page.keyboard.press("Space");
   await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-trajectory", "candidate");
   await page.keyboard.press("Tab");
