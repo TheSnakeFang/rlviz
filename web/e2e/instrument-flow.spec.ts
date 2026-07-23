@@ -121,7 +121,8 @@ test("theme control switches computed high-contrast palette values", async ({ pa
   const initial = await root.getAttribute("data-theme");
   expect(initial === "light" || initial === "dark").toBeTruthy();
   const target = initial === "light" ? "dark" : "light";
-  await page.getByRole("button", { name: `Switch to ${target} theme` }).click();
+  const settings = page.getByRole("region", { name: "RLViz settings" });
+  await settings.getByRole("group", { name: "Color theme" }).getByRole("button", { name: target === "dark" ? "Dark" : "Light" }).click();
   await expect(root).toHaveAttribute("data-theme", target);
   const computed = await root.evaluate((element) => {
     const style = getComputedStyle(element);
