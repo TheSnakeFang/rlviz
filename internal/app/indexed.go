@@ -13,6 +13,7 @@ import (
 	"github.com/TheSnakeFang/rlviz/internal/atif"
 	"github.com/TheSnakeFang/rlviz/internal/browsercore"
 	rolloutindex "github.com/TheSnakeFang/rlviz/internal/index"
+	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
 	"github.com/TheSnakeFang/rlviz/internal/server"
@@ -53,15 +54,24 @@ func IndexSource(ctx context.Context, store *rolloutindex.Index, path, adapterPa
 			} else if ok {
 				return IndexedSource{Info: cached}, nil
 			}
-			data, err := os.ReadFile(resolved)
-			if err != nil {
-				return IndexedSource{}, fmt.Errorf("read %s source: %w", format, err)
-			}
 			var canonical []byte
-			if format == atif.Format {
-				canonical, err = atif.NormalizeBytes(data, resolved)
+			if format == letta.Format {
+				file, openErr := os.Open(resolved)
+				if openErr != nil {
+					return IndexedSource{}, fmt.Errorf("read %s source: %w", format, openErr)
+				}
+				canonical, err = letta.Normalize(file, resolved)
+				_ = file.Close()
 			} else {
-				canonical, _, err = browsercore.Normalize(data, resolved)
+				data, readErr := os.ReadFile(resolved)
+				if readErr != nil {
+					return IndexedSource{}, fmt.Errorf("read %s source: %w", format, readErr)
+				}
+				if format == atif.Format {
+					canonical, err = atif.NormalizeBytes(data, resolved)
+				} else {
+					canonical, _, err = browsercore.Normalize(data, resolved)
+				}
 			}
 			if err != nil {
 				return IndexedSource{}, &UnsupportedFormatError{Path: resolved, Cause: err}
@@ -153,6 +163,12 @@ func detectBuiltInFormat(path string) (string, error) {
 	supported, _, err := atif.Probe(io.LimitReader(file, 1<<20))
 	if err == nil && supported {
 		return atif.Format, nil
+	}
+	if _, seekErr := file.Seek(0, io.SeekStart); seekErr == nil {
+		supported, _, err = letta.Probe(io.LimitReader(file, 1<<20))
+		if err == nil && supported {
+			return letta.Format, nil
+		}
 	}
 	info, statErr := file.Stat()
 	if statErr == nil && info.Size() <= browsercore.MaxRecommendedBytes && strings.EqualFold(filepath.Ext(path), ".json") {

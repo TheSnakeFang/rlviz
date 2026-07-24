@@ -43,7 +43,7 @@ export function BrowserApp() {
   const [bootstrapping, setBootstrapping] = useState(true);
   const [activeSample, setActiveSample] = useState("checkout-cohort.ndjson");
   const [source, setSource] = useState<{ bytes: Uint8Array; name: string }>();
-  const [status, setStatus] = useState("Ready for a canonical, Inspect AI, or Verifiers trace.");
+  const [status, setStatus] = useState("Ready for a canonical, Letta trajectory v1, Harbor ATIF, Inspect AI, or Verifiers trace.");
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [help, setHelp] = useState(false);
@@ -138,7 +138,7 @@ export function BrowserApp() {
         <p className="kicker">Browser viewer · local files only</p>
         <h1>Inspect agent rollouts locally.</h1>
         <p className="privacy">Read events, compare trajectories, and trace failures without uploading the source.</p>
-        <p className="support">Canonical NDJSON, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON are parsed in this tab through the same Go core as the CLI.</p>
+        <p className="support">Canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON are parsed in this tab through the same Go core as the CLI.</p>
         <div className="primary-actions"><button className="primary" disabled={busy} onClick={() => traceInput.current?.click()}>{busy ? "parsing…" : "open a local trace"}</button><span>or drag it anywhere onto this page</span></div>
         <div className="example-actions"><span>load example</span>{examples.map(([label, name, url]) => <button key={name} disabled={busy} onClick={() => void openExample(url, name)}>{label}</button>)}</div>
         <p className="status" role="status">{status}</p>

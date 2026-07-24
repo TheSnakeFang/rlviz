@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/TheSnakeFang/rlviz/internal/atif"
+	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
 )
@@ -88,6 +89,12 @@ func collectFormats(entries []plugins.TrustEntry, discoveries ...plugins.Discove
 			Kind: "Adapter", APIVersion: model.APIVersion, Version: "ATIF-v1.5-v1.7", Status: "available",
 			Capabilities: []string{"adapter.probe", "adapter.stream", "subagents", "artifacts", "source-provenance"},
 			Description:  "Public Harbor Agent Trajectory Interchange Format",
+		},
+		{
+			ID: letta.Format, Name: "Letta trajectory v1 JSON", Source: "built_in",
+			Kind: "Adapter", APIVersion: model.APIVersion, Version: "1", Status: "available",
+			Capabilities: []string{"adapter.probe", "adapter.stream", "tool-calls", "source-provenance"},
+			Description:  "Token-efficient normalized sessions from Claude Code, Codex, Letta Code, and other harnesses",
 		},
 		{ID: "inspect-ai-eval-log-json-v2", Name: "Inspect AI EvalLog JSON v2", Source: "built_in", Kind: "Adapter", APIVersion: model.APIVersion, Version: "2", Status: "available", Capabilities: []string{"adapter.probe", "adapter.stream", "groups", "source-provenance"}, Description: "Inspect AI model, tool, score, and compaction events from EvalLog JSON"},
 		{ID: "prime-verifiers-generate-outputs", Name: "Prime Intellect Verifiers GenerateOutputs", Source: "built_in", Kind: "Adapter", APIVersion: model.APIVersion, Status: "available", Capabilities: []string{"adapter.probe", "adapter.stream", "groups", "source-provenance"}, Description: "Verifiers rollout steps, token masks, rewards, and metrics"},

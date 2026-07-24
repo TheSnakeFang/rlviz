@@ -18,10 +18,25 @@ The CLI and static browser viewer also include pure-Go mappings for these
 documented JSON shapes:
 
 - Harbor Agent Trajectory Interchange Format (ATIF) v1.5-v1.7
+- Letta trajectory v1 normalized record arrays
 - Inspect AI EvalLog JSON version 2 (not `.eval` archives)
 - Prime Intellect Verifiers GenerateOutputs JSON
 
 Those mappings compile into both the native binary and local Go WASM core.
+
+### Letta trajectory v1 JSON
+
+RLViz recognizes the public [trajectory v1 schema](https://github.com/letta-ai/trajectory/blob/main/schema/trajectory-v1.schema.json)
+as a JSON array beginning with one `meta` record. User, reasoning, assistant,
+tool-call, and linked tool-result records become source-backed timeline events.
+Harness, model, working-directory, and branch metadata are retained when
+present.
+
+This opens normalized output from `@letta-ai/trajectory`; it does not directly
+claim support for every native harness format that package can normalize. Save
+the `records` array returned by `normalizeTranscript`, not the surrounding
+result object. Fields omitted or truncated during upstream normalization cannot
+be reconstructed by RLViz.
 
 ### Harbor ATIF JSON
 

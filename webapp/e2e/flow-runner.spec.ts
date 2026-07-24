@@ -170,6 +170,24 @@ for (const flow of flows.filter((item) => item.surfaces.includes("webapp"))) {
   });
 }
 
+test("opens Letta trajectory v1 through the browser WASM core", async ({ page }) => {
+  const fixture = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "examples", "traces", "letta-trajectory-v1.json");
+  await page.locator('input[type="file"]').first().setInputFiles(fixture);
+  await expect(page.getByText("letta-trajectory-v1.json is open. No trace bytes left this tab.")).toBeVisible({ timeout: 15_000 });
+
+  const guide = page.getByRole("article", { name: "RLViz guide" });
+  if (await guide.isVisible()) await guide.getByRole("button", { name: "close" }).click();
+  const settings = page.getByRole("region", { name: "RLViz settings" });
+  if (await settings.isVisible()) await settings.getByRole("button", { name: "close" }).click();
+
+  await expect(page.locator('.workspace-rail [role="option"]')).toHaveCount(1);
+  await page.locator('.workspace-rail [role="option"]').dblclick();
+  const lane = page.getByRole("main", { name: "Read trajectory" });
+  await expect(lane).toBeVisible();
+  await page.keyboard.press("]");
+  await expect(lane).toContainText("exec_command");
+});
+
 test("default workspace prioritizes rollout and detail space", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(page.getByRole("option", { name: "checkout-rollout-02 Rollout signal summary" })).toBeVisible();

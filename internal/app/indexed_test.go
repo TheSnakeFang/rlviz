@@ -67,7 +67,7 @@ func TestIndexSourceHarborATIFBuiltIn(t *testing.T) {
 }
 
 func TestIndexSourceDocumentJSONBuiltIns(t *testing.T) {
-	for _, name := range []string{"inspect-ai-eval.json", "verifiers-generate.json"} {
+	for _, name := range []string{"letta-trajectory-v1.json", "inspect-ai-eval.json", "verifiers-generate.json"} {
 		t.Run(name, func(t *testing.T) {
 			store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "index.sqlite"))
 			if err != nil {

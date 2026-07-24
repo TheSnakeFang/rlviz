@@ -1,5 +1,12 @@
 # Patch notes
 
+## Next
+
+- Added built-in Letta trajectory v1 JSON support for normalized Claude Code,
+  Codex, Letta Code, and other harness sessions.
+- Preserved reasoning, named tool calls, linked results, timestamps, and harness
+  metadata in the canonical event timeline.
+
 ## 0.3.5
 
 - Added a two-pane compact workspace for 720–1199px windows and a single-module touch workspace below 720px.

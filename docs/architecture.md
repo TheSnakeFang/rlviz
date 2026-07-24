@@ -58,6 +58,7 @@ project-local adapters; the browser remains the only trajectory renderer.
 | `webapp` | Static browser entry point for `rlviz.dev`; reuses `web/src` through the provider boundary |
 | `internal/browsercore` | WASM-safe normalization, validation, in-memory browse/read data, analysis, and comparison |
 | `internal/atif` | Public Harbor ATIF v1.5-v1.7 detection and canonical mapping shared by native and WASM paths |
+| `internal/letta` | Public Letta trajectory v1 detection and canonical mapping shared by native and WASM paths |
 | `schemas/v1alpha1` | Public canonical and plugin contracts |
 | `fixtures` | Canonical, malformed, adversarial, and protocol conformance data |
 | `examples` | Runnable adapters and deterministic public gallery traces |
@@ -73,8 +74,8 @@ project-local adapters; the browser remains the only trajectory renderer.
 one static deployment. The former `app.rlviz.dev` surface redirects to the same
 path on `rlviz.dev`. The root loads a bundled synthetic cohort into the viewer;
 Settings can replace it with a dropped or selected `File` in the current tab.
-A Go WASM core detects canonical NDJSON, Harbor ATIF v1.5-v1.7, Inspect AI
-EvalLog JSON, or Verifiers GenerateOutputs JSON, validates canonical records, and
+A Go WASM core detects canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF
+v1.5-v1.7, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON, validates canonical records, and
 builds an in-memory collection. The shared React instrument consumes a
 `ViewerProvider`; the CLI uses the daemon HTTP provider and the static app uses
 the in-memory provider. Viewer components are not forked.

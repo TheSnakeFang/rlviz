@@ -21,6 +21,7 @@ import (
 	"github.com/TheSnakeFang/rlviz/internal/alignment"
 	"github.com/TheSnakeFang/rlviz/internal/analyzers"
 	"github.com/TheSnakeFang/rlviz/internal/atif"
+	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/shape"
 )
@@ -104,9 +105,13 @@ func Normalize(source []byte, name string) ([]byte, string, error) {
 	if bytes.Contains(firstLine(trimmed), []byte(`"record_type"`)) {
 		return source, "canonical-ndjson", nil
 	}
+	if supported, _, probeErr := letta.Probe(bytes.NewReader(trimmed)); probeErr == nil && supported {
+		out, err := letta.NormalizeBytes(trimmed, name)
+		return out, letta.Format, err
+	}
 	var document map[string]any
 	if err := json.Unmarshal(trimmed, &document); err != nil {
-		return nil, "", errors.New("unsupported trace: expected canonical NDJSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
+		return nil, "", errors.New("unsupported trace: expected canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
 	}
 	if atif.Detect(document) {
 		out, err := atif.Normalize(document, name)
@@ -120,7 +125,7 @@ func Normalize(source []byte, name string) ([]byte, string, error) {
 		out, err := normalizeVerifiers(document, name, source)
 		return out, "prime-verifiers-generate-outputs", err
 	}
-	return nil, "", errors.New("unsupported trace: expected canonical NDJSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
+	return nil, "", errors.New("unsupported trace: expected canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
 }
 
 func ParseCanonical(canonical []byte, name, format string, sourceSize int) (Collection, error) {

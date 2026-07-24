@@ -12,6 +12,7 @@ when you are ready; the file is parsed in that tab and is not uploaded.
 The browser accepts files up to 32 MiB in these formats:
 
 - canonical RLViz NDJSON
+- Letta trajectory v1 JSON record arrays
 - Inspect AI EvalLog JSON
 - Verifiers GenerateOutputs JSON
 - Harbor ATIF JSON v1.5-v1.7

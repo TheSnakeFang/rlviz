@@ -14,6 +14,7 @@ import (
 	"github.com/TheSnakeFang/rlviz/internal/app"
 	"github.com/TheSnakeFang/rlviz/internal/atif"
 	"github.com/TheSnakeFang/rlviz/internal/browsercore"
+	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
 	"github.com/TheSnakeFang/rlviz/internal/plugins/sourceprofile"
@@ -91,6 +92,10 @@ func inspectSource(ctx context.Context, sourcePath, adapterPath string, trust *p
 		if err != nil || result.Supported {
 			return result, err
 		}
+		result, err = inspectLetta(result)
+		if err != nil || result.Supported {
+			return result, err
+		}
 		result, err = inspectCanonical(result)
 		if err != nil || result.Supported || result.Shape.Kind != "file" {
 			return result, err
@@ -145,6 +150,31 @@ func inspectSource(ctx context.Context, sourcePath, adapterPath string, trust *p
 	} else {
 		result.NextCommand = shellCommand("rlviz", "plugin", "validate", plugin.Path, result.Path)
 	}
+	return result, nil
+}
+
+func inspectLetta(result inspectResult) (inspectResult, error) {
+	if result.Shape.Kind != "file" {
+		return result, nil
+	}
+	file, err := os.Open(result.Path)
+	if err != nil {
+		return inspectResult{}, err
+	}
+	defer file.Close()
+	supported, source, probeErr := letta.Probe(io.LimitReader(file, inspectProbeBytes))
+	if !supported {
+		return result, nil
+	}
+	if probeErr != nil {
+		return inspectResult{}, fmt.Errorf("probe trajectory v1 source: %w", probeErr)
+	}
+	result.Adapter = &inspectAdapter{Kind: "built_in", Name: letta.Format, Version: "1"}
+	result.Supported = true
+	result.Format = letta.Format
+	result.Confidence = 1
+	result.Reason = fmt.Sprintf("recognized Letta trajectory v1 record array from %s", source)
+	result.NextCommand = shellCommand("rlviz", "open", result.Path)
 	return result, nil
 }
 

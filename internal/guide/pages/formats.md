@@ -2,7 +2,7 @@
 
 RLViz normalizes every source into versioned canonical run, case, group, trajectory, event, signal, artifact, and completion records. The GUI stays format-independent.
 
-Built in: RLViz canonical NDJSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON v2, and Verifiers GenerateOutputs JSON. ATIF support covers the public trajectory document, including embedded subagents; Harbor job results and organization-specific evaluator files remain adapter territory.
+Built in: RLViz canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON v2, and Verifiers GenerateOutputs JSON. Letta support opens the normalized `records` array, not native harness logs. ATIF support covers the public trajectory document, including embedded subagents; Harbor job results and organization-specific evaluator files remain adapter territory.
 
 ## Before writing an adapter
 

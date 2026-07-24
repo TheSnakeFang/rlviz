@@ -68,6 +68,7 @@ func TestInspectHarborATIFBuiltIn(t *testing.T) {
 
 func TestInspectDocumentJSONBuiltIns(t *testing.T) {
 	for _, test := range []struct{ path, format string }{
+		{"letta-trajectory-v1.json", "letta-trajectory-v1-json"},
 		{"inspect-ai-eval.json", "inspect-ai-eval-log-json-v2"},
 		{"verifiers-generate.json", "prime-verifiers-generate-outputs"},
 	} {

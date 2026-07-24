@@ -31,7 +31,7 @@ local adapters map the stored format into canonical events.
 
 ## What can the browser open?
 
-Canonical RLViz NDJSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs
+Canonical RLViz NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs
 JSON up to 32 MiB. The browser holds source bytes, canonical records, and the
 browse index in tab memory, so larger files and cohorts belong in the CLI.
 
