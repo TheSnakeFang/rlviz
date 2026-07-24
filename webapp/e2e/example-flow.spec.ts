@@ -101,8 +101,8 @@ test("bundled viewer starts inside an opaque-origin sandbox", async ({ page }) =
   page.on("pageerror", (error) => errors.push(error.message));
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (url.origin === "https://chatblocks.test") return route.fulfill({ contentType: "text/html", body: '<iframe title="Block" sandbox="allow-scripts allow-forms" src="https://block.test/"></iframe>' });
-    if (url.origin === "https://block.test") return route.fulfill({ contentType: "text/html", body: '<iframe title="Sandboxed RLViz" src="https://rlviz.test/"></iframe>' });
+    if (url.origin === "https://chatblocks.test") return route.fulfill({ contentType: "text/html", body: '<iframe title="Block" sandbox="allow-scripts allow-forms" src="https://block.test/" style="width:390px;height:640px"></iframe>' });
+    if (url.origin === "https://block.test") return route.fulfill({ contentType: "text/html", body: '<iframe title="Sandboxed RLViz" src="https://rlviz.test/" style="width:100%;height:100%"></iframe>' });
     if (url.origin !== "https://rlviz.test") return route.abort();
     const relative = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
     try { await route.fulfill({ body: await readFile(path.join(root, relative)), contentType: contentTypes[path.extname(relative)] ?? "application/octet-stream", headers: securityHeaders }); }
@@ -111,6 +111,8 @@ test("bundled viewer starts inside an opaque-origin sandbox", async ({ page }) =
 
   await page.goto("https://chatblocks.test/");
   const viewer = page.frameLocator('iframe[title="Block"]').frameLocator('iframe[title="Sandboxed RLViz"]');
+  await expect(viewer.getByText("Compact view", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
+  await viewer.getByRole("button", { name: "Browse traces", exact: true }).click();
   await expect(viewer.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
   await expect(viewer.getByRole("option").filter({ hasText: "checkout-rollout-01" })).toBeVisible();
   expect(errors.filter((message) => /localStorage|SecurityError|Failed to read/i.test(message))).toEqual([]);

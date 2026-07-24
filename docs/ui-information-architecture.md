@@ -32,6 +32,13 @@ The workspace can also dock a concise Guide module. It is open on a fresh
 workspace, can be toggled with `Shift+G`, and uses the same source as the CLI
 and public guide. A blank Detail module is not shown before a rollout exists.
 
+The docked frame is used at 1200px and wider. From 720px to 1199px, Collection
+stays beside one active module. Below 720px, a module switcher and touch action
+bar expose one module at a time. A dismissible inline notice explains that the
+compact view works but multi-rollout comparison, docking, and keyboard workflows
+are best at 1200px or wider. Resizing changes only the projection: open modules,
+selection, URL state, and desktop geometry remain intact.
+
 ```text
 +-----------------------------------------------------------------------+
 | run / case / rollout                         outcome   reward   command |

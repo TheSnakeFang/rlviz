@@ -5,6 +5,7 @@ import { afterEach } from "vitest";
 afterEach(cleanup);
 
 Object.defineProperty(Element.prototype, "scrollIntoView", { value: () => {}, writable: true });
+Object.defineProperty(window, "innerWidth", { value: 1440, writable: true, configurable: true });
 globalThis.requestAnimationFrame = (callback: FrameRequestCallback) => { callback(0); return 0; };
 globalThis.ResizeObserver = class ResizeObserver {
   observe() {}

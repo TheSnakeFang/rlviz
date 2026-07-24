@@ -186,6 +186,8 @@ The React application has three levels of research surfaces:
   cache ownership, and stale-response rejection
 - `workspaceDock.ts`: the adapter between logical workspace modules and
   Dockview panel IDs, default placement, reconciliation, and focus targets
+- `responsiveWorkspace.ts`: pure viewport classification and module projection
+  for compact and mobile layouts; it does not fork logical workspace state
 - `useWorkspaceDock.ts`: owns the Dockview runtime lifecycle, subscriptions,
   geometry persistence, module focus, and teardown
 - `viewerMetadata.ts`: bounded device-local collection and trajectory labels;

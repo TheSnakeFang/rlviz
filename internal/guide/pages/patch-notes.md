@@ -1,5 +1,11 @@
 # Patch notes
 
+## 0.3.5
+
+- Added a two-pane compact workspace for 720–1199px windows and a single-module touch workspace below 720px.
+- Added a one-time inline compact-view notice without blocking the demo.
+- Preserved open modules, event selection, shared links, and desktop dock geometry while resizing.
+
 ## 0.3.4
 
 - Added built-in Harbor ATIF v1.5-v1.7, Inspect AI EvalLog v2, and Verifiers GenerateOutputs adapters across the CLI and browser viewer.

@@ -86,8 +86,11 @@ feature components to know internal CSS structure.
 - Primary content uses available width but keeps prose at a readable measure.
 - Navigation and inspector widths are adjustable within tested bounds.
 - The app must remain usable without the inspector open.
-- A fixed minimum width is acceptable for the first desktop release, but a
-  narrower window must explain or gracefully collapse rather than clip silently.
+- At 1200px and wider, use the full docked workspace. From 720px to 1199px,
+  keep Collection beside one readable active module. Below 720px, show one
+  module at a time with touch actions.
+- Compact and mobile projections preserve logical workspace and desktop docking
+  state. They must fit the viewport without horizontal page scrolling.
 - Sticky headers and footers must not hide deep-linked content.
 
 ## Themes and customization
@@ -112,8 +115,8 @@ specific theme palette to preserve that distinction.
 
 ## Visual review contract
 
-Every new primitive or visible workflow is reviewed at the fixed desktop test
-viewport in comfortable and compact density. Review selection, keyboard focus,
+Every new primitive or visible workflow is reviewed at 1440px desktop, 900px
+compact, and 390px mobile viewports. Review selection, keyboard focus, touch,
 hover, disabled, empty, loading, partial, stale, and failure states. Stable
 trajectory, group, and comparison screenshots act as regression evidence, not
 as a substitute for interaction tests.

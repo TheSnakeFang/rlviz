@@ -197,3 +197,63 @@ test("default workspace prioritizes rollout and detail space", async ({ page }) 
   expect(detail!.height).toBeGreaterThanOrEqual(640);
   for (const lane of lanes) expect((await lane.boundingBox())!.width).toBeGreaterThanOrEqual(350);
 });
+
+test("mobile workspace uses one module and remembers the compact notice", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
+  await expect(page.getByText("multi-rollout comparison, docking, and keyboard workflows", { exact: false })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  await page.getByRole("button", { name: "Got it" }).click();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Got it" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Traces" }).click();
+  await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
+  await page.getByRole("button", { name: "Open selected" }).click();
+  await expect(page.getByRole("main", { name: "Read trajectory" })).toBeVisible();
+  await page.getByRole("button", { name: "Detail", exact: true }).last().click();
+  await expect(page.getByRole("region", { name: "Workspace console" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("compact workspace keeps the collection beside one readable module", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 800 });
+  await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "compact");
+  await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "RLViz guide" })).toBeVisible();
+  await page.keyboard.press("Enter");
+  const lane = page.getByRole("main", { name: "Read trajectory" });
+  await expect(lane).toBeVisible();
+  const collectionBox = await page.locator(".responsive-collection").boundingBox();
+  const primaryBox = await page.locator(".responsive-primary").boundingBox();
+  expect(collectionBox).not.toBeNull();
+  expect(primaryBox).not.toBeNull();
+  expect(collectionBox!.width).toBeGreaterThanOrEqual(220);
+  expect(primaryBox!.width).toBeGreaterThanOrEqual(580);
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth && document.documentElement.scrollHeight <= innerHeight)).toBe(true);
+});
+
+test("resizing restores the docked workspace without losing selection", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.getByRole("option", { name: "checkout-rollout-01 Rollout signal summary" })).toBeVisible();
+  await page.keyboard.press("Enter");
+  const lane = page.getByRole("main", { name: "Read trajectory" });
+  await expect(lane).toBeVisible();
+  await page.keyboard.press("j");
+  const selectedBefore = await lane.getAttribute("data-selected-index");
+  const layoutBefore = await page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).layout);
+  await page.keyboard.press("z");
+  await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "true");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
+  await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "false");
+  await expect(page.locator(".rlviz-dockview")).toHaveCount(0);
+  await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-selected-index", selectedBefore!);
+  await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).layout)).toEqual(layoutBefore);
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".rlviz-dockview")).toBeVisible();
+  await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-selected-index", selectedBefore!);
+});

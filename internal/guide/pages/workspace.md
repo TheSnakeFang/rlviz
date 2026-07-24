@@ -2,6 +2,12 @@
 
 The GUI is the only trajectory display. Collection, rollout, Detail, Guide, and Settings are movable modules. Additional rollouts open as rows by default.
 
+## Smaller screens
+
+At 1200px and wider, RLViz uses the full docked workspace. From 720px to 1199px, Collection stays beside one active module. Below 720px, use the module tabs and touch actions to view one module at a time. Resizing does not discard your open rollouts, selection, or desktop layout.
+
+The compact view works on phones and narrow windows, but multi-rollout comparison, docking, and keyboard workflows are best at 1200px or wider.
+
 ## Collection
 
 - `j` / `k` or arrow keys select a rollout and keep it in view.

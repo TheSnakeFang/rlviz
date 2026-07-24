@@ -159,7 +159,10 @@ rlviz open ./trajectory.jsonl --adapter ./plugins/customer-x
 The viewer is a docked workspace with a collection module, one or more rollout
 modules, a selected-event detail module, and optional rollout-pinned detail
 modules. Additional rollouts open as rows by default. Modules can be moved and
-resized with the pointer or keyboard.
+resized with the pointer or keyboard. At 720–1199px the same logical workspace
+projects into a collection rail beside one active module. Below 720px it shows
+one module at a time with touch actions. The full docked workspace returns at
+1200px without discarding selection or layout state.
 
 The viewer must support:
 

@@ -154,6 +154,12 @@ export function useWorkspaceDock({
     persistenceTimer.current = undefined;
   }, []);
 
+  const detach = useCallback(() => {
+    disposeLifecycle();
+    apiRef.current = null;
+    setReady(false);
+  }, [disposeLifecycle]);
+
   const onReady = useCallback((event: DockviewReadyEvent) => {
     disposeLifecycle();
     const api = event.api;
@@ -190,10 +196,7 @@ export function useWorkspaceDock({
     setReady(true);
   }, [change, disposeLifecycle, reconcile, scheduleFocus, scheduleGeometry, schedulePersistence, workspaceRef]);
 
-  useEffect(() => () => {
-    disposeLifecycle();
-    apiRef.current = null;
-  }, [disposeLifecycle]);
+  useEffect(() => () => detach(), [detach]);
   useEffect(() => {
     const api = apiRef.current;
     if (api) reconcile(api);
@@ -374,5 +377,6 @@ export function useWorkspaceDock({
     activateAdjacent,
     beginPinnedOpen,
     canActivateContent,
+    detach,
   };
 }
