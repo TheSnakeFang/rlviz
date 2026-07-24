@@ -506,7 +506,7 @@ describe("instrument viewer", () => {
   it("uses unmodified arrow keys to navigate spatially between open modules", async () => {
     await openRead();
     const lane = screen.getByRole("main", { name: "Read trajectory" });
-    expect(lane).toHaveFocus();
+    await waitFor(() => expect(lane).toHaveFocus());
     const event = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true });
     window.dispatchEvent(event);
     expect(event.defaultPrevented).toBe(true);
