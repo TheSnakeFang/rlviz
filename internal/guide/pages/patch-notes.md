@@ -1,5 +1,11 @@
 # Patch notes
 
+## Unreleased
+
+- Added paginated indexed rollout queries across sources, runs, tasks, checkpoints, models, environments, outcomes, rewards, tokens, cost, and tool use.
+- Added full-cohort result counts, success/failure totals, token and cost ranges, total cost, and tool-call ranges without loading every matching trace into the viewer.
+- Added device-local collection titles, trajectory titles, descriptions, and labels without modifying source traces.
+
 ## 0.3.6
 
 - Added built-in Letta trajectory v1 JSON support for normalized Claude Code,

@@ -311,7 +311,7 @@ function Rail({ root, rows, workspace, fidelity, presentation, metadata, traject
       </section>)}
       {!rows.length && <p className="empty-state">No trajectories match this filter.</p>}
     </section>
-    <span className="rail-actions">{indexedQuery?.available && <button disabled={indexedQuery.loading} onClick={onRunIndexedQuery}>{indexedQuery.loading ? "querying…" : "query index"}</button>}{indexedQuery?.active && indexedQuery.hasMore && <button disabled={indexedQuery.loading} onClick={onLoadMore}>load more</button>}<button onClick={onAdd}>add lane</button></span>
+    <span className="rail-actions">{indexedQuery?.available && <button disabled={indexedQuery.loading} onClick={onRunIndexedQuery}>{indexedQuery.loading ? "querying…" : "query index"}</button>}{indexedQuery?.active && indexedQuery.hasMore && <button disabled={indexedQuery.loading} onClick={() => { onLoadMore(); root.current?.focus(); }}>load more</button>}<button onClick={onAdd}>add lane</button></span>
   </main>;
 }
 

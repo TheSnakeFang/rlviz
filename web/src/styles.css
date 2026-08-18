@@ -267,7 +267,7 @@ kbd { border: 1px solid var(--hairline); border-bottom-width: 2px; border-radius
 .collection-signals small { font-size: 9px; }.collection-signals b { color: var(--ink); font: 600 9px ui-monospace, monospace; }
 .collection-signals .signal-fail, .collection-signals .signal-fail b { color: var(--fail-policy); }.collection-signals .signal-pass, .collection-signals .signal-pass b { color: var(--good); }.collection-signals .signal-context, .collection-signals .signal-context b { color: var(--ctx); }
 .browse-row.outcome-pass .verdict { color: var(--good); }.browse-row.outcome-fail .verdict { color: var(--fail-policy); }
-.rail-actions { position: absolute; left: 8px; bottom: 18px; z-index: 3; display: none; }
+.rail-actions { position: absolute; left: 8px; bottom: 18px; z-index: 3; display: flex; gap: 4px; }
 .lane-track { width: 100%; height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden; outline: none; border: 1px solid transparent; background: var(--surface); }
 .lane-track.active-zone, .workspace-rail.active-zone, .workspace-console.active-zone, .workspace-guide.active-zone, .workspace-settings.active-zone { border-color: var(--ctx); box-shadow: inset 0 0 0 1px var(--ctx); }
 

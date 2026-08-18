@@ -105,7 +105,7 @@ func (i *Index) QueryRollouts(ctx context.Context, query RolloutQuery) (RolloutQ
 	if err != nil {
 		return RolloutQueryPage{}, err
 	}
-	page := RolloutQueryPage{Total: aggregates.Count, Offset: query.Offset, Limit: query.Limit, Aggregates: aggregates}
+	page := RolloutQueryPage{Items: make([]RolloutSummary, 0), Total: aggregates.Count, Offset: query.Offset, Limit: query.Limit, Aggregates: aggregates}
 	if query.Offset >= page.Total {
 		if err := tx.Commit(); err != nil {
 			return page, fmt.Errorf("commit rollout query snapshot: %w", err)
