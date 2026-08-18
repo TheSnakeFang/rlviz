@@ -52,6 +52,8 @@ export interface TrajectoryEvent {
   source?: SourceLocation;
   duration_ms?: number;
   token_count?: number;
+  cost_usd?: number;
+  tool_call_count?: number;
   reward?: number;
   parent_id?: string;
   alignment_key?: string;
@@ -161,7 +163,7 @@ export const presentationPaletteTokens = [
 ] as const;
 export type PresentationPaletteToken = typeof presentationPaletteTokens[number];
 export type PresentationPaletteVariant = Partial<Record<PresentationPaletteToken, string>>;
-export type PresentationFieldID = "reward" | "pass" | "status" | "termination" | "events" | "errors" | "tokens" | "latency" | `signal:${string}`;
+export type PresentationFieldID = "reward" | "pass" | "status" | "termination" | "events" | "errors" | "tokens" | "cost" | "tools" | "latency" | `signal:${string}`;
 export type PresentationScalarFieldID = Exclude<PresentationFieldID, "pass" | "status" | "termination">;
 export type PresentationScalarKind = "number" | "integer" | "percent_fraction" | "duration_ms" | "bytes" | "scientific";
 export const presentationInspectorSectionIDs = ["properties", "context", "source", "input", "output", "content", "metadata", "linked_artifacts", "analysis", "other_artifacts"] as const;
@@ -282,6 +284,64 @@ export interface BrowseResponse {
   sources: IndexedSource[];
   trajectories: BrowseTrajectory[];
   count: number;
+}
+
+export interface RolloutQueryParams {
+  offset?: number;
+  limit?: number;
+  q?: string;
+  source?: string;
+  run?: string;
+  case?: string;
+  group?: string;
+  checkpoint?: string;
+  model?: string;
+  environment_version?: string;
+  status?: string;
+  termination?: string;
+  tool?: string;
+  pass?: boolean;
+  reward_min?: number;
+  reward_max?: number;
+  tokens_min?: number;
+  tokens_max?: number;
+  cost_min?: number;
+  cost_max?: number;
+  sort?: "reward" | "tokens" | "cost" | "tools" | "run" | "case" | "checkpoint" | "model";
+  descending?: boolean;
+}
+
+export interface RolloutQueryItem {
+  source_id: string;
+  source_name: string;
+  run_id: string;
+  run_name?: string;
+  case_id: string;
+  case_name?: string;
+  group_id: string;
+  group_name?: string;
+  checkpoint?: string;
+  model?: string;
+  environment_version?: string;
+  summary: GroupTrajectorySummary;
+}
+
+export interface RolloutQueryAggregates {
+  count: number;
+  success: number;
+  failure: number;
+  unknown: number;
+  reward?: { min: number; max: number; mean: number };
+  token_count?: { min: number; max: number };
+  cost_usd?: { min: number; max: number; mean: number };
+  total_cost_usd?: number;
+  tool_call_count?: { min: number; max: number };
+}
+
+export interface RolloutQueryResponse {
+  rollouts: RolloutQueryItem[];
+  aggregates: RolloutQueryAggregates;
+  page: PageMetadata;
 }
 
 export interface PageMetadata {

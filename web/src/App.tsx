@@ -8,7 +8,7 @@ import { commandDefinition, commandIds, dispatchCommand, firstBindingLabel, useC
 import type { CommandId } from "./commands";
 import { axisX, episodeIndexForEvent, episodesFor, episodeWindow, firstAnomaly, glyphForKind, layoutStrip, panWindowToInclude, stripX, verdictGlyph, zoomWindow } from "./instrument";
 import type { Episode, StripMark } from "./instrument";
-import type { BrowseResponse, BrowseTrajectory, Trajectory, TrajectoryEvent } from "./types";
+import type { BrowseResponse, BrowseTrajectory, RolloutQueryParams, RolloutQueryResponse, Trajectory, TrajectoryEvent } from "./types";
 import { preview, title } from "./format";
 import { sampleTrajectory } from "./sample";
 import { applyPresentationTheme, fieldMetadata, formatPresentedScalar, scalarFormat } from "./presentation";
@@ -26,6 +26,7 @@ import { Guide } from "./Guide";
 import { Settings } from "./Settings";
 import type { ViewerSetup } from "./Settings";
 import { responsivePrimaryTarget, responsiveWorkspaceTargets, useWorkspaceViewportMode } from "./responsiveWorkspace";
+import { parseRolloutQuery } from "./rolloutQuery";
 
 const fidelityNames = ["hairline", "glyphs", "detail"];
 const collectionFidelityNames = ["compact", "signals", "summary"];
@@ -108,7 +109,7 @@ function configuredMetricSummaries(rows: BrowseTrajectory[], presentation?: Pres
 
 function rowKey(row: BrowseTrajectory): string { return laneId(row.source_id, row.trajectory.id); }
 function rowSearchText(row: BrowseTrajectory, metadata?: EditableMetadata): string {
-  return `${metadata?.title ?? ""} ${metadata?.description ?? ""} ${row.trajectory.id} ${row.source_name} ${row.case_name ?? ""} ${row.group_name ?? ""}`.toLowerCase();
+  return `${metadata?.title ?? ""} ${metadata?.description ?? ""} ${(metadata?.tags ?? []).join(" ")} ${row.trajectory.id} ${row.source_name} ${row.case_name ?? ""} ${row.group_name ?? ""}`.toLowerCase();
 }
 function eventDetail(event: TrajectoryEvent): unknown { return event.output ?? event.input ?? event.content ?? event.data ?? event.raw ?? event; }
 function eventText(event: TrajectoryEvent): string { return title(event) || `${event.kind} event`; }
@@ -182,6 +183,25 @@ function fakeBrowse(trajectory: Trajectory): BrowseResponse {
   }] };
 }
 
+function browseFromRolloutQuery(result: RolloutQueryResponse): BrowseResponse {
+  const sources = [...new Map(result.rollouts.map((item) => [item.source_id, { id: item.source_id }])).values()];
+  const trajectories = result.rollouts.map((item): BrowseTrajectory => {
+    const wrapped = item.summary.trajectory as { value?: Omit<Trajectory, "events"> };
+    const trajectory = (wrapped.value ?? item.summary.trajectory) as Omit<Trajectory, "events">;
+    return {
+      source_id: item.source_id, source_name: item.source_name, run_name: item.run_name,
+      case_name: item.case_name, group_name: item.group_name, trajectory,
+      metrics: { ...item.summary, signals: item.summary.signals },
+    };
+  });
+  return { sources, trajectories, count: result.page.total };
+}
+
+function rolloutQueryRowKey(item: RolloutQueryResponse["rollouts"][number]): string {
+  const wrapped = item.summary.trajectory as { value?: { id?: string }; id?: string };
+  return `${item.source_id}:${wrapped.value?.id ?? wrapped.id ?? ""}`;
+}
+
 function EditableHeader({ kind, fallbackTitle, metadata, context, onSave }: {
   kind: "collection" | "trajectory";
   fallbackTitle: string;
@@ -192,24 +212,27 @@ function EditableHeader({ kind, fallbackTitle, metadata, context, onSave }: {
   const [editing, setEditing] = useState(false);
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
+  const [tagsDraft, setTagsDraft] = useState("");
   const Heading = kind === "collection" ? "h1" : "h2";
   const begin = () => {
     setTitleDraft(metadata?.title ?? "");
     setDescriptionDraft(metadata?.description ?? "");
+    setTagsDraft(metadata?.tags?.join(", ") ?? "");
     setEditing(true);
   };
   if (editing) return <form className={`metadata-editor ${kind}`} onClick={(event) => event.stopPropagation()} onSubmit={(event) => {
     event.preventDefault();
-    onSave({ title: titleDraft, description: descriptionDraft });
+    onSave({ title: titleDraft, description: descriptionDraft, tags: tagsDraft.split(",").map((tag) => tag.trim()).filter(Boolean) });
     setEditing(false);
   }} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setEditing(false); } }}>
     <label>Title<input aria-label={`${kind} title`} autoFocus maxLength={120} value={titleDraft} placeholder={fallbackTitle} onChange={(event) => setTitleDraft(event.target.value)} /></label>
     <label>Description<textarea aria-label={`${kind} description`} maxLength={500} value={descriptionDraft} placeholder="Add a concise description" onChange={(event) => setDescriptionDraft(event.target.value)} /></label>
+    {kind === "trajectory" && <label>Labels<input aria-label="trajectory labels" maxLength={655} value={tagsDraft} placeholder="regression, infra, reviewed" onChange={(event) => setTagsDraft(event.target.value)} /></label>}
     <span><button type="submit">save</button><button type="button" onClick={() => setEditing(false)}>cancel</button></span>
   </form>;
   return <div className={`editable-metadata ${kind}`}>
-    <div><Heading>{metadata?.title ?? fallbackTitle}</Heading>{metadata?.description && <p>{metadata.description}</p>}{context && <small className={kind === "trajectory" ? "workspace-breadcrumb" : undefined}>{context}</small>}</div>
-    <button type="button" className="metadata-edit" aria-label={`Edit ${kind} title and description`} onClick={(event) => { event.stopPropagation(); begin(); }}>edit</button>
+    <div><Heading>{metadata?.title ?? fallbackTitle}</Heading>{metadata?.description && <p>{metadata.description}</p>}{kind === "trajectory" && !!metadata?.tags?.length && <span className="annotation-tags" aria-label="Local trajectory labels">{metadata.tags.map((tag) => <small key={tag}>{tag}</small>)}</span>}{context && <small className={kind === "trajectory" ? "workspace-breadcrumb" : undefined}>{context}</small>}</div>
+    <button type="button" className="metadata-edit" aria-label={`Edit ${kind} title and description${kind === "trajectory" ? " and labels" : ""}`} onClick={(event) => { event.stopPropagation(); begin(); }}>edit</button>
   </div>;
 }
 
@@ -230,11 +253,12 @@ function CollectionStrip({ row, fidelity }: { row: BrowseTrajectory; fidelity: n
   </span>;
 }
 
-function Rail({ root, rows, workspace, fidelity, presentation, metadata, trajectoryMetadata, onMetadata, onActivate, onSelect, onOpen, onAdd, onQuery, onCollectionView }: {
+function Rail({ root, rows, workspace, fidelity, presentation, metadata, trajectoryMetadata, indexedQuery, onMetadata, onActivate, onSelect, onOpen, onAdd, onQuery, onRunIndexedQuery, onLoadMore, onCollectionView }: {
   root: RefObject<HTMLElement | null>; rows: BrowseTrajectory[]; workspace: WorkspaceState; fidelity: number;
   presentation?: PresentationConfig;
+  indexedQuery?: { available: boolean; active: boolean; loading: boolean; total?: number; totalCostUSD?: number; hasMore: boolean };
   metadata?: EditableMetadata; trajectoryMetadata: Record<string, EditableMetadata>; onMetadata: (value: EditableMetadata) => void;
-  onActivate: () => void; onSelect: (index: number) => void; onOpen: () => void; onAdd: () => void; onQuery: (query: string) => void; onCollectionView: (view: WorkspaceState["collectionView"]) => void;
+  onActivate: () => void; onSelect: (index: number) => void; onOpen: () => void; onAdd: () => void; onQuery: (query: string) => void; onRunIndexedQuery: () => void; onLoadMore: () => void; onCollectionView: (view: WorkspaceState["collectionView"]) => void;
 }) {
   const selected = Math.min(workspace.railSelected, Math.max(0, rows.length - 1));
   const listRef = useRef<HTMLElement>(null);
@@ -254,13 +278,14 @@ function Rail({ root, rows, workspace, fidelity, presentation, metadata, traject
   const infrastructureFailures = rows.filter((row) => rowFailureClass(row) === "infrastructure").length;
   const timeouts = rows.filter(rowTimedOut).length;
   const renderRow = ({ row, index }: typeof indexedRows[number]) => { const pass = rowPass(row); return <button key={rowKey(row)} role="option" data-index={index} aria-selected={index === selected} data-fidelity-level={`L${fidelity}`} data-columns={fidelity >= 2 ? "true" : "false"} className={`browse-row ${index === selected ? "selected" : ""} ${pass === true ? "outcome-pass" : pass === false ? "outcome-fail" : "outcome-unknown"}`} onClick={() => onSelect(index)} onDoubleClick={onOpen}>
-    {fidelity >= 1 && <span className="verdict">{verdictGlyph(row)}</span>}<span className="identity"><b>{trajectoryMetadata[rowKey(row)]?.title ?? row.trajectory.id}</b>{fidelity >= 2 && <small>{trajectoryMetadata[rowKey(row)]?.title ? `${row.trajectory.id}${trajectoryMetadata[rowKey(row)]?.description ? ` · ${trajectoryMetadata[rowKey(row)]?.description}` : ""}` : row.case_name ?? row.group_name ?? row.source_name}</small>}</span><CollectionStrip row={row} fidelity={fidelity} />
+    {fidelity >= 1 && <span className="verdict">{verdictGlyph(row)}</span>}<span className="identity"><b>{trajectoryMetadata[rowKey(row)]?.title ?? row.trajectory.id}</b>{fidelity >= 2 && <small>{trajectoryMetadata[rowKey(row)]?.title ? `${row.trajectory.id}${trajectoryMetadata[rowKey(row)]?.description ? ` · ${trajectoryMetadata[rowKey(row)]?.description}` : ""}` : row.case_name ?? row.group_name ?? row.source_name}</small>}{fidelity >= 2 && !!trajectoryMetadata[rowKey(row)]?.tags?.length && <span className="annotation-tags" aria-label="Local trajectory labels">{trajectoryMetadata[rowKey(row)].tags!.map((tag) => <small key={tag}>{tag}</small>)}</span>}</span><CollectionStrip row={row} fidelity={fidelity} />
     {fidelity >= 2 && <><span className="numeric events-column">{String(metric(row, "event_count") ?? "—")} ev</span><span className="numeric reward-column">{metric(row, "reward") === undefined ? "" : `r ${String(metric(row, "reward"))}`}</span></>}
     {fidelity >= 2 && <span className="row-state">{row.source_name}{row.group_name ? ` · ${row.group_name}` : ""}</span>}
   </button>; };
   return <main ref={root} tabIndex={0} className={`workspace-rail ${workspace.active === "rail" ? "active-zone" : ""}`} aria-label="Browse trajectories" data-filter={workspace.railQuery} data-fidelity={collectionFidelityNames[fidelity]} data-collection-view={workspace.collectionView} onFocus={onActivate}>
-    <header><EditableHeader kind="collection" fallbackTitle="Trajectories" metadata={metadata} context={rows.length === 1 ? "1 trajectory" : `${rows.length} trajectories`} onSave={onMetadata} /></header>
-    <div className="rail-controls"><label>Filter <input id="browse-filter" value={workspace.railQuery} onChange={(event) => onQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); root.current?.focus(); } }} /></label><div className="rail-view-toggle" role="group" aria-label="Collection view"><span>view</span><button className={workspace.collectionView === "rollouts" ? "active" : ""} aria-pressed={workspace.collectionView === "rollouts"} onClick={() => onCollectionView("rollouts")}>rollouts</button><button className={workspace.collectionView === "trials" ? "active" : ""} aria-pressed={workspace.collectionView === "trials"} onClick={() => onCollectionView("trials")}>trials</button></div></div>
+    <header><EditableHeader kind="collection" fallbackTitle="Trajectories" metadata={metadata} context={indexedQuery?.active && indexedQuery.total !== undefined ? `${rows.length}/${indexedQuery.total} trajectories loaded` : rows.length === 1 ? "1 trajectory" : `${rows.length} trajectories`} onSave={onMetadata} /></header>
+    <div className="rail-controls"><label>Filter <input id="browse-filter" value={workspace.railQuery} onChange={(event) => onQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); root.current?.focus(); } else if (event.key === "Enter" && indexedQuery?.available) { event.preventDefault(); onRunIndexedQuery(); } }} /></label><div className="rail-view-toggle" role="group" aria-label="Collection view"><span>view</span><button className={workspace.collectionView === "rollouts" ? "active" : ""} aria-pressed={workspace.collectionView === "rollouts"} onClick={() => onCollectionView("rollouts")}>rollouts</button><button className={workspace.collectionView === "trials" ? "active" : ""} aria-pressed={workspace.collectionView === "trials"} onClick={() => onCollectionView("trials")}>trials</button></div></div>
+    {indexedQuery?.active && <div className="fidelity-readout" role="status"><b>indexed cohort</b><span>{indexedQuery.total ?? 0} match{indexedQuery.total === 1 ? "" : "es"}{indexedQuery.totalCostUSD !== undefined ? ` · $${indexedQuery.totalCostUSD.toFixed(4)}` : ""}</span></div>}
     {workspace.collectionView === "trials" && rows.length > 0 && <section className="collection-evaluation-summary" aria-label="Evaluation summary"><span><b>{cases.length}</b><small>task{cases.length === 1 ? "" : "s"}</small></span><span><b>{variantCount}</b><small>variant{variantCount === 1 ? "" : "s"}</small></span><span><b>{passSummary(rows)}</b><small>reported outcomes</small></span>{infrastructureFailures > 0 && <span><b>{infrastructureFailures}</b><small>infrastructure</small></span>}{timeouts > 0 && <span><b>{timeouts}</b><small>timeouts</small></span>}</section>}
     <div className="fidelity-readout"><b>{collectionFidelityNames[fidelity]}</b><span>{collectionFidelityHelp[fidelity]}</span><kbd>[</kbd><kbd>]</kbd></div>
     <section ref={listRef} className={`browse-list rail-fidelity-${fidelity}`} role="listbox" aria-label="Trajectory collection" data-fidelity-level={`L${fidelity}`} onWheel={(event) => {
@@ -286,7 +311,7 @@ function Rail({ root, rows, workspace, fidelity, presentation, metadata, traject
       </section>)}
       {!rows.length && <p className="empty-state">No trajectories match this filter.</p>}
     </section>
-    <span className="rail-actions"><button onClick={onAdd}>add lane</button></span>
+    <span className="rail-actions">{indexedQuery?.available && <button disabled={indexedQuery.loading} onClick={onRunIndexedQuery}>{indexedQuery.loading ? "querying…" : "query index"}</button>}{indexedQuery?.active && indexedQuery.hasMore && <button disabled={indexedQuery.loading} onClick={onLoadMore}>load more</button>}<button onClick={onAdd}>add lane</button></span>
   </main>;
 }
 
@@ -729,6 +754,9 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   useKeymapRevision();
   const { workspace, workspaceRef, breadcrumb, applyWorkspace, change, jump } = useWorkspaceController();
   const [browse, setBrowse] = useState<BrowseResponse>(() => fakeBrowse(initialTrajectory ?? sampleTrajectory));
+  const [indexedResult, setIndexedResult] = useState<RolloutQueryResponse>();
+  const [indexedParams, setIndexedParams] = useState<RolloutQueryParams>();
+  const [indexedLoading, setIndexedLoading] = useState(false);
   const [railFidelity, setRailFidelity] = useState(1);
   const [spotlightLane, setSpotlightLane] = useState<string>();
   const [hover, setHover] = useState<Record<string, number | undefined>>({});
@@ -744,6 +772,7 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   const shouldOpenBrowserWelcome = useRef(setup.mode === "browser" && !new URLSearchParams(window.location.search).has("workspace") && !hasStoredWorkspace());
   const browserWelcomeOpened = useRef(false);
   const legacyReadIntent = useRef((() => { const params = new URLSearchParams(window.location.search); return (params.get("mode") === "read" || params.get("view") === "read") && !params.get("trajectory_id"); })());
+  const indexedAbort = useRef<AbortController | undefined>(undefined);
 
   const { laneData, laneDataRef, putLaneData, deleteLaneData, pruneOffLaneData, loadForSlot, loadAnalysisForLane } = useLaneDataLoader({
     provider,
@@ -756,8 +785,9 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   });
   const { metadata: viewerMetadata, updateCollection, updateTrajectory } = useViewerMetadata();
 
-  const ordered = browse.trajectories;
-  const collectionKey = useMemo(() => collectionMetadataKey(browse.sources.map((source) => source.id)), [browse.sources]);
+  const activeBrowse = useMemo(() => indexedResult ? browseFromRolloutQuery(indexedResult) : browse, [browse, indexedResult]);
+  const ordered = activeBrowse.trajectories;
+  const collectionKey = useMemo(() => collectionMetadataKey(activeBrowse.sources.map((source) => source.id)), [activeBrowse.sources]);
   const trajectoryTitles = useMemo(() => Object.fromEntries(Object.entries(viewerMetadata.trajectories).map(([id, metadata]) => [id, metadata.title])), [viewerMetadata.trajectories]);
   const {
     apiRef: dockApiRef,
@@ -799,7 +829,7 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
     const frame = requestAnimationFrame(() => focusElementForTarget(workspace.active, railRef)?.focus({ preventScroll: true }));
     return () => cancelAnimationFrame(frame);
   }, [viewportMode, workspace.active, workspace.guideOpen, workspace.lanes, workspace.settingsOpen]);
-  const filtered = useMemo(() => ordered.filter((row) => !workspace.railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(workspace.railQuery.toLowerCase())), [ordered, viewerMetadata.trajectories, workspace.railQuery]);
+  const filtered = useMemo(() => indexedResult ? ordered : ordered.filter((row) => !workspace.railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(workspace.railQuery.toLowerCase())), [indexedResult, ordered, viewerMetadata.trajectories, workspace.railQuery]);
   const boundedRail = Math.min(workspace.railSelected, Math.max(0, filtered.length - 1)); const selectedRow = filtered[boundedRail];
   const pinnedActiveLane = pinnedDetailLaneId(workspace.active);
   const activeLane = workspace.lanes.find((lane) => lane.id === workspace.active || lane.id === pinnedActiveLane) ?? (workspace.active === "detail" ? workspace.lanes.find((lane) => lane.id === workspace.detailPinned) ?? workspace.lanes.find((lane) => lane.id === lastFocus.current) ?? workspace.lanes.find((lane) => lane.band === "focus") : undefined);
@@ -822,6 +852,57 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
     }).catch((reason) => { if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not load viewer"); });
     return () => controller.abort();
   }, [applyWorkspace, initialTrajectory, provider, putLaneData, workspaceRef]);
+
+  useEffect(() => () => indexedAbort.current?.abort(), []);
+
+  const runIndexedQuery = useCallback(async () => {
+    if (!provider.queryRollouts) return;
+    const parsed = parseRolloutQuery(workspaceRef.current.railQuery);
+    if (parsed.diagnostics.length) {
+      setError(`Invalid indexed query · ${parsed.diagnostics.join(" · ")}`);
+      return;
+    }
+    indexedAbort.current?.abort();
+    const controller = new AbortController();
+    indexedAbort.current = controller;
+    setIndexedLoading(true);
+    setError("");
+    try {
+      const params = { ...parsed.params, offset: 0 };
+      const result = await provider.queryRollouts(params, controller.signal);
+      if (controller.signal.aborted) return;
+      setIndexedParams(params);
+      setIndexedResult(result);
+      change((current) => ({ ...current, railSelected: 0 }), false);
+    } catch (reason) {
+      if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not query indexed rollouts");
+    } finally {
+      if (indexedAbort.current === controller) setIndexedLoading(false);
+    }
+  }, [change, provider, workspaceRef]);
+
+  const loadMoreIndexed = useCallback(async () => {
+    if (!provider.queryRollouts || !indexedResult || !indexedParams || indexedResult.page.next_offset === undefined) return;
+    indexedAbort.current?.abort();
+    const controller = new AbortController();
+    indexedAbort.current = controller;
+    setIndexedLoading(true);
+    setError("");
+    try {
+      const result = await provider.queryRollouts({ ...indexedParams, offset: indexedResult.page.next_offset }, controller.signal);
+      if (controller.signal.aborted) return;
+      setIndexedResult((current) => {
+        if (!current) return result;
+        const rollouts = [...current.rollouts, ...result.rollouts];
+        const unique = [...new Map(rollouts.map((item) => [rolloutQueryRowKey(item), item])).values()];
+        return { ...result, rollouts: unique };
+      });
+    } catch (reason) {
+      if (!controller.signal.aborted && !(reason instanceof Error && reason.name === "AbortError")) setError(reason instanceof Error ? reason.message : "Could not load more indexed rollouts");
+    } finally {
+      if (indexedAbort.current === controller) setIndexedLoading(false);
+    }
+  }, [indexedParams, indexedResult, provider]);
 
   useEffect(() => applyPresentationTheme(presentation), [presentation]);
   useEffect(() => { if (activeLane && laneData.has(activeLane.id)) setPresentation(laneData.get(activeLane.id)?.presentation); }, [activeLane, laneData]);
@@ -1075,7 +1156,14 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
     : shortcutIDs.map((id) => ({ binding: firstBindingLabel(id), label: commandDefinition(id).label, id }));
 
   const dockContent: DockContent = {
-    collection: <Rail root={railRef} rows={filtered} workspace={{ ...workspace, railSelected: boundedRail }} fidelity={railFidelity} presentation={presentation} metadata={viewerMetadata.collections[collectionKey]} trajectoryMetadata={viewerMetadata.trajectories} onMetadata={(value) => updateCollection(collectionKey, value)} onActivate={() => { if (canActivateContent("rail")) change((current) => ({ ...current, active: "rail" })); }} onSelect={(index) => change((current) => ({ ...current, railSelected: index, active: "rail" }))} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} onCollectionView={(collectionView) => change((current) => ({ ...current, collectionView }))} onQuery={(railQuery) => change((current) => { const next = ordered.filter((row) => !railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(railQuery.toLowerCase())); const kept = selectedRow ? next.findIndex((row) => rowKey(row) === rowKey(selectedRow)) : -1; return { ...current, railQuery, railSelected: kept >= 0 ? kept : 0 }; })} />,
+    collection: <Rail root={railRef} rows={filtered} workspace={{ ...workspace, railSelected: boundedRail }} fidelity={railFidelity} presentation={presentation} metadata={viewerMetadata.collections[collectionKey]} trajectoryMetadata={viewerMetadata.trajectories} indexedQuery={{ available: !!provider.queryRollouts, active: !!indexedResult, loading: indexedLoading, total: indexedResult?.page.total, totalCostUSD: indexedResult?.aggregates.total_cost_usd, hasMore: !!indexedResult?.page.has_more }} onMetadata={(value) => updateCollection(collectionKey, value)} onActivate={() => { if (canActivateContent("rail")) change((current) => ({ ...current, active: "rail" })); }} onSelect={(index) => change((current) => ({ ...current, railSelected: index, active: "rail" }))} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} onRunIndexedQuery={() => { void runIndexedQuery(); }} onLoadMore={() => { void loadMoreIndexed(); }} onCollectionView={(collectionView) => change((current) => ({ ...current, collectionView }))} onQuery={(railQuery) => {
+      indexedAbort.current?.abort();
+      indexedAbort.current = undefined;
+      setIndexedLoading(false);
+      setIndexedResult(undefined);
+      setIndexedParams(undefined);
+      change((current) => { const next = browse.trajectories.filter((row) => !railQuery || rowSearchText(row, viewerMetadata.trajectories[rowKey(row)]).includes(railQuery.toLowerCase())); const kept = selectedRow ? next.findIndex((row) => rowKey(row) === rowKey(selectedRow)) : -1; return { ...current, railQuery, railSelected: kept >= 0 ? kept : 0 }; });
+    }} />,
     guide: <Guide active={workspace.active === "guide"} setup={setup} onActivate={() => { if (canActivateContent("guide")) change((current) => ({ ...current, active: "guide" })); }} onClose={closeGuide} />,
     settings: <Settings active={workspace.active === "settings"} theme={theme} setup={setup} onTheme={setTheme} onActivate={() => { if (canActivateContent("settings")) change((current) => ({ ...current, active: "settings" })); }} onClose={closeSettings} />,
     lane: (id) => { const lane = workspace.lanes.find((item) => item.id === id); return lane ? <LaneTrack lane={lane} data={laneData.get(lane.id)} metadata={viewerMetadata.trajectories[lane.id]} active={workspace.active === lane.id} reference={workspace.reference === lane.id} hover={hover[lane.id]} onActivate={() => { if (canActivateContent(lane.id)) change((current) => ({ ...current, active: lane.id })); }} onSelect={(value) => selectEvent(lane.id, value)} onHover={(value) => setHover((current) => ({ ...current, [lane.id]: value }))} onDescend={(episode) => descendLane(lane.id, episode)} onAscend={() => ascendLane(lane.id)} onAxisChange={(axis) => updateLane(lane.id, (current) => ({ ...current, axis }), false)} /> : null; },

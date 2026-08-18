@@ -1,6 +1,6 @@
 export const groupColumnLayoutStorageKey = "rlviz.group-columns.v1";
 
-export const optionalBuiltinColumns = ["reward", "pass", "status", "termination", "events", "errors", "tokens", "latency"] as const;
+export const optionalBuiltinColumns = ["reward", "pass", "status", "termination", "events", "errors", "tokens", "cost", "tools", "latency"] as const;
 export type OptionalBuiltinColumn = typeof optionalBuiltinColumns[number];
 
 export type GroupColumnLayout = {

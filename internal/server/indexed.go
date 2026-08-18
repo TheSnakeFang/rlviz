@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -85,6 +86,8 @@ func (api *indexedAPI) serveHTTP(response http.ResponseWriter, request *http.Req
 		api.trajectory(response, request)
 	case "/api/v1/indexed/browse":
 		api.browse(response, request)
+	case "/api/v1/indexed/rollouts":
+		api.rollouts(response, request)
 	case "/api/v1/indexed/events":
 		api.events(response, request)
 	case "/api/v1/indexed/signals":
@@ -126,6 +129,112 @@ func (api *indexedAPI) analysis(response http.ResponseWriter, request *http.Requ
 		return
 	}
 	writeJSON(response, http.StatusOK, result)
+}
+
+type indexedRolloutReader interface {
+	QueryRollouts(context.Context, rolloutindex.RolloutQuery) (rolloutindex.RolloutQueryPage, error)
+}
+
+func (api *indexedAPI) rollouts(response http.ResponseWriter, request *http.Request) {
+	allowed := map[string]bool{
+		"offset": true, "limit": true, "q": true, "source": true, "run": true, "case": true, "group": true,
+		"checkpoint": true, "model": true, "environment_version": true, "status": true, "termination": true,
+		"tool": true, "pass": true, "reward_min": true, "reward_max": true, "tokens_min": true, "tokens_max": true,
+		"cost_min": true, "cost_max": true, "sort": true, "descending": true,
+	}
+	values := request.URL.Query()
+	if err := validateQuery(values, allowed); err != nil {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", err)
+		return
+	}
+	reader, ok := api.reader.(indexedRolloutReader)
+	if !ok {
+		writeJSONError(response, http.StatusNotImplemented, "rollout_query_unavailable", errors.New("rollout query index is unavailable"))
+		return
+	}
+	limit, err := parseLimit(values)
+	if err != nil {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", err)
+		return
+	}
+	offset, err := parseOffset(values)
+	if err != nil {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", err)
+		return
+	}
+	stringValue := func(name string) (string, bool) {
+		value, valueErr := optionalSingle(values, name)
+		if valueErr != nil || len(value) > 256 {
+			if valueErr == nil {
+				valueErr = fmt.Errorf("%s must be at most 256 characters", name)
+			}
+			err = valueErr
+			return "", false
+		}
+		return value, true
+	}
+	query := rolloutindex.RolloutQuery{Offset: offset, Limit: limit}
+	for name, target := range map[string]*string{
+		"q": &query.Query, "source": &query.SourceID, "run": &query.Run, "case": &query.Case, "group": &query.Group,
+		"checkpoint": &query.Checkpoint, "model": &query.Model, "environment_version": &query.EnvironmentVersion,
+		"status": &query.Status, "termination": &query.Termination, "tool": &query.Tool, "sort": &query.Sort,
+	} {
+		value, valid := stringValue(name)
+		if !valid {
+			writeJSONError(response, http.StatusBadRequest, "invalid_query", err)
+			return
+		}
+		*target = value
+	}
+	validSort := map[string]bool{"": true, "reward": true, "tokens": true, "cost": true, "tools": true, "run": true, "case": true, "checkpoint": true, "model": true}
+	if !validSort[query.Sort] {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", errors.New("sort must be reward, tokens, cost, tools, run, case, checkpoint, or model"))
+		return
+	}
+	if query.Pass, err = optionalBool(values, "pass"); err != nil {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", err)
+		return
+	}
+	descending, descErr := optionalBool(values, "descending")
+	if descErr != nil {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", descErr)
+		return
+	}
+	query.Descending = descending != nil && *descending
+	if query.RewardMin, err = optionalFiniteFloat(values, "reward_min", true); err == nil {
+		query.RewardMax, err = optionalFiniteFloat(values, "reward_max", true)
+	}
+	if err == nil {
+		query.CostMin, err = optionalFiniteFloat(values, "cost_min", false)
+	}
+	if err == nil {
+		query.CostMax, err = optionalFiniteFloat(values, "cost_max", false)
+	}
+	if err == nil {
+		query.TokensMin, err = optionalNonnegativeInt64(values, "tokens_min")
+	}
+	if err == nil {
+		query.TokensMax, err = optionalNonnegativeInt64(values, "tokens_max")
+	}
+	if err != nil {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", err)
+		return
+	}
+	if (query.RewardMin != nil && query.RewardMax != nil && *query.RewardMin > *query.RewardMax) ||
+		(query.CostMin != nil && query.CostMax != nil && *query.CostMin > *query.CostMax) ||
+		(query.TokensMin != nil && query.TokensMax != nil && *query.TokensMin > *query.TokensMax) {
+		writeJSONError(response, http.StatusBadRequest, "invalid_query", errors.New("minimum filters must not exceed maximum filters"))
+		return
+	}
+	page, err := reader.QueryRollouts(request.Context(), query)
+	if err != nil {
+		api.writeReadError(response, "rollout_query_failed", err)
+		return
+	}
+	writeJSON(response, http.StatusOK, map[string]any{
+		"rollouts": page.Items, "aggregates": page.Aggregates,
+		"page": boundedPage(page.Offset, len(page.Items), page.Total, page.Limit),
+	})
 }
 
 func (api *indexedAPI) trajectory(response http.ResponseWriter, request *http.Request) {
@@ -482,6 +591,22 @@ func optionalNonnegativeInt64(values url.Values, name string) (*int64, error) {
 	value, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || value < 0 {
 		return nil, fmt.Errorf("%s must be a non-negative integer", name)
+	}
+	return &value, nil
+}
+
+func optionalFiniteFloat(values url.Values, name string, allowNegative bool) (*float64, error) {
+	raw, err := optionalSingle(values, name)
+	if err != nil || raw == "" {
+		return nil, err
+	}
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil || math.IsNaN(value) || math.IsInf(value, 0) || (!allowNegative && value < 0) {
+		qualifier := "finite"
+		if !allowNegative {
+			qualifier = "non-negative finite"
+		}
+		return nil, fmt.Errorf("%s must be a %s number", name, qualifier)
 	}
 	return &value, nil
 }

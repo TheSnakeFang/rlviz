@@ -138,6 +138,61 @@ func TestIndexedBrowseReturnsTheKnownCollection(t *testing.T) {
 	}
 }
 
+func TestIndexedRolloutsFiltersPaginatesAndReturnsCohortAggregates(t *testing.T) {
+	handler := testIndexedHandler(t)
+	first := indexedRequest(t, handler, http.MethodGet, "/api/v1/indexed/rollouts?limit=1&sort=reward&descending=true", true)
+	if first.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", first.Code, first.Body.String())
+	}
+	payload := decodeIndexedResponse(t, first)
+	page := payload["page"].(map[string]any)
+	if page["count"] != float64(1) || page["total"] != float64(2) || page["has_more"] != true || page["next_offset"] != float64(1) {
+		t.Fatalf("page=%#v", page)
+	}
+	rollouts := payload["rollouts"].([]any)
+	item := rollouts[0].(map[string]any)
+	if item["source_name"] != "group.ndjson" || item["run_id"] != "run-group" || item["checkpoint"] != "1200" {
+		t.Fatalf("rollout=%#v", item)
+	}
+	summary := item["summary"].(map[string]any)
+	trajectory := summary["trajectory"].(map[string]any)["value"].(map[string]any)
+	if trajectory["id"] != "traj-success" || summary["tool_call_count"] != float64(1) {
+		t.Fatalf("summary=%#v", summary)
+	}
+	aggregates := payload["aggregates"].(map[string]any)
+	if aggregates["count"] != float64(2) || aggregates["success"] != float64(1) || aggregates["failure"] != float64(1) {
+		t.Fatalf("aggregates=%#v", aggregates)
+	}
+
+	filtered := indexedRequest(t, handler, http.MethodGet, "/api/v1/indexed/rollouts?checkpoint=1200&tool=search&pass=false&reward_max=0", true)
+	if filtered.Code != http.StatusOK {
+		t.Fatalf("filtered status=%d body=%s", filtered.Code, filtered.Body.String())
+	}
+	filteredPayload := decodeIndexedResponse(t, filtered)
+	if filteredPayload["page"].(map[string]any)["total"] != float64(1) {
+		t.Fatalf("filtered=%#v", filteredPayload)
+	}
+	filteredItem := filteredPayload["rollouts"].([]any)[0].(map[string]any)
+	filteredTrajectory := filteredItem["summary"].(map[string]any)["trajectory"].(map[string]any)["value"].(map[string]any)
+	if filteredTrajectory["id"] != "traj-failure" {
+		t.Fatalf("filtered rollout=%#v", filteredItem)
+	}
+}
+
+func TestIndexedRolloutsRejectsInvalidQuery(t *testing.T) {
+	for _, target := range []string{
+		"/api/v1/indexed/rollouts?extra=x",
+		"/api/v1/indexed/rollouts?sort=unknown",
+		"/api/v1/indexed/rollouts?reward_min=2&reward_max=1",
+		"/api/v1/indexed/rollouts?cost_min=-1",
+	} {
+		response := indexedRequest(t, testIndexedHandler(t), http.MethodGet, target, true)
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("target=%s status=%d body=%s", target, response.Code, response.Body.String())
+		}
+	}
+}
+
 type browseTestReader struct {
 	IndexedReader
 	groups       []rolloutindex.IndexedRecord[*model.Group]

@@ -108,11 +108,11 @@
   "$defs": {
     "field_id": {
       "type": "string",
-      "pattern": "^(reward|pass|status|termination|events|errors|tokens|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$"
+      "pattern": "^(reward|pass|status|termination|events|errors|tokens|cost|tools|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$"
     },
     "scalar_field_id": {
       "type": "string",
-      "pattern": "^(reward|events|errors|tokens|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$"
+      "pattern": "^(reward|events|errors|tokens|cost|tools|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$"
     },
     "palette_variant": {
       "type": "object",

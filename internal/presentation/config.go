@@ -20,8 +20,8 @@ const (
 	MaxBytes   = 64 * 1024
 )
 
-var fieldID = regexp.MustCompile(`^(reward|pass|status|termination|events|errors|tokens|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$`)
-var scalarFieldID = regexp.MustCompile(`^(reward|events|errors|tokens|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$`)
+var fieldID = regexp.MustCompile(`^(reward|pass|status|termination|events|errors|tokens|cost|tools|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$`)
+var scalarFieldID = regexp.MustCompile(`^(reward|events|errors|tokens|cost|tools|latency|signal:[A-Za-z0-9][A-Za-z0-9._-]{0,127})$`)
 
 type Config struct {
 	APIVersion string                  `json:"api_version"`

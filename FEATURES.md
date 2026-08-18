@@ -47,7 +47,8 @@ work, and `later` is an intended capability without a committed release.
 - `current` Flat rollout view and canonical run → task → variant → rollout evaluation hierarchy.
 - `current` Source-backed pass, infrastructure, timeout, step, token, and adapter-declared scalar aggregates on evaluation headers.
 - `current` Three truthful collection fidelity levels: hairline, glyphs, and detail.
-- `current` Outcome, reward, pass, error, token, latency, retry, and termination signals when present.
+- `current` Outcome, reward, pass, error, token, source-reported cost, tool-call count, latency, retry, and termination signals when present.
+- `current` Authenticated, paginated rollout queries across indexed sources with run, task, group, checkpoint, model, environment, reward, token, cost, pass, status, termination, and tool-occurrence filters plus cohort aggregates.
 - `later` Saved collection presets for recurring evaluation suites.
 
 ### Rollout inspection
@@ -73,7 +74,7 @@ work, and `later` is an intended capability without a committed release.
 - `current` Customizable keymap storage and toggleable move/resize modes.
 - `current` Docked Settings module for appearance, browser data loading, and adapter guidance.
 - `current` Shareable logical workspace links and bounded, device-local dock geometry.
-- `current` Device-local editable titles and descriptions for collections and trajectories, without changing source traces.
+- `current` Device-local editable titles, notes, and normalized trajectory labels, without changing source traces; labels are visible and participate in local collection filtering.
 - `next` Complete keybinding-remap UI backed by the shared config.
 
 ### Comparison and derived analysis

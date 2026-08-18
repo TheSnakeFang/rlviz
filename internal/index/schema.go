@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS signals (
   PRIMARY KEY(source_id,id), FOREIGN KEY(source_id) REFERENCES sources(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS signals_trajectory ON signals(source_id,trajectory_id);
+CREATE INDEX IF NOT EXISTS signals_metric ON signals(lower(name),source_id,trajectory_id,line,id);
 CREATE TABLE IF NOT EXISTS artifacts (
   source_id TEXT NOT NULL, id TEXT NOT NULL, trajectory_id TEXT NOT NULL, event_id TEXT NOT NULL,
   name TEXT NOT NULL, media_type TEXT NOT NULL, path TEXT NOT NULL, sha256 TEXT NOT NULL,

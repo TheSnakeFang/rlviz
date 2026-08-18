@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { analysisEndpoint, artifactContentEndpoint, comparisonEndpoint, daemonToken, groupEndpoint, groupPathsEndpoint, loadAnalysis, loadArtifactContent, loadBrowse, loadComparison, loadGroupPaths, loadIndexedTrajectory, loadTrajectory, normalizeTrajectoryResponse, trajectoryEndpoint } from "./api";
+import { analysisEndpoint, artifactContentEndpoint, comparisonEndpoint, daemonToken, groupEndpoint, groupPathsEndpoint, loadAnalysis, loadArtifactContent, loadBrowse, loadComparison, loadGroupPaths, loadIndexedTrajectory, loadRollouts, loadTrajectory, normalizeTrajectoryResponse, rolloutsEndpoint, trajectoryEndpoint } from "./api";
 
 afterEach(() => { vi.unstubAllGlobals(); window.history.replaceState({}, "", "/"); window.localStorage.clear(); });
 
@@ -109,6 +109,16 @@ describe("trajectory API normalization", () => {
   it("builds a stable encoded group endpoint", () => {
     expect(groupEndpoint("source/one", "group two")).toBe("/api/v1/indexed/group?trajectory=source%2Fone&group_id=group+two");
     expect(groupPathsEndpoint("source/one", "group two")).toBe("/api/v1/indexed/paths?trajectory=source%2Fone&group_id=group+two");
+  });
+
+  it("requests authenticated paginated rollout analysis queries", async () => {
+    window.history.replaceState({}, "", "/#token=query-secret");
+    const response = { rollouts: [], aggregates: { count: 0, success: 0, failure: 0, unknown: 0 }, page: { count: 0, total: 0, limit: 50, offset: 0, has_more: false } };
+    const fetch = vi.fn(async () => new Response(JSON.stringify(response)));
+    vi.stubGlobal("fetch", fetch);
+    await expect(loadRollouts({ checkpoint: "ckpt/42", reward_min: -1, tool: "computer use", limit: 50, descending: true })).resolves.toEqual(response);
+    expect(rolloutsEndpoint({ checkpoint: "ckpt/42", reward_min: -1, tool: "computer use", limit: 50, descending: true })).toBe("/api/v1/indexed/rollouts?checkpoint=ckpt%2F42&reward_min=-1&tool=computer+use&limit=50&descending=true");
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/api/v1/indexed/rollouts?"), expect.objectContaining({ headers: expect.objectContaining({ Authorization: "Bearer query-secret" }) }));
   });
 
   it("requests authenticated compact group paths", async () => {

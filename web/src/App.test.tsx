@@ -87,19 +87,23 @@ describe("instrument viewer", () => {
 
     fireEvent.keyDown(window, { key: "Enter" });
     await screen.findByRole("main", { name: "Read trajectory" });
-    fireEvent.click(screen.getByRole("button", { name: "Edit trajectory title and description" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit trajectory title and description and labels" }));
     fireEvent.change(screen.getByRole("textbox", { name: "trajectory title" }), { target: { value: "Failed confirmation" } });
     fireEvent.change(screen.getByRole("textbox", { name: "trajectory description" }), { target: { value: "Token expires before confirmation" } });
+    fireEvent.change(screen.getByRole("textbox", { name: "trajectory labels" }), { target: { value: "Regression, Auth, regression" } });
     fireEvent.click(screen.getByRole("button", { name: "save" }));
     expect(document.querySelector(".lane-track header b")).toHaveTextContent("Failed confirmation");
     expect(document.querySelector(".workspace-console h2")).toHaveTextContent("Failed confirmation");
     expect(document.querySelector(".workspace-console .editable-metadata p")).toHaveTextContent("Token expires before confirmation");
+    expect(screen.getByLabelText("Local trajectory labels")).toHaveTextContent("regressionauth");
 
     await waitFor(() => expect(JSON.parse(window.localStorage.getItem("rlviz.viewer-metadata.v1")!).trajectories).toBeTruthy());
     first.unmount();
     render(<App initialTrajectory={sampleTrajectory} />);
     expect(await screen.findByText("Checkout evaluation", { selector: ".workspace-rail h1" })).toBeInTheDocument();
     expect(await screen.findByText("Failed confirmation", { selector: ".lane-track header b" })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole("textbox", { name: "Filter" }), { target: { value: "auth" } });
+    expect(screen.getByRole("option")).toHaveTextContent("Failed confirmation");
   });
 
   it("keeps pointer and keyboard layer transitions anchored to the selected moment", async () => {

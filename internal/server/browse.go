@@ -36,11 +36,13 @@ type browseMetrics struct {
 	Reward        *float64                   `json:"reward,omitempty"`
 	Success       *bool                      `json:"success,omitempty"`
 	TokenCount    *int64                     `json:"token_count,omitempty"`
+	CostUSD       *float64                   `json:"cost_usd,omitempty"`
 	LatencyMS     *float64                   `json:"latency_ms,omitempty"`
 	Status        string                     `json:"status,omitempty"`
 	Termination   string                     `json:"termination,omitempty"`
 	EventCount    int64                      `json:"event_count"`
 	ErrorCount    int64                      `json:"error_count"`
+	ToolCallCount int64                      `json:"tool_call_count"`
 	FirstSequence *int64                     `json:"first_sequence,omitempty"`
 	LastSequence  *int64                     `json:"last_sequence,omitempty"`
 	SignalCount   int64                      `json:"signal_count"`
@@ -50,8 +52,9 @@ type browseMetrics struct {
 func browseSummary(summary rolloutindex.TrajectorySummary) browseMetrics {
 	return browseMetrics{
 		Signals: summary.Signals, Reward: summary.Reward, Success: summary.Success,
-		TokenCount: summary.TokenCount, LatencyMS: summary.LatencyMS, Status: summary.Status,
+		TokenCount: summary.TokenCount, CostUSD: summary.CostUSD, LatencyMS: summary.LatencyMS, Status: summary.Status,
 		Termination: summary.Termination, EventCount: summary.EventCount, ErrorCount: summary.ErrorCount,
+		ToolCallCount: summary.ToolCallCount,
 		FirstSequence: summary.FirstSequence, LastSequence: summary.LastSequence,
 		SignalCount: summary.SignalCount, ArtifactCount: summary.ArtifactCount,
 	}

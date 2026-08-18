@@ -210,11 +210,19 @@ The first group view includes:
 - trajectory table
 - reward and pass distributions
 - outcome and termination summaries
-- step, token, latency, retry, and error counts
+- step, token, source-reported cost, tool-call, latency, retry, and error counts
 - best and worst trajectory shortcuts
 - behavioral path fingerprint
 - sorting and filtering by any signal
 - adapter-declared scalar metrics in group headers
+
+The authenticated local index also exposes bounded, paginated rollout queries
+across registered sources. Filters cover canonical run/case/group identity,
+allowlisted source-backed checkpoint/model/environment dimensions, pass and
+outcome fields, reward/token/cost ranges, and exact tool occurrence. Aggregate
+counts and ranges describe the full filtered cohort, not only the returned
+page. Tool success/failure and per-call latency remain unavailable until a
+source-backed call/result span contract exists.
 
 ## Divergence
 
