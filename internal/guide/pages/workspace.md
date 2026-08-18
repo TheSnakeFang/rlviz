@@ -15,6 +15,22 @@ The compact view works on phones and narrow windows, but multi-rollout compariso
 - `[` / `]` change collection fidelity. The highest level names tool calls.
 - Switch between rollout and trial grouping in the Collection header.
 
+## Query indexed rollouts
+
+The CLI viewer can query every indexed source from the Collection filter. Enter a whitespace-separated query, then press `Enter` or choose **query index**. Plain words perform a case-insensitive text search.
+
+- Filter with `source:`, `run:`, `task:` (or `case:`), `group:`, `checkpoint:`, `model:`, `env:`, `status:`, `termination:`, `tool:`, and `pass:true` or `pass:false`.
+- Bound numeric values with `reward>=`, `reward<=`, `tokens>=`, `tokens<=`, `cost>=`, and `cost<=`.
+- Sort with `sort:reward`, `sort:tokens`, `sort:cost`, `sort:tools`, `sort:run`, `sort:case`, `sort:checkpoint`, or `sort:model`. Add `desc:true` for descending order.
+
+For example: `run:eval-42 checkpoint:step-800 pass:false cost<=0.25 sort:reward desc:true`.
+
+The indexed cohort readout reports matches and cost across the complete result, not only the current page. Choose **load more** to append the next page. The browser-only viewer filters its currently opened file locally and does not expose indexed queries.
+
+## Local labels and descriptions
+
+Open the collection or trajectory header editor to add a title, description, or comma-separated trajectory labels. These annotations are device-local browser data: they are searchable in the local Collection filter, survive reloads, and never modify the source trace. They are not indexed server filters or shared cohort metadata.
+
 ## Rollout and detail
 
 - `j` / `k` move event by event. `e` jumps to the next error and `r` to the next reward or grader.

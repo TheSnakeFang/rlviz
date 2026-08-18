@@ -63,6 +63,20 @@ const trajectoryResponse = (id: string) => {
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/trajectory**", (route) => route.fulfill({ json: trajectoryResponse("candidate") }));
   await page.route("**/api/v1/indexed/browse", (route) => route.fulfill({ json: browse }));
+  await page.route("**/api/v1/indexed/rollouts**", (route) => {
+    const offset = Number(new URL(route.request().url()).searchParams.get("offset") ?? 0);
+    const id = offset > 0 ? "indexed-2" : "indexed-1";
+    return route.fulfill({ json: {
+      rollouts: [{
+        source_id: "source-1", source_name: "demo.ndjson", run_id: "run-1", run_name: "Evaluation",
+        case_id: `case-${id}`, case_name: `Case ${id}`, group_id: "group", group_name: "demo group",
+        checkpoint: "ckpt-7", model: "test-model", environment_version: "env-3",
+        summary: { trajectory: { id, group_id: "group", status: "failed", termination: "grader_failed" }, event_count: 6, error_count: 1, reward: -0.5, token_count: 100, total_cost_usd: 0.01, tool_call_count: 2 },
+      }],
+      aggregates: { count: 2, success: 0, failure: 2, unknown: 0, total_cost_usd: 0.02 },
+      page: { count: 1, total: 2, limit: 1, offset, next_offset: offset > 0 ? undefined : 1, has_more: offset === 0 },
+    } });
+  });
   await page.route("**/api/v1/indexed/analysis**", (route) => route.fulfill({ json: { analysis: { api_version: "v1", provenance: { name: "test", version: "1", digest: "x", input_digest: "y" }, findings: [], signals: [] }, cached: false, analyzed_at: "now" } }));
   await page.route("**/api/v1/indexed/compare**", async (route) => {
     const url = new URL(route.request().url());

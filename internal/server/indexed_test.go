@@ -177,6 +177,15 @@ func TestIndexedRolloutsFiltersPaginatesAndReturnsCohortAggregates(t *testing.T)
 	if filteredTrajectory["id"] != "traj-failure" {
 		t.Fatalf("filtered rollout=%#v", filteredItem)
 	}
+
+	empty := indexedRequest(t, handler, http.MethodGet, "/api/v1/indexed/rollouts?status=missing", true)
+	if empty.Code != http.StatusOK {
+		t.Fatalf("empty status=%d body=%s", empty.Code, empty.Body.String())
+	}
+	emptyPayload := decodeIndexedResponse(t, empty)
+	if rows, ok := emptyPayload["rollouts"].([]any); !ok || len(rows) != 0 {
+		t.Fatalf("empty rollouts=%#v", emptyPayload["rollouts"])
+	}
 }
 
 func TestIndexedRolloutsRejectsInvalidQuery(t *testing.T) {

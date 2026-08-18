@@ -44,12 +44,15 @@ concise guide available as a workspace module in the viewer.
 - Browses one trajectory or a collection with truthful event positions,
   adjustable fidelity and depth, trial grouping, landmarks, and a draggable
   timeline viewport.
+- Queries indexed rollout cohorts by run, task, checkpoint, model, outcome,
+  reward, tokens, cost, and tool use, with paginated results and cohort totals.
 - Arranges rollout modules as rows or columns, pins rollout-specific detail,
   and keeps the active module's shortcuts visible in the bottom keybar.
 - Compares trajectories with deterministic behavioral alignment and a first
   meaningful divergence.
 - Runs locally: the CLI binds to loopback, makes no outbound requests during
-  viewing, and stores only a removable SQLite index.
+  viewing, stores only a removable SQLite index, and keeps optional labels and
+  descriptions in browser storage without changing the source trace.
 
 RLViz does not run agents, execute recorded tools, train models, manage prompts,
 or provide hosted monitoring.
