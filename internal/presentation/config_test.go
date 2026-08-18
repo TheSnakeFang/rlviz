@@ -32,6 +32,16 @@ func TestLoadValidPresentation(t *testing.T) {
 	}
 }
 
+func TestLoadAcceptsCostAndToolMetricColumns(t *testing.T) {
+	config, err := Load(strings.NewReader(`{"api_version":"rlviz.dev/v1alpha1","fields":{"cost":{"label":"Spend"},"tools":{"label":"Calls"}},"scalars":{"cost":{"format":"number","precision":4,"unit":"USD"},"tools":{"format":"integer"}},"group":{"columns":["cost","tools"]}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(config.Group.Columns) != 2 || config.Group.Columns[0] != "cost" || config.Group.Columns[1] != "tools" {
+		t.Fatalf("unexpected columns: %#v", config.Group.Columns)
+	}
+}
+
 func TestLoadRejectsExecutableOrUnboundedSurfaces(t *testing.T) {
 	for name, document := range map[string]string{
 		"unknown top-level HTML": `{"api_version":"rlviz.dev/v1alpha1","html":"<b>x</b>"}`,

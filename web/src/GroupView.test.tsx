@@ -8,8 +8,8 @@ export const mixedGroup: GroupResponse = {
   group_id: "group-eval-7",
   aggregates: { reward: { mean: 0.4 } },
   trajectories: [
-    { trajectory: { value: { id: "attempt-good", group_id: "group-eval-7", status: "completed", termination: "answer" } }, normalized_metrics: { reward: 1, pass: true, outcome: "correct", event_count: 12, error_count: 0, token_count: 840, latency_ms: 1200 }, signals: { advantage: 0.8, policy_reward: 0.65, grader_label: "accepted", checkpoint: "ckpt-42", nested_debug: { hidden: true } } },
-    { trajectory: { value: { id: "attempt-bad", group_id: "group-eval-7" } }, reward: -0.2, success: false, outcome: "incorrect", event_count: 8, error_count: 2, token_count: 420, latency_ms: 900, status: "failed", termination: "tool_error", signals: { advantage: -0.1, policy_reward: -0.4, grader_label: "rejected", checkpoint: "ckpt-41" } },
+    { trajectory: { value: { id: "attempt-good", group_id: "group-eval-7", status: "completed", termination: "answer" } }, normalized_metrics: { reward: 1, pass: true, outcome: "correct", event_count: 12, error_count: 0, token_count: 840, cost_usd: 0.125, tool_call_count: 3, latency_ms: 1200 }, signals: { advantage: 0.8, policy_reward: 0.65, grader_label: "accepted", checkpoint: "ckpt-42", nested_debug: { hidden: true } } },
+    { trajectory: { value: { id: "attempt-bad", group_id: "group-eval-7" } }, reward: -0.2, success: false, outcome: "incorrect", event_count: 8, error_count: 2, token_count: 420, cost_usd: 0.05, tool_call_count: 2, latency_ms: 900, status: "failed", termination: "tool_error", signals: { advantage: -0.1, policy_reward: -0.4, grader_label: "rejected", checkpoint: "ckpt-41" } },
     { trajectory: { id: "attempt-unknown", group_id: "group-eval-7", status: "stopped", termination: "max_steps" }, event_count: 20, signals: { advantage: 0.2, grader_label: "review", checkpoint: "ckpt-43" } },
   ],
 };
@@ -60,6 +60,9 @@ describe("trajectory group", () => {
     expect(screen.getAllByText("incorrect").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /^Reward/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Errors/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Cost/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Tools/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /attempt-good/ })).toHaveTextContent("$0.1250");
     expect(screen.queryByRole("button", { name: /Artifacts/ })).not.toBeInTheDocument();
   });
 

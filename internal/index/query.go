@@ -577,12 +577,13 @@ func (i *Index) GroupSummariesPage(ctx context.Context, sourceID, groupID string
 	// artifact multiplication while retaining all signal rows in one query.
 	rows, err := i.db.QueryContext(ctx, `WITH
 	    event_summary AS (SELECT source_id,trajectory_id,COUNT(*) count,MIN(sequence) first_sequence,MAX(sequence) last_sequence,
-	      SUM(CASE WHEN kind='error' THEN 1 ELSE 0 END) error_count FROM events WHERE source_id=? GROUP BY source_id,trajectory_id),
+	      SUM(CASE WHEN kind='error' THEN 1 ELSE 0 END) error_count,
+	      SUM(CASE WHEN kind='tool' THEN 1 ELSE 0 END) tool_call_count FROM events WHERE source_id=? GROUP BY source_id,trajectory_id),
 	    signal_summary AS (SELECT source_id,trajectory_id,COUNT(*) count FROM signals WHERE source_id=? GROUP BY source_id,trajectory_id),
 	    artifact_summary AS (SELECT source_id,trajectory_id,COUNT(*) count FROM artifacts WHERE source_id=? GROUP BY source_id,trajectory_id)
     SELECT t.id,t.raw,t.line,t.byte_offset,t.byte_length,
 	  COALESCE(json_extract(r.raw,'$.name'),''),COALESCE(json_extract(c.raw,'$.name'),''),COALESCE(json_extract(g.raw,'$.name'),''),
-      COALESCE(e.count,0),e.first_sequence,e.last_sequence,COALESCE(e.error_count,0),
+	      COALESCE(e.count,0),e.first_sequence,e.last_sequence,COALESCE(e.error_count,0),COALESCE(e.tool_call_count,0),
       COALESCE(ss.count,0),COALESCE(a.count,0),s.name,s.raw,s.line
     FROM trajectories t
     LEFT JOIN event_summary e ON e.source_id=t.source_id AND e.trajectory_id=t.id
@@ -610,7 +611,7 @@ func (i *Index) GroupSummariesPage(ctx context.Context, sourceID, groupID string
 		var item TrajectorySummary
 		if err := rows.Scan(&trajectoryID, &raw, &item.Trajectory.Line, &item.Trajectory.ByteOffset, &item.Trajectory.ByteLength,
 			&item.RunName, &item.CaseName, &item.GroupName,
-			&item.EventCount, &first, &last, &item.ErrorCount, &item.SignalCount, &item.ArtifactCount, &signalName, &signalRaw, &signalLine); err != nil {
+			&item.EventCount, &first, &last, &item.ErrorCount, &item.ToolCallCount, &item.SignalCount, &item.ArtifactCount, &signalName, &signalRaw, &signalLine); err != nil {
 			return page, err
 		}
 		readBytes += int64(len(raw) + len(signalRaw))
@@ -662,7 +663,7 @@ func (i *Index) GroupSummariesPage(ctx context.Context, sourceID, groupID string
 func canonicalMetricName(name string) string {
 	lower := strings.ToLower(name)
 	switch lower {
-	case "reward", "pass", "success", "token_count", "total_tokens", "tokens", "error_count", "latency_ms", "duration_ms", "latency_seconds", "duration_seconds", "latency", "duration":
+	case "reward", "pass", "success", "token_count", "total_tokens", "tokens", "cost_usd", "total_cost_usd", "error_count", "latency_ms", "duration_ms", "latency_seconds", "duration_seconds", "latency", "duration":
 		return lower
 	default:
 		return name

@@ -12,6 +12,8 @@ const row: CohortQueryRow = {
   events: 42,
   errors: 0,
   tokens: 8192,
+  cost: 0.42,
+  tools: 7,
   latency: 1250,
   signals: { judge: true, difficulty: "Hard", score: 4.5, "grader.label": "safe" },
 };
@@ -22,7 +24,7 @@ describe("parseCohortQuery", () => {
   });
 
   it("parses researcher-oriented fields and numeric comparisons", () => {
-    const parsed = parseCohortQuery("pass:true status:complete termination!=timeout outcome:solved reward>=0.5 events=42 errors<1 tokens<=9000 latency>1000");
+    const parsed = parseCohortQuery("pass:true status:complete termination!=timeout outcome:solved reward>=0.5 events=42 errors<1 tokens<=9000 cost<1 tools>=7 latency>1000");
     expect(parsed.diagnostics).toEqual([]);
     expect(parsed.clauses.map(({ field, operator, value }) => ({ field, operator, value }))).toEqual([
       { field: "pass", operator: "=", value: true },
@@ -33,6 +35,8 @@ describe("parseCohortQuery", () => {
       { field: "events", operator: "=", value: 42 },
       { field: "errors", operator: "<", value: 1 },
       { field: "tokens", operator: "<=", value: 9000 },
+      { field: "cost", operator: "<", value: 1 },
+      { field: "tools", operator: ">=", value: 7 },
       { field: "latency", operator: ">", value: 1000 },
     ]);
   });
@@ -57,7 +61,7 @@ describe("parseCohortQuery", () => {
 
 describe("matchesCohortQuery", () => {
   it("ANDs plain text terms and structured clauses", () => {
-    expect(matchesCohortQuery(row, parseCohortQuery("alpha difficulty pass:true reward>=0.75 errors=0"))).toBe(true);
+    expect(matchesCohortQuery(row, parseCohortQuery("alpha difficulty pass:true reward>=0.75 errors=0 cost<0.5 tools=7"))).toBe(true);
     expect(matchesCohortQuery(row, parseCohortQuery("alpha missing pass:true"))).toBe(false);
     expect(matchesCohortQuery(row, parseCohortQuery("pass:true reward>0.75"))).toBe(false);
   });

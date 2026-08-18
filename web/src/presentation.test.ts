@@ -61,7 +61,7 @@ describe("presentation configuration", () => {
 
   it("derives an exact default layout from configured columns", () => {
     expect(presentationDefaultLayout({ api_version: "rlviz.dev/v1alpha1", group: { columns: ["reward", "signal:grader_score"] } })).toEqual({
-      hiddenBuiltins: ["pass", "status", "termination", "events", "errors", "tokens", "latency"],
+      hiddenBuiltins: ["pass", "status", "termination", "events", "errors", "tokens", "cost", "tools", "latency"],
       signalNames: ["grader_score"],
     });
   });

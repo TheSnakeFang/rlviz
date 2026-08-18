@@ -2,6 +2,7 @@ import { createContext, useContext } from "react";
 import {
   loadAnalysis,
   loadBrowse,
+  loadRollouts,
   loadComparison,
   loadIndexedTrajectory,
   loadArtifactContent as loadDaemonArtifactContent,
@@ -11,6 +12,8 @@ import type {
   AnalysisResponse,
   BrowseResponse,
   ComparisonResponse,
+  RolloutQueryParams,
+  RolloutQueryResponse,
 } from "./types";
 import type { LoadResult } from "./api";
 
@@ -18,6 +21,8 @@ import type { LoadResult } from "./api";
 export interface ViewerProvider {
   loadInitial(signal?: AbortSignal): Promise<LoadResult>;
   loadBrowse(signal?: AbortSignal): Promise<BrowseResponse>;
+  /** Optional for in-memory providers; the daemon supplies indexed cross-source queries. */
+  queryRollouts?(query: RolloutQueryParams, signal?: AbortSignal): Promise<RolloutQueryResponse>;
   loadTrajectory(sourceId: string, trajectoryId: string, signal?: AbortSignal): Promise<LoadResult>;
   loadAnalysis(sourceId: string, trajectoryId: string, signal?: AbortSignal): Promise<AnalysisResponse>;
   loadComparison(sourceId: string, left: string, right: string, signal?: AbortSignal): Promise<ComparisonResponse>;
@@ -27,6 +32,7 @@ export interface ViewerProvider {
 export const daemonProvider: ViewerProvider = {
   loadInitial: loadTrajectory,
   loadBrowse,
+  queryRollouts: loadRollouts,
   loadTrajectory: loadIndexedTrajectory,
   loadAnalysis,
   loadComparison,

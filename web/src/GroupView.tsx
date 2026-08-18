@@ -9,14 +9,14 @@ import { fieldMetadata, formatPresentedScalar, presentationDefaultLayout, scalar
 import type { GroupPathNode, GroupPathsResponse, GroupResponse, GroupTrajectorySummary, PresentationConfig, PresentationFieldID, Trajectory } from "./types";
 
 type Scalar = CohortScalar;
-type KnownKey = "id" | "reward" | "pass" | "status" | "termination" | "events" | "errors" | "tokens" | "latency";
+type KnownKey = "id" | "reward" | "pass" | "status" | "termination" | "events" | "errors" | "tokens" | "cost" | "tools" | "latency";
 type Column = { key: PresentationFieldID; label: string; description?: string; signal?: string };
 type Row = CohortQueryRow;
 type FlatPath = { node: GroupPathNode; branch: boolean };
 const MaxSignalColumns = 8;
 const MaxDiscoveredSignals = 64;
-const knownSignalNames = new Set(["reward", "pass", "success", "outcome", "event_count", "error_count", "token_count", "latency_ms", "duration_ms"]);
-const builtinColumnLabels: Record<OptionalBuiltinColumn, string> = { reward: "Reward", pass: "Pass", status: "Status", termination: "Termination", events: "Events", errors: "Errors", tokens: "Tokens", latency: "Latency" };
+const knownSignalNames = new Set(["reward", "pass", "success", "outcome", "event_count", "error_count", "token_count", "cost_usd", "total_cost_usd", "tool_call_count", "latency_ms", "duration_ms"]);
+const builtinColumnLabels: Record<OptionalBuiltinColumn, string> = { reward: "Reward", pass: "Pass", status: "Status", termination: "Termination", events: "Events", errors: "Errors", tokens: "Tokens", cost: "Cost", tools: "Tools", latency: "Latency" };
 
 function flattenPaths(nodes: GroupPathNode[], branch = false): FlatPath[] {
   return nodes.flatMap((node) => [{ node, branch }, ...flattenPaths(node.children, node.children.length > 1)]);
@@ -66,6 +66,8 @@ function rowFromSummary(summary: GroupTrajectorySummary): Row {
     events: number(metrics.event_count) ?? number(summary.event_count),
     errors: number(metrics.error_count) ?? number(summary.error_count) ?? number(canonicalSignals.error_count),
     tokens: number(metrics.token_count) ?? number(summary.token_count) ?? number(canonicalSignals.token_count) ?? number(canonicalSignals.total_tokens) ?? number(canonicalSignals.tokens),
+    cost: number(metrics.cost_usd) ?? number(summary.cost_usd) ?? number(canonicalSignals.cost_usd) ?? number(canonicalSignals.total_cost_usd),
+    tools: number(metrics.tool_call_count) ?? number(summary.tool_call_count) ?? number(canonicalSignals.tool_call_count),
     latency: number(metrics.latency_ms) ?? number(metrics.duration_ms) ?? number(summary.latency_ms) ?? number(summary.duration_ms) ?? number(canonicalSignals.latency_ms) ?? number(canonicalSignals.duration_ms),
     signals,
   };
@@ -245,7 +247,9 @@ export function GroupView({ group, presentation, paths, pathsError, initialQuery
     if (key === "pass") return row.pass === undefined ? "—" : row.pass ? "PASS" : "FAIL";
     const configuredFormat = scalarFormat(presentation, key);
     if (configuredFormat) return formatPresentedScalar(rowValue(row, key), configuredFormat);
-    return key === "latency" ? displayLatency(row.latency) : displayScalar(rowValue(row, key));
+    if (key === "latency") return displayLatency(row.latency);
+    if (key === "cost" && row.cost !== undefined) return `$${row.cost.toFixed(row.cost < 1 ? 4 : 2)}`;
+    return displayScalar(rowValue(row, key));
   };
   const formatReward = (value: number) => presentation?.scalars?.reward ? formatPresentedScalar(value, presentation.scalars.reward) : displayNumber(value);
 

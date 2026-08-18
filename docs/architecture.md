@@ -229,6 +229,13 @@ context observations take precedence over legacy `context:*` alignment
 landmarks; richer context
 membership is shown only when the source explicitly supplies it.
 
+`GET /api/v1/indexed/rollouts` is the cross-source research query boundary. It
+uses bounded offset pages and computes pass, reward, token, source-reported
+cost, and tool-call aggregates over the complete filtered cohort. Exact filters
+cover source/run/case/group, checkpoint/model/environment, status, termination,
+pass, numeric ranges, and source-backed tool names. It does not infer tool
+success from arbitrary payload text; that requires the later span vocabulary.
+
 The SQLite schema is currently version 5. Event rows retain their complete raw
 canonical envelope while indexing nullable context operation, token, capacity,
 and provenance fields for sparse access. `context_present` distinguishes a
@@ -257,6 +264,7 @@ an explicit product decision and an ADR.
 - Decode and validate streams incrementally.
 - Commit bounded SQLite batches.
 - Paginate events, signals, artifacts, and group summaries.
+- Paginate cross-source rollout queries and compute aggregates over the full filtered cohort, not only the returned page.
 - Virtualize long browser collections.
 - Preserve the old valid generation during refresh.
 - Cache derived analysis by input and implementation digest.

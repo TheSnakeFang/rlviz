@@ -1,5 +1,5 @@
 import { sampleTrajectory } from "./sample";
-import type { AnalysisResponse, BrowseResponse, ComparisonResponse, EventPageResponse, GroupPathsResponse, GroupResponse, IndexedSource, PageMetadata, PresentationConfig, Trajectory, TrajectoryArtifact, TrajectoryEvent, TrajectoryResponse, TrajectorySignal } from "./types";
+import type { AnalysisResponse, BrowseResponse, ComparisonResponse, EventPageResponse, GroupPathsResponse, GroupResponse, IndexedSource, PageMetadata, PresentationConfig, RolloutQueryParams, RolloutQueryResponse, Trajectory, TrajectoryArtifact, TrajectoryEvent, TrajectoryResponse, TrajectorySignal } from "./types";
 
 const EVENT_PAGE_LIMIT = "1000";
 
@@ -125,6 +125,23 @@ export async function loadBrowse(signal?: AbortSignal): Promise<BrowseResponse> 
   if (!response.ok) throw new Error(`Browse API returned ${response.status}`);
   const payload = (await response.json()) as BrowseResponse;
   if (!Array.isArray(payload.sources) || !Array.isArray(payload.trajectories)) throw new Error("Browse API returned an invalid response");
+  return payload;
+}
+
+export function rolloutsEndpoint(query: RolloutQueryParams = {}): string {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(query)) {
+    if (value !== undefined && value !== "") params.set(name, String(value));
+  }
+  return `/api/v1/indexed/rollouts${params.size ? `?${params}` : ""}`;
+}
+
+export async function loadRollouts(query: RolloutQueryParams = {}, signal?: AbortSignal): Promise<RolloutQueryResponse> {
+  const response = await fetch(rolloutsEndpoint(query), { signal, headers: requestHeaders() });
+  clearTokenOnAuthFailure(response);
+  if (!response.ok) throw new Error(`Rollout query API returned ${response.status}`);
+  const payload = (await response.json()) as RolloutQueryResponse;
+  if (!Array.isArray(payload.rollouts) || !payload.aggregates || !payload.page) throw new Error("Rollout query API returned an invalid response");
   return payload;
 }
 

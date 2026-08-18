@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import type { ViewerProvider } from "./provider";
-import type { BrowseResponse, ComparisonResponse } from "./types";
+import type { BrowseResponse, ComparisonResponse, RolloutQueryResponse } from "./types";
 import { emptyWorkspace, laneId, serializeWorkspace } from "./workspace";
 
 const browse: BrowseResponse = {
@@ -50,6 +50,88 @@ describe("Browse Read Compare flow", () => {
     expect(screen.getByRole("group", { name: "Deliberate" })).toHaveTextContent("cost avg 0.015 USD");
     expect(screen.getByRole("group", { name: "Direct" })).toHaveTextContent("1 infra");
     expect(screen.getByRole("group", { name: "Direct" })).toHaveTextContent("1 timeout");
+  });
+
+  it("queries and paginates the indexed rollout cohort from the collection rail", async () => {
+    const indexedRow = (id: string, reward: number) => ({
+      source_id: "source-1", source_name: "eval.ndjson", run_id: "run-1", run_name: "Evaluation",
+      case_id: "case-1", case_name: "Checkout", group_id: "group-1", group_name: "Candidate", checkpoint: "ckpt-7",
+      summary: { trajectory: { id, group_id: "group-1", status: "completed" }, reward, event_count: 3, tool_call_count: 1, cost_usd: 0.01, signals: { cost_usd: 0.01 } },
+    });
+    const queryRollouts = vi.fn(async (params) => params.offset === 1 ? {
+      rollouts: [indexedRow("indexed-2", 0.8)],
+      aggregates: { count: 2, success: 2, failure: 0, unknown: 0, total_cost_usd: 0.02 },
+      page: { count: 1, total: 2, limit: 1, offset: 1, has_more: false },
+    } : {
+      rollouts: [indexedRow("indexed-1", 0.9)],
+      aggregates: { count: 2, success: 2, failure: 0, unknown: 0, total_cost_usd: 0.02 },
+      page: { count: 1, total: 2, limit: 1, offset: 0, next_offset: 1, has_more: true },
+    });
+    const provider: ViewerProvider = {
+      async loadInitial() { return { trajectory: { ...trajectoryPayload("candidate").trajectory, events: trajectoryPayload("candidate").events }, isSample: false }; },
+      async loadBrowse() { return browse; },
+      queryRollouts,
+      async loadTrajectory() { return { trajectory: { ...trajectoryPayload("candidate").trajectory, events: trajectoryPayload("candidate").events }, isSample: false }; },
+      async loadAnalysis() { return { analysis: { api_version: "v1", provenance: { name: "test", version: "1", digest: "x", input_digest: "y" } }, cached: false, analyzed_at: "now" }; },
+      async loadComparison() { return comparison; },
+      async loadArtifactContent() { throw new Error("unused"); },
+    };
+    render(<App provider={provider} />);
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(2));
+    const filter = screen.getByLabelText("Filter");
+    fireEvent.change(filter, { target: { value: "checkpoint:ckpt-7 reward>=0.5 tool:browser" } });
+    fireEvent.keyDown(filter, { key: "Enter" });
+    await waitFor(() => expect(queryRollouts).toHaveBeenCalledWith(expect.objectContaining({ checkpoint: "ckpt-7", reward_min: 0.5, tool: "browser", offset: 0 }), expect.any(AbortSignal)));
+    expect(await screen.findByRole("status", { name: "" })).toHaveTextContent("2 matches · $0.0200");
+    expect(screen.getAllByRole("option")).toHaveLength(1);
+    expect(screen.getByRole("option")).toHaveTextContent("indexed-1");
+    fireEvent.click(screen.getByRole("button", { name: "load more" }));
+    await waitFor(() => expect(queryRollouts).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 1 }), expect.any(AbortSignal)));
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(2));
+    expect(screen.getByRole("option", { name: /indexed-2/ })).toBeInTheDocument();
+  });
+
+  it("does not restore a stale indexed page after the filter changes", async () => {
+    const first: RolloutQueryResponse = {
+      rollouts: [{
+        source_id: "source-1", source_name: "eval.ndjson", run_id: "run-1", case_id: "case-1", group_id: "group-1",
+        summary: { trajectory: { id: "indexed-1", group_id: "group-1" }, event_count: 1 },
+      }],
+      aggregates: { count: 2, success: 0, failure: 0, unknown: 2 },
+      page: { count: 1, total: 2, limit: 1, offset: 0, next_offset: 1, has_more: true },
+    };
+    let resolveNext!: (value: RolloutQueryResponse) => void;
+    const next = new Promise<RolloutQueryResponse>((resolve) => { resolveNext = resolve; });
+    const queryRollouts = vi.fn(async (params) => params.offset === 1 ? next : first);
+    const provider: ViewerProvider = {
+      async loadInitial() { return { trajectory: { ...trajectoryPayload("candidate").trajectory, events: trajectoryPayload("candidate").events }, isSample: false }; },
+      async loadBrowse() { return browse; },
+      queryRollouts,
+      async loadTrajectory() { return { trajectory: { ...trajectoryPayload("candidate").trajectory, events: trajectoryPayload("candidate").events }, isSample: false }; },
+      async loadAnalysis() { return { analysis: { api_version: "v1", provenance: { name: "test", version: "1", digest: "x", input_digest: "y" } }, cached: false, analyzed_at: "now" }; },
+      async loadComparison() { return comparison; },
+      async loadArtifactContent() { throw new Error("unused"); },
+    };
+    render(<App provider={provider} />);
+    await waitFor(() => expect(screen.getAllByRole("option")).toHaveLength(2));
+    const filter = screen.getByLabelText("Filter");
+    fireEvent.change(filter, { target: { value: "status:failed" } });
+    fireEvent.keyDown(filter, { key: "Enter" });
+    await waitFor(() => expect(screen.getByRole("option")).toHaveTextContent("indexed-1"));
+    fireEvent.click(screen.getByRole("button", { name: "load more" }));
+    await waitFor(() => expect(queryRollouts).toHaveBeenCalledTimes(2));
+    fireEvent.change(filter, { target: { value: "candidate" } });
+    expect(screen.getByRole("option")).toHaveTextContent("candidate");
+    resolveNext({
+      rollouts: [{
+        source_id: "source-1", source_name: "eval.ndjson", run_id: "run-1", case_id: "case-1", group_id: "group-1",
+        summary: { trajectory: { id: "stale-indexed-2", group_id: "group-1" }, event_count: 1 },
+      }],
+      aggregates: first.aggregates,
+      page: { count: 1, total: 2, limit: 1, offset: 1, has_more: false },
+    });
+    await waitFor(() => expect(screen.queryByText("stale-indexed-2")).not.toBeInTheDocument());
+    expect(screen.getByRole("option")).toHaveTextContent("candidate");
   });
 
   it("loads the daemon collection and composes a two-lane reference arrangement", async () => {

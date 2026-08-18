@@ -29,6 +29,7 @@ func normalizeSummary(summary *TrajectorySummary) {
 	summary.Reward = firstFloat(summary.Signals, "reward")
 	summary.Success = firstBool(summary.Signals, "pass", "success")
 	summary.TokenCount = firstInt(summary.Signals, "token_count", "total_tokens", "tokens")
+	summary.CostUSD = firstNonnegativeFloat(summary.Signals, "cost_usd", "total_cost_usd")
 	if errorCount := firstInt(summary.Signals, "error_count"); errorCount != nil {
 		summary.ErrorCount = *errorCount
 	}
@@ -71,8 +72,8 @@ func firstNonnegativeFloat(signals map[string]json.RawMessage, names ...string) 
 
 func AggregateGroup(summaries []TrajectorySummary) GroupAggregates {
 	aggregates := GroupAggregates{Count: len(summaries)}
-	var rewards, latencies []float64
-	var events, errors, tokens []int64
+	var rewards, costs, latencies []float64
+	var events, errors, tokens, tools []int64
 	for _, summary := range summaries {
 		switch {
 		case summary.Success == nil:
@@ -84,11 +85,15 @@ func AggregateGroup(summaries []TrajectorySummary) GroupAggregates {
 		}
 		events = append(events, summary.EventCount)
 		errors = append(errors, summary.ErrorCount)
+		tools = append(tools, summary.ToolCallCount)
 		if summary.Reward != nil {
 			rewards = append(rewards, *summary.Reward)
 		}
 		if summary.TokenCount != nil {
 			tokens = append(tokens, *summary.TokenCount)
+		}
+		if summary.CostUSD != nil {
+			costs = append(costs, *summary.CostUSD)
 		}
 		if summary.LatencyMS != nil {
 			latencies = append(latencies, *summary.LatencyMS)
@@ -98,7 +103,16 @@ func AggregateGroup(summaries []TrajectorySummary) GroupAggregates {
 	aggregates.EventCount = integerRange(events)
 	aggregates.ErrorCount = integerRange(errors)
 	aggregates.TokenCount = integerRange(tokens)
+	aggregates.CostUSD = numericRange(costs)
+	if len(costs) > 0 {
+		total := 0.0
+		for _, cost := range costs {
+			total += cost
+		}
+		aggregates.TotalCostUSD = &total
+	}
 	aggregates.LatencyMS = numericRange(latencies)
+	aggregates.ToolCallCount = integerRange(tools)
 	return aggregates
 }
 

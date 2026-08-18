@@ -249,6 +249,10 @@ declarative presentation contract is wired end-to-end through explicit CLI
 flags, independent daemon validation, persistent normalized storage, and the
 trajectory API. Inspector section ordering/visibility and portable core-command
 keymap defaults now use that same bounded contract.
+Cross-source rollout queries add bounded pagination, source-backed
+run/checkpoint/model/environment and tool filters, reward/token/cost ranges,
+and full-cohort aggregates. Source-reported cost and deterministic tool-call
+counts are normalized group metrics and configurable columns.
 
 ### Deliverables
 
@@ -310,6 +314,42 @@ existing group and comparison semantics. Visual prototypes remain outside the
 public repository until a direction is accepted; the accepted decision is then
 translated into this plan, the UI specification, and reviewable implementation
 slices.
+
+## Milestone 14: collection analytics and analysis overlays
+
+Status: the server-side rollout query foundation, source-reported cost totals,
+tool-call counts, typed browser client, configurable cost/tool columns, and
+device-local trajectory labels/notes are implemented. The remaining event/span
+annotation, span, usage-breakdown, and external analysis-result work is planned
+and must retain source provenance.
+
+### Remaining vertical slices
+
+1. Validate a canonical generation-usage vocabulary across at least two real
+   formats, covering input, cache-read, cache-write, output, and reasoning
+   tokens without conflating billing totals with context occupancy.
+2. Validate tool call/result and nested span linkage across representative
+   formats before exposing success/failure, per-tool latency, output bytes,
+   turn length, or span-error distributions.
+3. Extend the implemented removable device-local trajectory labels/notes to
+   event/span tags and evidence ranges. Never mutate the source trace.
+4. Add a versioned external analysis-result import containing producer and
+   input provenance, subject references, findings, scalar signals, tags, and
+   optional DAG-node relationships. RLViz visualizes these results; MTG or an
+   analysis service executes model-backed workflows.
+5. Add collection histograms and facet controls backed by the paginated query
+   API, with URL-stable filters and incremental page loading.
+
+### Exit criteria
+
+- Every distribution is computed from explicit indexed facts and reports its
+  filtered population independently of page size.
+- Tool success, span status, usage categories, and cost are absent rather than
+  inferred when their source does not report them.
+- Human annotations, source facts, adapter derivations, and analyzer findings
+  are visually and structurally distinguishable.
+- Viewing remains local-first and does not execute agents, recorded tools,
+  provider billing lookups, LLM scanners, or analysis DAGs.
 
 ## Quality gates
 

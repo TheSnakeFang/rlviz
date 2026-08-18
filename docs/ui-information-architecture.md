@@ -189,7 +189,7 @@ case/task → rollout group/variant → trajectory hierarchy. Headers aggregate 
 reported outcomes and metrics; missing values stay visibly unknown.
 
 - persistent cohort definition: run/case/sampling/checkpoint conditions
-- distributions for reward, pass rate, termination, length, tokens, latency,
+- distributions for reward, pass rate, termination, length, tokens, source-reported cost, tool calls, latency,
   errors, retries, and user-selected signals
 - filterable and configurable trajectory table
 - shortcuts for best, worst, median, outliers, pass, fail, and infra failure

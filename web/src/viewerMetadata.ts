@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type EditableMetadata = { title?: string; description?: string };
+export type EditableMetadata = { title?: string; description?: string; tags?: string[] };
 export type ViewerMetadata = {
   version: 1;
   collections: Record<string, EditableMetadata>;
@@ -12,6 +12,8 @@ const maximumCollections = 64;
 const maximumTrajectories = 256;
 const maximumTitleLength = 120;
 const maximumDescriptionLength = 500;
+const maximumTags = 16;
+const maximumTagLength = 40;
 
 const emptyMetadata = (): ViewerMetadata => ({ version: 1, collections: {}, trajectories: {} });
 
@@ -26,8 +28,12 @@ function cleanEntries(value: unknown, maximumEntries: number): Record<string, Ed
   return Object.fromEntries(Object.entries(value as Record<string, unknown>).slice(-maximumEntries).flatMap(([key, candidate]) => {
     if (!key || key.length > 500 || !candidate || typeof candidate !== "object" || Array.isArray(candidate)) return [];
     const record = candidate as Record<string, unknown>;
-    const metadata = { title: cleanText(record.title, maximumTitleLength), description: cleanText(record.description, maximumDescriptionLength) };
-    return metadata.title || metadata.description ? [[key, metadata]] : [];
+    const tags = Array.isArray(record.tags) ? [...new Set(record.tags.flatMap((tag) => {
+      const cleaned = cleanText(tag, maximumTagLength)?.toLowerCase();
+      return cleaned ? [cleaned] : [];
+    }))].slice(0, maximumTags) : [];
+    const metadata = { title: cleanText(record.title, maximumTitleLength), description: cleanText(record.description, maximumDescriptionLength), tags: tags.length ? tags : undefined };
+    return metadata.title || metadata.description || metadata.tags ? [[key, metadata]] : [];
   }));
 }
 

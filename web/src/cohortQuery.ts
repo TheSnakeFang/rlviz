@@ -10,12 +10,14 @@ export interface CohortQueryRow {
   events?: number;
   errors?: number;
   tokens?: number;
+  cost?: number;
+  tools?: number;
   latency?: number;
   signals: Record<string, CohortScalar>;
 }
 
 export type CohortQueryOperator = "=" | "!=" | "<" | "<=" | ">" | ">=";
-export type CohortQueryField = "pass" | "status" | "termination" | "outcome" | "reward" | "events" | "errors" | "tokens" | "latency" | `signal.${string}`;
+export type CohortQueryField = "pass" | "status" | "termination" | "outcome" | "reward" | "events" | "errors" | "tokens" | "cost" | "tools" | "latency" | `signal.${string}`;
 
 export interface CohortQueryClause {
   field: CohortQueryField;
@@ -39,7 +41,7 @@ export interface ParsedCohortQuery {
 }
 
 const stringFields = new Set(["status", "termination", "outcome"]);
-const numericFields = new Set(["reward", "events", "errors", "tokens", "latency"]);
+const numericFields = new Set(["reward", "events", "errors", "tokens", "cost", "tools", "latency"]);
 const structuredToken = /^([A-Za-z][\w.-]*)(:|!=|<=|>=|=|<|>)(.*)$/;
 const finiteNumber = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/;
 
@@ -159,6 +161,8 @@ function clauseValue(row: CohortQueryRow, field: CohortQueryField): CohortScalar
     case "events": return row.events;
     case "errors": return row.errors;
     case "tokens": return row.tokens;
+    case "cost": return row.cost;
+    case "tools": return row.tools;
     case "latency": return row.latency;
     default: return undefined;
   }
@@ -175,6 +179,8 @@ function searchableValues(row: CohortQueryRow): string[] {
     row.events,
     row.errors,
     row.tokens,
+    row.cost,
+    row.tools,
     row.latency,
     ...Object.entries(row.signals).flatMap(([name, value]) => [name, value]),
   ].filter((value) => value !== undefined).map((value) => String(value).toLocaleLowerCase());

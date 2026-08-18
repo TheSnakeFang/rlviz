@@ -80,13 +80,15 @@ are JSON-only and capped at 64 KiB; maps and lists have independent count
 limits. Unknown keys fail closed.
 
 Field identifiers are the built-in group column names (`reward`, `pass`,
-`status`, `termination`, `events`, `errors`, `tokens`, and `latency`) or
+`status`, `termination`, `events`, `errors`, `tokens`, `cost`, `tools`, and
+`latency`) or
 `signal:<canonical signal name>`, where the signal name uses letters, digits,
 periods, underscores, or hyphens. Scalar formats are core-owned primitives:
 `number`, `integer`, `percent_fraction`, `duration_ms`, `bytes`, and
 `scientific`. `percent_fraction` explicitly treats `1` as 100 percent. A unit is
 plain suffix text, not a formatting template. Scalar formatting applies only to
-numeric built-ins (`reward`, `events`, `errors`, `tokens`, and `latency`) and
+numeric built-ins (`reward`, `events`, `errors`, `tokens`, `cost`, `tools`, and
+`latency`) and
 canonical signals; nonnumeric fields fail validation.
 
 `palette` is the current bounded color contract. It accepts partial `light` and
