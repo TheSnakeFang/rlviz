@@ -1,6 +1,6 @@
 # Patch notes
 
-## Unreleased
+## 0.3.7
 
 - Added paginated indexed rollout queries across sources, runs, tasks, checkpoints, models, environments, outcomes, rewards, tokens, cost, and tool use.
 - Added full-cohort result counts, success/failure totals, token and cost ranges, total cost, and tool-call ranges without loading every matching trace into the viewer.
