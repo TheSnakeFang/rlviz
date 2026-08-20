@@ -45,7 +45,7 @@ export function TranscriptView({ events, selectedId, selectedIndex, scrollRef, o
       return turn || (index === 0 ? 0 : -1);
     });
   }, [events]);
-  return <div className="transcript-view" aria-label="Trajectory transcript">
+  return <div className="transcript-view" role="region" aria-label="Trajectory transcript">
     <VirtualList items={events} estimateSize={150} overscan={4} selectedIndex={selectedIndex} scrollRef={scrollRef} className="transcript-events" itemKey={(event) => event.id} renderItem={(event, index) => <div className="transcript-row">
       {(index === 0 || deriveMessage(event)?.role?.value === "user") && <div className="turn-marker"><span>{turnNumbers[index] > 0 ? `Turn ${turnNumbers[index]}` : "Preamble"}</span><small>grouping inferred from message roles</small></div>}
       <TranscriptEvent event={event} selected={event.id === selectedId} onSelect={() => onSelect(event.id)} />
@@ -68,7 +68,7 @@ function FinalOutput({ message, outcome, onSelect }: { message: ResearchMessage;
 export function OutcomeView({ trajectory, onSelect }: { trajectory: Trajectory; onSelect: (id: string) => void }) {
   const outcome = deriveOutcome(trajectory, trajectory.signals);
   const pass = outcome.pass?.value;
-  return <div className="outcome-view" aria-label="Trajectory outcome">
+  return <div className="outcome-view" role="region" aria-label="Trajectory outcome">
     <div className="outcome-summary">
       <OutcomeStat label="Result" value={pass === undefined ? outcome.status : pass ? "Pass" : "Fail"} tone={pass === true ? "success" : pass === false ? "danger" : ""} />
       <OutcomeStat label="Reward" value={outcome.reward.total?.value} />

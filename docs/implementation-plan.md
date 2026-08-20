@@ -292,28 +292,52 @@ Delivered:
 - browser coverage for repeated keyboard navigation, manual rail scrolling,
   input suppression, Help focus return, and deep-link restoration
 
-## Milestone 13: trajectory workspace redesign
+## Milestone 13: mobile-first progressive trajectory reader
 
-Status: definition pending. Do not implement a new visual workspace until its
-product model and design specification are accepted.
+Status: mobile reader implemented; progressive desktop carry-over remains. The
+sub-720px projection now opens an outcome-first Summary, a virtualized Story,
+source-backed Evidence, and canonical Details behind bounded bottom navigation.
+It preserves the reading surface and selected event across reload and copied
+workspace links without changing the desktop workspace.
 
-The specification must define:
+The mobile reader is the design nucleus for the next workspace. A narrow screen
+must establish the task, result, verifier explanation, and chronological story
+without removing cohort controls, comparison, source records, or research
+settings. Screen size changes the hierarchy and how much context can be shown at
+once, not which evidence or capabilities exist. Wider layouts add simultaneity,
+density, and faster multi-trajectory workflows rather than an exclusive expert
+mode or a separate product.
 
-- the default information hierarchy for one trajectory
-- navigation from whole-run shape to semantic episodes, events, evidence, and
-  raw source truth
-- outcome, verifier, reward, context, compaction, failure, and recovery behavior
-- rollout-group and pair-comparison extensions of the same interaction grammar
-- keyboard, focus, deep-link, partial-data, loading, and reduced-motion states
-- component primitives, semantic design tokens, responsive behavior, and
-  fixed-viewport review compositions
+### Vertical slices
 
-Implementation must preserve canonical selection, raw provenance,
-virtualization, stable command IDs, local-only security boundaries, and the
-existing group and comparison semantics. Visual prototypes remain outside the
-public repository until a direction is accepted; the accepted decision is then
-translated into this plan, the UI specification, and reviewable implementation
-slices.
+1. **Implemented.** Replace the default Guide-first mobile state with a concise trajectory
+   summary: task, agent/model, result, verifier reason, work, and one primary
+   action to read the run. Keep Guide and Settings reachable but secondary.
+2. **Implemented.** Define one scrollable story surface for user/model turns, tool calls,
+   observations, errors, grader evidence, and artifacts. Preserve exact event
+   identity and raw source access behind progressive disclosure.
+3. **Implemented.** Replace the horizontally scrolling desktop-module strip with bounded mobile
+   navigation for Browse, Story, Evidence, and Details. Use bottom actions or
+   sheets for the selected event without hiding content behind a permanent
+   desktop keybar.
+4. Carry the same hierarchy into comfortable desktop mode, then layer on
+   collection rails, multiple lanes, docking, pair comparison, configurable
+   density, and keyboard workflows.
+5. **Partially implemented.** Fixed 390 x 844 browser coverage now proves first
+   use, outcome comprehension, Story and Evidence navigation, Details, deep-link
+   reload, and horizontal fit. Extend the same coverage to long payloads, images,
+   errors, empty states, and reduced motion.
+
+### Exit criteria
+
+- A first-time mobile user can identify the task, outcome, and source-backed
+  reason and reach the decisive event without opening Guide.
+- Essential controls use touch-sized targets, essential labels are not clipped,
+  and the document never scrolls horizontally at the 390px reference viewport.
+- A copied deep link restores the same trajectory, selected event, and reading
+  surface after reload.
+- The simplified default never removes canonical events, provenance, verifier
+  evidence, raw records, comparison, or desktop research depth.
 
 ## Milestone 14: collection analytics and analysis overlays
 
@@ -350,6 +374,92 @@ and must retain source provenance.
   are visually and structurally distinguishable.
 - Viewing remains local-first and does not execute agents, recorded tools,
   provider billing lookups, LLM scanners, or analysis DAGs.
+
+## Product expansion sequence
+
+These phases follow the mobile reader. They deliberately keep the native RLViz
+viewer local-first while allowing an explicit hosted companion to make selected
+public trajectories and benchmarks shareable.
+
+### Phase A: portable sharing and Harbor job interoperability
+
+Status: planned. RLViz already opens Harbor ATIF v1.5-v1.7 trajectory JSON,
+including tool/result correlation, metrics, multimodal references, continuation
+references, and embedded subagents. It does not yet open a complete Harbor job
+directory or combine its task, trial, verifier, reward, and artifact files.
+
+1. Add a read-only Harbor job-directory source that maps job, dataset, task,
+   trial, trajectory, verifier result, reward, timing, and artifact provenance
+   into the existing canonical hierarchy. Do not infer missing outcomes or
+   follow external references automatically.
+2. Add an explicit export step that packages one trajectory or bounded cohort
+   with a versioned manifest, referenced public artifacts, source licenses, and
+   redaction review. Export remains local and makes no upload by itself.
+3. Add a separate hosted share surface for public, unlisted, and later private
+   read-only links. Upload is always explicit; the page uses the mobile reader,
+   records the exact bundle digest, and provides expiration and deletion. The
+   local reader never requires an account. Evaluate GitHub, Google, and X as
+   hosted identity providers, choosing the smallest set that supports reliable
+   stewardship and account recovery without coupling portable bundles to login.
+4. Evaluate stable Harbor Hub job/trial links as an import boundary before
+   duplicating Harbor storage or registry functions. Prefer reciprocal deep
+   links and exact-version references over a competing runner or job manager.
+
+Exit criteria: a user can open a complete local Harbor job, select a trial,
+review its verifier evidence and artifacts, deliberately publish a scrubbed
+bundle, and send a link that remains usable in a mobile browser.
+
+### Phase B: curated benchmark showcases
+
+Status: planned after Phase A.
+
+1. Publish a small set of exact, pinned benchmark releases from Harbor,
+   Hugging Face, or source repositories with clear ownership and licensing.
+2. Pair each benchmark with representative public trajectories across outcomes,
+   agents, and models; preserve the upstream artifact revision and run config.
+3. Build task and trajectory pages on the same mobile reader and share-bundle
+   contract. Start with a few widely used agent benchmarks rather than a broad
+   leaderboard.
+4. Show source-reported scores and transparent cohort summaries, never a new
+   aggregate ranking whose comparability has not been established.
+
+Exit criteria: every showcased result resolves to an immutable benchmark task,
+environment or image reference, verifier revision, run configuration, and full
+trajectory or an explicit disclosure that an artifact is unavailable.
+
+### Phase C: benchmark catalog and provenance database
+
+Status: later.
+
+1. Introduce immutable benchmark, release, task, environment, seed, verifier,
+   run, and trajectory records keyed by source revision and content digest.
+2. Ingest metadata from supported upstream registries while leaving large
+   source artifacts in their authoritative stores when possible.
+3. Add search and filters for domain, harness, agent, model, outcome, artifact
+   availability, license, and audit state.
+4. Publish machine-readable clean-subset manifests and supersession history so
+   downstream evaluations can pin exactly what they ran.
+
+Exit criteria: a reported score or trajectory can be traced through exact
+versioned task artifacts without relying on mutable names or copied metadata.
+
+### Phase D: evidence claims, repairs, and stewardship
+
+Status: later, after the catalog establishes stable identities.
+
+1. Let contributors attach a coarse claim and free-form diagnosis to exact
+   trajectory steps, verifier output, files, diffs, or environment evidence.
+2. Support reproduce, dispute, repair proposal, rerun receipt, upstream-link,
+   accepted, rejected, and superseded states without rewriting original traces.
+3. Add benchmark-maintainer ownership and domain-scoped reviewer reputation.
+   Award reputation for independently reproduced diagnoses, validated repairs,
+   and upstream acceptance rather than raw votes.
+4. Keep automated analysis visibly separate from human claims. Require exact
+   producer, input digest, and evidence provenance for both.
+
+Exit criteria: an accepted defect repair links the original task and
+trajectories, grounded claim, patch, independent validation receipt, upstream
+resolution, and replacement benchmark revision.
 
 ## Quality gates
 

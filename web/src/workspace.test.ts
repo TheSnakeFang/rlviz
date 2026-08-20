@@ -15,6 +15,7 @@ describe("workspace arrangements", () => {
   it("round-trips lanes, per-lane view state, and dockview layout JSON", () => {
     const workspace = emptyWorkspace();
     workspace.collectionView = "trials";
+    workspace.mobileSurface = "story";
     workspace.lanes = [{ id: laneId("source", "one"), sourceId: "source", trajectoryId: "one", band: "focus", selected: 4, depth: 4, fidelity: 2, axis: { start: 10, end: 20 }, descentStack: [{ depth: 3, axis: { start: 0, end: 30 } }] }];
     workspace.active = workspace.lanes[0].id;
     workspace.layout = { grid: { root: { type: "leaf", data: { id: "group" }, size: 100 }, width: 1000, height: 700, orientation: 0 }, panels: {} } as never;
@@ -23,6 +24,11 @@ describe("workspace arrangements", () => {
     const url = workspaceURL(workspace, { pathname: "/view", search: "?trajectory=old&mode=read", hash: "#token=x" } as Location);
     expect(url).toContain("workspace=");
     expect(JSON.parse(new URL(url, "http://local").searchParams.get("workspace")!)).not.toHaveProperty("layout");
+  });
+
+  it("restores a valid mobile reading surface and defaults malformed input to summary", () => {
+    expect(normalizeWorkspace({ ...emptyWorkspace(), mobileSurface: "evidence" })?.mobileSurface).toBe("evidence");
+    expect(normalizeWorkspace({ ...emptyWorkspace(), mobileSurface: "raw" })?.mobileSurface).toBe("summary");
   });
 
   it("round-trips rollout-pinned detail modules and drops orphaned details", () => {

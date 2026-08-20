@@ -104,6 +104,9 @@ deep-link reveal, and Help focus return. Grow the suite toward five flows:
    the browser UI, and stops cleanly.
 6. The static browser app loads its bundled 300-event example, transitions from
    Browse to Read, and makes no request containing trace data.
+7. At 390 x 844, first use opens the mobile trajectory Summary; Story, Evidence,
+   and Details remain horizontally contained, and reload restores the selected
+   reading surface.
 
 CLI unsupported-format and adapter diagnostics remain Go/process integration
 tests unless a browser surface is involved.
