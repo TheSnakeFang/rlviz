@@ -258,6 +258,9 @@ func addRegular(root, path string, files *[]string) error {
 	if !inside(root, path) {
 		return fmt.Errorf("source path %q escapes Harbor job root", path)
 	}
+	if err := rejectSymlinkComponents(root, path); err != nil {
+		return err
+	}
 	info, err := os.Lstat(path)
 	if err != nil {
 		return fmt.Errorf("inspect %s: %w", relativePath(root, path), err)
@@ -269,6 +272,25 @@ func addRegular(root, path string, files *[]string) error {
 		return fmt.Errorf("harbor job has more than %d recognized files", maxFiles)
 	}
 	*files = append(*files, path)
+	return nil
+}
+
+func rejectSymlinkComponents(root, path string) error {
+	relative, err := filepath.Rel(root, path)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("source path %q escapes Harbor job root", path)
+	}
+	current := root
+	for _, component := range strings.Split(relative, string(filepath.Separator)) {
+		current = filepath.Join(current, component)
+		info, statErr := os.Lstat(current)
+		if statErr != nil {
+			return fmt.Errorf("inspect %s: %w", relativePath(root, current), statErr)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("%s must not contain a symlink", relativePath(root, current))
+		}
+	}
 	return nil
 }
 

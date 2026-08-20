@@ -132,8 +132,27 @@ func TestInspectRejectsSymlinkedTrajectory(t *testing.T) {
 	if err := os.Symlink(outside, trajectory); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Inspect(root); err == nil || !strings.Contains(err.Error(), "regular file") {
-		t.Fatalf("Inspect error = %v, want regular-file rejection", err)
+	if _, err := Inspect(root); err == nil || !strings.Contains(err.Error(), "must not contain a symlink") {
+		t.Fatalf("Inspect error = %v, want symlink rejection", err)
+	}
+}
+
+func TestInspectRejectsSymlinkedTrajectoryParent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink permissions vary on Windows")
+	}
+	root := writeJob(t, false)
+	agentDirectory := filepath.Join(root, "trial-pass", "agent")
+	if err := os.RemoveAll(agentDirectory); err != nil {
+		t.Fatal(err)
+	}
+	outside := t.TempDir()
+	writeJSON(t, filepath.Join(outside, "trajectory.json"), atifDocument("outside"))
+	if err := os.Symlink(outside, agentDirectory); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Inspect(root); err == nil || !strings.Contains(err.Error(), "must not contain a symlink") {
+		t.Fatalf("Inspect error = %v, want parent-symlink rejection", err)
 	}
 }
 
