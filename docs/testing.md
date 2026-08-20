@@ -137,7 +137,8 @@ kept stable:
 - search and next-landmark commands respond within one animation frame after
   indexes are ready
 - progressive indexing does not block already committed pages
-- normal viewing produces zero outbound network requests
+- normal viewing and an unconfirmed public-bundle handoff produce zero outbound
+  network requests; confirmation permits only the displayed bundle request
 
 Avoid exact cross-machine millisecond gates until the benchmark harness can
 control noise. Use relative regression thresholds and structural assertions

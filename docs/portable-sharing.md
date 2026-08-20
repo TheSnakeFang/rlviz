@@ -2,7 +2,9 @@
 
 RLViz separates making a reviewed portable file from publishing it. The native
 CLI can create an `.rlviz` bundle; neither the CLI nor the static browser
-uploads it. A hosted read-only link is a later, separate service boundary.
+uploads it. The static browser can open an explicitly confirmed, digest-pinned
+public HTTPS bundle. Hosting, deletion, and access control remain a separate
+service boundary.
 
 ## Create a bundle
 
@@ -67,3 +69,24 @@ rlviz open reviewed.rlviz
 
 The same file can be dropped onto [rlviz.dev](https://rlviz.dev). Parsing,
 digest verification, indexing, and rendering happen inside that browser tab.
+
+## Link to a public bundle
+
+A public catalog or static host can hand a bundle to the reader without
+uploading it to RLViz:
+
+```text
+https://rlviz.dev/?bundle=https%3A%2F%2Fexample.org%2Frun.rlviz&sha256=FULL_64_HEX_DIGEST
+```
+
+RLViz displays the exact host, path, and digest without contacting the bundle
+host. It makes one request only after the reader chooses **verify and open**.
+The request omits credentials and referrer information, refuses redirects and
+URL credentials or query tokens, applies the browser size limit, and hashes the
+complete `.rlviz` file before parsing it. The bundle's own manifest and trace
+digest are then validated normally. The bundle host must permit the RLViz
+origin through standard browser CORS headers.
+
+This handoff is for immutable public files. Private links, expiring links,
+uploads, deletion, and account-backed stewardship belong in the hosted
+companion rather than the local-first viewer.

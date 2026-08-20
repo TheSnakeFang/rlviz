@@ -86,6 +86,12 @@ WASM runtime, WASM binary, and examples are local static build assets, with no
 CDN dependencies. Uploaded browser adapters execute only after an explicit
 SHA-256 and size confirmation and are never persisted.
 
+A `bundle` plus `sha256` query pair changes startup into a consent screen; it
+does not trigger a request. After explicit confirmation, the browser may fetch
+that one HTTPS `.rlviz` URL without credentials or referrer information,
+verify the complete file digest, and pass it to the same in-memory parser. The
+browser never uploads local or fetched trace bytes.
+
 Complete Harbor job directories use the native source boundary. The app builds
 a deterministic bounded inventory, normalizes all recognized trials into one
 canonical run, and keeps artifacts path-backed to the directory. Regular files

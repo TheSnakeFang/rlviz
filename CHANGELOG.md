@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add an explicit-consent browser handoff for immutable public HTTPS `.rlviz`
+  bundles, pinned by the complete file SHA-256 and fetched without credentials,
+  redirects, or referrer information.
 - Replace browser mode swaps with the serializable workspace rack: a
   collapsible collection rail, two-band trajectory stage, bottom console,
   per-lane view state, reference pins, resizable persisted seams, arrangement

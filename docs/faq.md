@@ -6,6 +6,10 @@ No. The browser viewer reads files through the browser `File` API and keeps its
 index in memory. The CLI binds to loopback, reads local sources, and makes no
 outbound requests during normal viewing.
 
+A digest-pinned public bundle link is the explicit exception: the browser
+shows its HTTPS origin, path, and SHA-256 first, makes no request until the user
+confirms, and never uploads the bytes it fetches.
+
 Package installation and opening external documentation are separate network
 actions. A local process adapter is executable code and has the permissions of
 the user running it, which is why trust requires explicit path-and-digest
