@@ -19,7 +19,8 @@ test.beforeEach(async ({ page }) => {
   // Product onboarding intentionally starts with two rollouts. Shared flow
   // tests seed the older empty workspace explicitly so each action owns the
   // lane count and selection it asserts.
-  await page.addInitScript(() => localStorage.setItem("rlviz.workspace.v6", JSON.stringify({
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("rlviz.workspace.v6", JSON.stringify({
     version: 3,
     railExpanded: true,
     railQuery: "",
@@ -34,7 +35,7 @@ test.beforeEach(async ({ page }) => {
     direction: "rows",
     active: "rail",
   })));
-  await page.goto("/");
+  await page.reload();
 });
 
 async function loadExample(page: Page, name: string) {
@@ -218,9 +219,8 @@ test("default workspace prioritizes rollout and detail space", async ({ page }) 
 
 test("mobile workspace reads summary, story, evidence, and details without losing its place", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.evaluate(() => localStorage.removeItem("rlviz.workspace.v6"));
-  await page.addInitScript(() => localStorage.removeItem("rlviz.workspace.v6"));
-  await page.goto("/");
+	await page.evaluate(() => localStorage.removeItem("rlviz.workspace.v6"));
+	await page.goto("/");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
   await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Verifier reason")).toBeVisible();
