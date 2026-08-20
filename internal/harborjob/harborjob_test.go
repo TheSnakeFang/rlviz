@@ -148,8 +148,10 @@ func TestNormalizeMultiStepTrialPreservesParent(t *testing.T) {
 		"step_name": "verify", "exception_info": map[string]any{"exception_type": "VerifierError", "exception_message": "broken verifier", "occurred_at": "2026-08-20T10:00:04Z"},
 	}}
 	writeJSON(t, filepath.Join(trial, "result.json"), result)
-	writeJSON(t, filepath.Join(trial, "steps", "1", "agent", "trajectory.json"), atifDocument("step-1"))
-	writeJSON(t, filepath.Join(trial, "steps", "2", "agent", "trajectory.json"), atifDocument("step-2"))
+	// Agents may reuse a session identifier across steps. RLViz must still
+	// namespace every canonical record under its source document.
+	writeJSON(t, filepath.Join(trial, "steps", "1", "agent", "trajectory.json"), atifDocument("shared-session"))
+	writeJSON(t, filepath.Join(trial, "steps", "2", "agent", "trajectory.json"), atifDocument("shared-session"))
 	writeJSON(t, filepath.Join(trial, "steps", "2", "verifier", "ctrf.json"), map[string]any{"results": map[string]any{"summary": map[string]any{"tests": 1, "failed": 1}}})
 
 	snapshot, err := Inspect(root)
@@ -160,7 +162,7 @@ func TestNormalizeMultiStepTrialPreservesParent(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parents, children, errors, graders := map[string]bool{}, 0, 0, 0
+	parents, childIDs, eventIDs, errors, graders := map[string]bool{}, map[string]bool{}, map[string]bool{}, 0, 0
 	if err := model.Decode(bytes.NewReader(canonical), func(record *model.Record) error {
 		if trajectory, ok := record.Value.(*model.Trajectory); ok {
 			if trajectory.ParentID == "" {
@@ -169,30 +171,39 @@ func TestNormalizeMultiStepTrialPreservesParent(t *testing.T) {
 					t.Fatalf("multi-step parent status = %#v", trajectory)
 				}
 			} else {
-				children++
+				if childIDs[trajectory.ID] {
+					t.Fatalf("duplicate child trajectory ID %q", trajectory.ID)
+				}
+				childIDs[trajectory.ID] = true
 				if !parents[trajectory.ParentID] {
 					t.Fatalf("child %q references unknown parent %q", trajectory.ID, trajectory.ParentID)
 				}
 			}
 		}
-		if event, ok := record.Value.(*model.Event); ok && event.Kind == "error" {
-			errors++
-			if event.Metadata["step_name"] != "verify" {
-				t.Fatalf("step exception metadata = %#v", event.Metadata)
+		if event, ok := record.Value.(*model.Event); ok {
+			if eventIDs[event.ID] {
+				t.Fatalf("duplicate event ID %q", event.ID)
 			}
-		}
-		if event, ok := record.Value.(*model.Event); ok && event.Kind == "grader" {
-			graders++
-			if event.Metadata["step_name"] != "2" || event.AlignmentKey != "grader:ctrf:2" {
-				t.Fatalf("step grader = %#v", event)
+			eventIDs[event.ID] = true
+			if event.Kind == "error" {
+				errors++
+				if event.Metadata["step_name"] != "verify" {
+					t.Fatalf("step exception metadata = %#v", event.Metadata)
+				}
+			}
+			if event.Kind == "grader" {
+				graders++
+				if event.Metadata["step_name"] != "2" || event.AlignmentKey != "grader:ctrf:2" {
+					t.Fatalf("step grader = %#v", event)
+				}
 			}
 		}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if len(parents) != 1 || children != 2 || errors != 1 || graders != 1 {
-		t.Fatalf("parents=%d children=%d errors=%d graders=%d", len(parents), children, errors, graders)
+	if len(parents) != 1 || len(childIDs) != 2 || errors != 1 || graders != 1 {
+		t.Fatalf("parents=%d children=%d errors=%d graders=%d", len(parents), len(childIDs), errors, graders)
 	}
 }
 

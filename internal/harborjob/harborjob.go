@@ -373,7 +373,7 @@ func Normalize(snapshot Snapshot) ([]byte, error) {
 		}
 		maxSequence := int64(-1)
 		for _, document := range documents {
-			rootID, maximum, emitErr := emitATIFDocument(emitter, document.records, groupID, trialID, len(documents) == 1, status, termination, trialMetadata)
+			rootID, maximum, emitErr := emitATIFDocument(emitter, document.records, groupID, trialID, document.key, len(documents) == 1, status, termination, trialMetadata)
 			if emitErr != nil {
 				return nil, emitErr
 			}
@@ -450,6 +450,7 @@ func trialStepName(trialDirectory, path string) string {
 type normalizedDocument struct {
 	records []*model.Record
 	input   any
+	key     string
 }
 
 func normalizeTrajectories(root string, paths []string) ([]normalizedDocument, error) {
@@ -464,7 +465,7 @@ func normalizeTrajectories(root string, paths []string) ([]normalizedDocument, e
 			return nil, fmt.Errorf("normalize %s: %w", relativePath(root, path), err)
 		}
 		decoder := model.NewDecoder(bytes.NewReader(canonical))
-		document := normalizedDocument{}
+		document := normalizedDocument{key: relativePath(root, path)}
 		for {
 			record, decodeErr := decoder.Next()
 			if errors.Is(decodeErr, io.EOF) {
@@ -483,15 +484,27 @@ func normalizeTrajectories(root string, paths []string) ([]normalizedDocument, e
 	return documents, nil
 }
 
-func emitATIFDocument(emitter *recordEmitter, records []*model.Record, groupID, trialID string, single bool, status, termination string, metadata model.Metadata) (string, int64, error) {
+func emitATIFDocument(emitter *recordEmitter, records []*model.Record, groupID, trialID, documentKey string, single bool, status, termination string, metadata model.Metadata) (string, int64, error) {
 	trajectoryIDs := map[string]string{}
+	eventIDs := map[string]string{}
+	branchIDs := map[string]string{}
 	rootOldID, rootNewID := "", trialID
 	for _, record := range records {
-		if trajectory, ok := record.Value.(*model.Trajectory); ok {
+		switch value := record.Value.(type) {
+		case *model.Trajectory:
+			trajectory := value
 			if rootOldID == "" {
 				rootOldID = trajectory.ID
 			}
-			trajectoryIDs[trajectory.ID] = trajectory.ID
+			trajectoryIDs[trajectory.ID] = stableID("harbor-atif-trajectory", trialID, documentKey, trajectory.ID)
+			if trajectory.BranchID != "" {
+				branchIDs[trajectory.BranchID] = stableID("harbor-atif-branch", trialID, documentKey, trajectory.BranchID)
+			}
+		case *model.Event:
+			eventIDs[value.ID] = stableID("harbor-atif-event", trialID, documentKey, value.ID)
+			if value.BranchID != "" {
+				branchIDs[value.BranchID] = stableID("harbor-atif-branch", trialID, documentKey, value.BranchID)
+			}
 		}
 	}
 	if single && rootOldID != "" {
@@ -506,6 +519,7 @@ func emitATIFDocument(emitter *recordEmitter, records []*model.Record, groupID, 
 			oldID := value.ID
 			value.ID = trajectoryIDs[oldID]
 			value.GroupID = groupID
+			value.BranchID = branchIDs[value.BranchID]
 			if oldID == rootOldID {
 				rootNewID = value.ID
 				if single {
@@ -518,20 +532,41 @@ func emitATIFDocument(emitter *recordEmitter, records []*model.Record, groupID, 
 				value.ParentID = mapped
 			}
 		case *model.Event:
+			value.ID = eventIDs[value.ID]
 			value.TrajectoryID = trajectoryIDs[value.TrajectoryID]
+			value.ParentID = eventIDs[value.ParentID]
+			value.BranchID = branchIDs[value.BranchID]
+			if value.Context != nil {
+				value.Context.RetainedEventIDs = remapIDs(value.Context.RetainedEventIDs, eventIDs)
+				value.Context.DroppedEventIDs = remapIDs(value.Context.DroppedEventIDs, eventIDs)
+				value.Context.SummarizedEventIDs = remapIDs(value.Context.SummarizedEventIDs, eventIDs)
+			}
 			if value.TrajectoryID == rootNewID && value.Sequence > maximum {
 				maximum = value.Sequence
 			}
 		case *model.Signal:
+			value.ID = stableID("harbor-atif-signal", trialID, documentKey, value.ID)
 			value.TrajectoryID = trajectoryIDs[value.TrajectoryID]
+			value.EventID = eventIDs[value.EventID]
 		case *model.Artifact:
+			value.ID = stableID("harbor-atif-artifact", trialID, documentKey, value.ID)
 			value.TrajectoryID = trajectoryIDs[value.TrajectoryID]
+			value.EventID = eventIDs[value.EventID]
 		}
 		if err := emitter.emit(record.Value); err != nil {
 			return "", maximum, err
 		}
 	}
 	return rootNewID, maximum, nil
+}
+
+func remapIDs(values []string, ids map[string]string) []string {
+	for index, value := range values {
+		if mapped := ids[value]; mapped != "" {
+			values[index] = mapped
+		}
+	}
+	return values
 }
 
 func emitSignals(emitter *recordEmitter, trajectoryID string, result map[string]any) error {
