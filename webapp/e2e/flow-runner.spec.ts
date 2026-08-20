@@ -290,7 +290,11 @@ test("resizing restores the docked workspace without losing selection", async ({
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "true");
   await page.keyboard.press("z");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "false");
-  await detail.click();
+  await detail.locator(".workspace-breadcrumb").click();
+  await expect.poll(() => page.evaluate((laneId) => {
+    const workspace = JSON.parse(new URLSearchParams(location.search).get("workspace")!);
+    return workspace.lanes.find((item: { id: string }) => item.id === laneId)?.selected;
+  }, detailLaneBefore)).toBe(Number(selectedBefore));
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
