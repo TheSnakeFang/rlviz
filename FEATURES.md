@@ -23,6 +23,11 @@ work, and `later` is an intended capability without a committed release.
 | Extend an unsupported format | Scaffold, trust, validate, and run a local adapter without changing the viewer | current |
 | Configure the viewer | Use the default Settings module for theme, data opening, and format guidance | current |
 | Let an agent compose the GUI | Query canonical trajectories and open or update named browser workspaces from structured CLI commands | current |
+| Read a trajectory on mobile | Open a narrow-screen, outcome-first story and progressively inspect events, evidence, and raw source truth | next |
+| Share a trajectory deliberately | Export a reviewed bundle and publish an explicit read-only link without silently uploading local traces | next |
+| Inspect a Harbor job | Open a Harbor job directory as a run of tasks and trials with ATIF trajectories, verifier evidence, rewards, timing, and artifacts | next |
+| Browse public benchmark examples | Explore pinned benchmark tasks and representative public trajectories with exact source provenance | later |
+| Improve a benchmark task | Ground a defect claim in evidence, propose or reproduce a repair, and follow it to an upstream revision | later |
 | Inspect alignment in context | Overlay aligned reference events and divergence evidence directly on rollout lanes | next |
 | Hand work to an agent | Generate a local workbook that gives a coding agent bounded trace context and explicit tasks | next |
 | Use one public surface | Read the short product explanation, install, open a trace, and continue into the viewer on `rlviz.dev` | current |
@@ -92,15 +97,24 @@ work, and `later` is an intended capability without a committed release.
 - `current` Light/dark themes, presentation palettes, semantic glyphs, and accessible text equivalents.
 - `current` One public surface at `rlviz.dev`, external-user documentation, and plain metadata with a product-specific favicon and social preview.
 - `current` Agent-readable setup instructions plus query and named-workspace control commands.
+- `next` Mobile-first progressive reader with an outcome-first summary, one chronological story, bounded navigation, and touch-sized actions.
+- `next` Explicit portable trace bundles and a separate read-only hosted share surface with digest, license, redaction, expiration, and deletion controls.
+- `next` Read-only Harbor job-directory ingestion layered on the existing built-in ATIF v1.5-v1.7 trajectory mapping.
+- `later` Curated, revision-pinned public benchmark and trajectory showcases.
+- `later` Provenance database, clean-subset manifests, evidence-grounded defect claims, repair validation, maintainer stewardship, and domain-scoped contributor reputation.
 - `next` Agent-readable analysis workbooks.
 
 ## Product boundaries
 
-RLViz is a local inspection and comparison tool. Hosted accounts,
-collaboration, production alerting, training or evaluation execution, prompt
-management, automatic LLM summaries, arbitrary viewer JavaScript, and tool
-re-execution are not product goals unless this document is deliberately
-changed first.
+The native RLViz viewer remains a local inspection and comparison tool. It does
+not upload traces implicitly, execute evaluations, replay tools, manage prompts,
+or require an account. An explicit companion service may host reviewed
+read-only bundles, public benchmark metadata, and later collaboration records;
+those networked workflows must remain visibly separate from local viewing and
+must not weaken its source-read-only or no-outbound-request defaults.
+
+Production alerting, training or evaluation execution, automatic LLM summaries,
+arbitrary viewer JavaScript, and tool re-execution remain outside the product.
 
 ## How work maps to this file
 
