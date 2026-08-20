@@ -5,6 +5,7 @@
 - Added a mobile trajectory reader with outcome, story, evidence, and exact detail surfaces while retaining the canonical source model.
 - Added native, read-only Harbor job directory support for trials, ATIF trajectories, CTRF verifier evidence, rewards, token and cost totals, exceptions, and path-backed artifacts.
 - Added bounded job snapshots and explicit symlink rejection. Job directories refresh when reopened and are not uploaded or live-watched.
+- Added explicit create-only `.rlviz` bundles with review, redaction, license, provenance, digest, and optional advisory-expiration metadata. Both the CLI and static browser validate them before opening.
 
 ## 0.3.7
 

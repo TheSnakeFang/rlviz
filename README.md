@@ -39,8 +39,9 @@ concise guide available as a workspace module in the viewer.
 ## What it does
 
 - Opens canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7,
-  complete local Harbor job directories, Inspect AI EvalLog JSON, Verifiers
-  GenerateOutputs JSON, and explicitly trusted adapter output.
+  complete local Harbor job directories, reviewed `.rlviz` bundles, Inspect AI
+  EvalLog JSON, Verifiers GenerateOutputs JSON, and explicitly trusted adapter
+  output.
 - Browses one trajectory or a collection with truthful event positions,
   adjustable fidelity and depth, trial grouping, landmarks, and a draggable
   timeline viewport.
@@ -74,6 +75,20 @@ rlviz inspect ./jobs/example-job
 rlviz open ./jobs/example-job
 ```
 
+Create a new portable file only after reviewing its contents and redaction. The
+command does not upload or overwrite anything:
+
+```bash
+rlviz bundle create ./jobs/example-job \
+  --out reviewed-job.rlviz \
+  --title "Reviewed example job" \
+  --license CC-BY-4.0 \
+  --reviewed --redaction-confirmed
+```
+
+Open the resulting file in the CLI or at [rlviz.dev](https://rlviz.dev). See
+[portable sharing](docs/portable-sharing.md) for the exact v1 boundary.
+
 ## Unsupported formats
 
 Probe the source first:
@@ -103,6 +118,7 @@ See the [adapter authoring guide](https://rlviz.dev/adapter-authoring.html) and
 - [Product scope](docs/product-spec.md)
 - [Architecture](docs/architecture.md)
 - [Data model](docs/data-model.md)
+- [Portable sharing](docs/portable-sharing.md)
 - [Interaction model](docs/interaction-spec.md)
 - [Feature registry](FEATURES.md)
 - [Testing](docs/testing.md)

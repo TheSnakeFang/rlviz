@@ -7,10 +7,40 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/TheSnakeFang/rlviz/internal/bundle"
 	rolloutindex "github.com/TheSnakeFang/rlviz/internal/index"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
 )
+
+func TestIndexSourcePortableBundle(t *testing.T) {
+	canonical, err := os.ReadFile(filepath.Join("..", "..", "fixtures", "canonical", "linear.ndjson"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _, err := bundle.Create(canonical, bundle.CreateOptions{Title: "Reviewed", License: "MIT", CreatedAt: time.Unix(1, 0), SourceName: "linear.ndjson", SourceFormat: "canonical-ndjson", SourceFingerprint: "sha256:test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "reviewed.rlviz")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "index.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	indexed, err := IndexSource(context.Background(), store, path, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trajectories, err := store.Trajectories(context.Background(), indexed.Info.ID)
+	if err != nil || len(trajectories) != 1 {
+		t.Fatalf("trajectories = %#v, err = %v", trajectories, err)
+	}
+}
 
 func TestIndexSourceCanonicalCachesWholeGroup(t *testing.T) {
 	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "index.sqlite"))

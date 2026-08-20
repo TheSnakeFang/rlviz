@@ -12,6 +12,7 @@ when you are ready; the file is parsed in that tab and is not uploaded.
 The browser accepts files up to 32 MiB in these formats:
 
 - canonical RLViz NDJSON
+- reviewed RLViz `.rlviz` bundles
 - Letta trajectory v1 JSON record arrays
 - Inspect AI EvalLog JSON
 - Verifiers GenerateOutputs JSON
@@ -76,6 +77,17 @@ RLViz starts or reuses a loopback-only daemon, builds a removable local SQLite
 index, opens the browser, and returns immediately. It watches active files and
 adds appended events without changing the source. Harbor job directories are
 snapshotted on open rather than live-watched; reopen one after the job changes.
+
+Create a portable file only after review and redaction:
+
+```bash
+rlviz bundle create ./jobs/example-job --out reviewed.rlviz \
+  --title "Reviewed example job" --license CC-BY-4.0 \
+  --reviewed --redaction-confirmed
+```
+
+The command is create-only, does not upload, and discloses any path-backed
+artifact files that bundle v1 did not embed.
 
 Every operational command has structured output for scripts and coding agents:
 

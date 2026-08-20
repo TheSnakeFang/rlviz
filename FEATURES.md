@@ -24,7 +24,7 @@ work, and `later` is an intended capability without a committed release.
 | Configure the viewer | Use the default Settings module for theme, data opening, and format guidance | current |
 | Let an agent compose the GUI | Query canonical trajectories and open or update named browser workspaces from structured CLI commands | current |
 | Read a trajectory on mobile | Open a narrow-screen, outcome-first summary and progressively inspect a virtualized story, verifier evidence, and raw source truth | current |
-| Share a trajectory deliberately | Export a reviewed bundle and publish an explicit read-only link without silently uploading local traces | next |
+| Share a trajectory deliberately | Export a reviewed digest-bound bundle locally without silently uploading traces; hosted links remain separate | current |
 | Inspect a Harbor job | Open a Harbor job directory as a run of tasks and trials with ATIF trajectories, verifier evidence, rewards, timing, and artifacts | current |
 | Browse public benchmark examples | Explore pinned benchmark tasks and representative public trajectories with exact source provenance | later |
 | Improve a benchmark task | Ground a defect claim in evidence, propose or reproduce a repair, and follow it to an upstream revision | later |
@@ -98,7 +98,8 @@ work, and `later` is an intended capability without a committed release.
 - `current` One public surface at `rlviz.dev`, external-user documentation, and plain metadata with a product-specific favicon and social preview.
 - `current` Agent-readable setup instructions plus query and named-workspace control commands.
 - `next` Mobile-first progressive reader with an outcome-first summary, one chronological story, bounded navigation, and touch-sized actions.
-- `next` Explicit portable trace bundles and a separate read-only hosted share surface with digest, license, redaction, expiration, and deletion controls.
+- `current` Explicit create-only portable trace bundles with digest, license, redaction review, source provenance, and advisory expiration.
+- `next` Separate read-only hosted share surface with enforced expiration and deletion controls.
 - `current` Read-only native Harbor job-directory ingestion layered on the existing built-in ATIF v1.5-v1.7 trajectory mapping.
 - `later` Curated, revision-pinned public benchmark and trajectory showcases.
 - `later` Provenance database, clean-subset manifests, evidence-grounded defect claims, repair validation, maintainer stewardship, and domain-scoped contributor reputation.

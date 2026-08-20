@@ -5,6 +5,27 @@ literal; examples and planned support are not built-in support.
 
 ## Built in
 
+### RLViz portable bundle (`rlviz.dev/bundle/v1`)
+
+An `.rlviz` bundle is a bounded ZIP containing exactly `manifest.json` and a
+validated canonical `trace.ndjson`. The manifest records the trace SHA-256,
+source fingerprint, title, license, review/redaction confirmations, optional
+advisory expiration, and any excluded path-backed artifacts. Both the native
+CLI and static browser verify the manifest, trace size, digest, and canonical
+record graph before opening it.
+
+Create-only export is explicit:
+
+```bash
+rlviz bundle create SOURCE --out reviewed.rlviz --title "Reviewed run" \
+  --license CC-BY-4.0 --reviewed --redaction-confirmed
+```
+
+This writes a local file and performs no upload. Bundle v1 carries trajectories
+and inline canonical artifacts. It retains relative path-backed artifact
+records as provenance, but does not copy those files; the manifest and command
+output disclose their count. See [portable sharing](portable-sharing.md).
+
 ### Canonical NDJSON (`rlviz.dev/v1alpha1`)
 
 RLViz directly decodes newline-delimited canonical records matching the schemas

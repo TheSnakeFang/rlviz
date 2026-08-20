@@ -8,7 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/TheSnakeFang/rlviz/internal/bundle"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
 	"github.com/TheSnakeFang/rlviz/internal/plugins/sourceprofile"
 )
@@ -21,6 +23,24 @@ const canonicalPrefix = `{"record_type":"run","id":"run-test"}
 
 const canonicalTrajectory = canonicalPrefix + `{"record_type":"complete","records":4,"warnings":0}
 `
+
+func TestInspectPortableBundle(t *testing.T) {
+	data, _, err := bundle.Create([]byte(canonicalTrajectory), bundle.CreateOptions{Title: "Reviewed", License: "MIT", CreatedAt: time.Unix(1, 0), SourceName: "trace.ndjson", SourceFormat: "canonical-ndjson", SourceFingerprint: "sha256:test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "reviewed.rlviz")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := inspectSource(context.Background(), path, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Supported || result.Format != bundle.Format || result.Confidence != 1 {
+		t.Fatalf("result = %#v", result)
+	}
+}
 
 func TestInspectCanonicalReturnsStableSupportedResult(t *testing.T) {
 	source := filepath.Join(t.TempDir(), "trace with spaces.ndjson")
