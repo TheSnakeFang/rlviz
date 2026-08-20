@@ -1,5 +1,9 @@
 # Patch notes
 
+## Unreleased
+
+- Added a mobile trajectory reader with outcome, story, evidence, and exact detail surfaces while retaining the canonical source model.
+
 ## 0.3.7
 
 - Added paginated indexed rollout queries across sources, runs, tasks, checkpoints, models, environments, outcomes, rewards, tokens, cost, and tool use.
