@@ -915,14 +915,14 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   const loadRowIntoLane = useCallback(async (row: BrowseTrajectory, add: boolean, preserve?: WorkspaceLane) => {
     const id = rowKey(row); const existing = workspaceRef.current.lanes.find((lane) => lane.id === id);
     if (existing) {
-      if (!add) change((current) => ({ ...current, active: existing.id }));
+      if (!add) change((current) => ({ ...current, active: existing.id, mobileSurface: "summary" }));
       return;
     }
     const slot = preserve?.id ?? (add ? `add:${id}` : "focus-open");
     const loaded = await loadForSlot(slot, row.source_id, row.trajectory.id);
     if (!loaded) return;
     if (workspaceRef.current.lanes.some((lane) => lane.id === id)) {
-      if (!add) change((current) => ({ ...current, active: id }));
+      if (!add) change((current) => ({ ...current, active: id, mobileSurface: "summary" }));
       return;
     }
     if (preserve && !workspaceRef.current.lanes.some((lane) => lane.id === preserve.id)) return;
@@ -934,11 +934,11 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
       // `a` piles lanes in without stealing focus from the collection;
       // opening (Enter) is the action that moves focus.
       if (add) return { ...current, lanes: [...current.lanes, base], detailOpen: current.lanes.length ? current.detailOpen : true, railExpanded: current.railExpanded };
-      if (!current.lanes.length) return { ...current, lanes: [base], detailOpen: true, active: id };
+      if (!current.lanes.length) return { ...current, lanes: [base], detailOpen: true, active: id, mobileSurface: "summary" };
       if (preserve) return { ...current, lanes: current.lanes.map((lane) => lane.id === preserve.id ? { ...base, band: preserve.band } : lane), active: id, reference: current.reference === preserve.id ? undefined : current.reference };
       const replaceId = current.lanes.find((lane) => lane.id === current.active && lane.band === "focus")?.id ?? current.lanes.find((lane) => lane.id === lastFocus.current && lane.band === "focus")?.id ?? current.lanes.find((lane) => lane.band === "focus")?.id;
-      if (!replaceId) return { ...current, lanes: [...current.lanes, base], active: id };
-      return { ...current, lanes: current.lanes.map((lane) => lane.id === replaceId ? { ...base, band: "focus" } : lane), active: id, reference: current.reference === replaceId ? undefined : current.reference };
+      if (!replaceId) return { ...current, lanes: [...current.lanes, base], active: id, mobileSurface: "summary" };
+      return { ...current, lanes: current.lanes.map((lane) => lane.id === replaceId ? { ...base, band: "focus" } : lane), active: id, mobileSurface: "summary", reference: current.reference === replaceId ? undefined : current.reference };
     });
     pruneOffLaneData();
     void loadAnalysisForLane(id, row.source_id, row.trajectory.id);
@@ -1179,7 +1179,7 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   });
   return <ViewerProviderContext.Provider value={provider}><DockContentContext.Provider value={dockContent}><div className={`instrument-shell workspace-rack rail-${workspace.railExpanded ? "open" : "closed"}`} data-filter={workspace.railQuery} data-direction={workspace.direction} data-active-zone={workspace.active} data-spotlight={spotlightLane ? "true" : "false"} data-spotlight-lane={spotlightLane ?? ""} data-move-mode={moveMode ? "true" : "false"} data-resize-mode={resizeMode ? "true" : "false"} data-viewport-mode={viewportMode}>
     {error && <div className="instrument-error" role="alert">{error}</div>}{presentation?.notices?.map((notice) => <div className="presentation-notice" role="status" key={notice}>{notice}</div>)}
-    {viewportMode === "full" ? <section className="workspace-stage" aria-label="Trajectory stage"><DockviewReact className="rlviz-dockview" components={dockComponents} tabComponents={dockTabComponents} defaultTabComponent={MinimalTab} onReady={onDockReady} disableFloatingGroups noPanelsOverlay="emptyGroup" keyboardNavigation={false} announcements={false} /></section> : <ResponsiveWorkspace mode={viewportMode} workspace={workspace} content={dockContent} activeLaneId={activeLane?.id} onActivate={activateResponsiveTarget} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} />}
+    {viewportMode === "full" ? <section className="workspace-stage" aria-label="Trajectory stage"><DockviewReact className="rlviz-dockview" components={dockComponents} tabComponents={dockTabComponents} defaultTabComponent={MinimalTab} onReady={onDockReady} disableFloatingGroups noPanelsOverlay="emptyGroup" keyboardNavigation={false} announcements={false} /></section> : <ResponsiveWorkspace mode={viewportMode} workspace={workspace} content={dockContent} activeLaneId={activeLane?.id ?? workspace.lanes.find((lane) => lane.id === lastFocus.current)?.id ?? workspace.lanes.find((lane) => lane.band === "focus")?.id} onActivate={activateResponsiveTarget} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} />}
     {viewportMode !== "mobile" && <KeyBar shortcuts={shortcuts} mode={moveMode ? "move" : resizeMode ? "resize" : undefined} onModeArrow={(key) => moveMode ? moveActiveModule(key) : resizeNearest(key)} onModeExit={() => { setMoveMode(false); setResizeMode(false); }} selection={activeLane && laneData.get(activeLane.id)?.trajectory.events[activeLane.selected] ? `#${laneData.get(activeLane.id)!.trajectory.events[Math.min(activeLane.selected, laneData.get(activeLane.id)!.trajectory.events.length - 1)].sequence}` : undefined} />}
   </div></DockContentContext.Provider></ViewerProviderContext.Provider>;
 }

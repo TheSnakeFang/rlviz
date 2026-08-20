@@ -245,6 +245,11 @@ test("mobile workspace reads summary, story, evidence, and details without losin
   await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).mobileSurface)).toBe("details");
   await page.reload();
   await expect(page.getByRole("region", { name: /Detail for/ })).toBeVisible();
+  await page.getByRole("button", { name: "Browse", exact: true }).click();
+  await page.getByRole("option", { name: "checkout-rollout-02 Rollout signal summary" }).click();
+  await page.getByRole("button", { name: "Open selected" }).click();
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).mobileSurface)).toBe("summary");
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -274,17 +279,24 @@ test("resizing restores the docked workspace without losing selection", async ({
   await page.keyboard.press("j");
   const selectedBefore = await lane.getAttribute("data-selected-index");
   const layoutBefore = await page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).layout);
+  const detail = page.getByRole("region", { name: "Workspace console" });
+  const detailLaneBefore = await detail.getAttribute("data-detail-lane-id");
+  expect(detailLaneBefore).not.toBeNull();
   await page.keyboard.press("z");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "true");
+  await page.keyboard.press("z");
+  await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "false");
+  await detail.click();
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "false");
   await expect(page.locator(".rlviz-dockview")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible();
+  await expect(page.getByRole("main", { name: "Mobile trajectory reader" })).toHaveAttribute("data-lane-id", detailLaneBefore!);
   await expect.poll(() => page.evaluate(() => {
     const workspace = JSON.parse(new URLSearchParams(location.search).get("workspace")!);
-    return workspace.lanes.find((item: { id: string }) => item.id === workspace.active)?.selected;
+    return workspace.lanes.find((item: { id: string }) => item.id === document.querySelector('[aria-label="Mobile trajectory reader"]')?.getAttribute("data-lane-id"))?.selected;
   })).toBe(Number(selectedBefore));
   await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).layout)).toEqual(layoutBefore);
 

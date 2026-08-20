@@ -62,7 +62,7 @@ export function MobileTrajectoryReader({ lane, trajectory, surface, details, onB
     if (index >= 0) onSelect(index);
     if (reveal) onSurface("details");
   };
-  return <main className="mobile-reader" aria-label="Mobile trajectory reader" data-surface={surface}>
+  return <main className="mobile-reader" aria-label="Mobile trajectory reader" data-surface={surface} data-lane-id={lane.id}>
     <section ref={scrollRef} className="mobile-reader-content">
       {surface === "summary" && <MobileSummary trajectory={trajectory} onStory={() => onSurface("story")} onEvidence={() => onSurface("evidence")} />}
       {surface === "story" && <TranscriptView events={trajectory.events} selectedId={trajectory.events[selected]?.id ?? ""} selectedIndex={selected} scrollRef={scrollRef} onSelect={selectID} />}
