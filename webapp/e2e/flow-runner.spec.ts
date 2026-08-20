@@ -216,9 +216,15 @@ test("default workspace prioritizes rollout and detail space", async ({ page }) 
   for (const lane of lanes) expect((await lane.boundingBox())!.width).toBeGreaterThanOrEqual(350);
 });
 
-test("mobile workspace uses one module and remembers the compact notice", async ({ page }) => {
+test("mobile workspace reads summary, story, evidence, and details without losing its place", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.evaluate(() => localStorage.removeItem("rlviz.workspace.v6"));
+  await page.addInitScript(() => localStorage.removeItem("rlviz.workspace.v6"));
+  await page.goto("/");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("Verifier reason")).toBeVisible();
+  await page.getByRole("button", { name: "Browse", exact: true }).click();
   await expect(page.getByText("multi-rollout comparison, docking, and keyboard workflows", { exact: false })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
@@ -229,9 +235,16 @@ test("mobile workspace uses one module and remembers the compact notice", async 
   await page.getByRole("button", { name: "Traces" }).click();
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible();
   await page.getByRole("button", { name: "Open selected" }).click();
-  await expect(page.getByRole("main", { name: "Read trajectory" })).toBeVisible();
-  await page.getByRole("button", { name: "Detail", exact: true }).last().click();
-  await expect(page.getByRole("region", { name: "Workspace console" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible();
+  await page.getByRole("button", { name: "Read the story" }).click();
+  await expect(page.getByRole("region", { name: "Trajectory transcript" })).toBeVisible();
+  await page.getByRole("button", { name: "Evidence", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Trajectory outcome" })).toBeVisible();
+  await page.getByRole("button", { name: "Details", exact: true }).click();
+  await expect(page.getByRole("region", { name: /Detail for/ })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).mobileSurface)).toBe("details");
+  await page.reload();
+  await expect(page.getByRole("region", { name: /Detail for/ })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -268,7 +281,11 @@ test("resizing restores the docked workspace without losing selection", async ({
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-spotlight", "false");
   await expect(page.locator(".rlviz-dockview")).toHaveCount(0);
-  await expect(page.getByRole("main", { name: "Read trajectory" })).toHaveAttribute("data-selected-index", selectedBefore!);
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => {
+    const workspace = JSON.parse(new URLSearchParams(location.search).get("workspace")!);
+    return workspace.lanes.find((item: { id: string }) => item.id === workspace.active)?.selected;
+  })).toBe(Number(selectedBefore));
   await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).layout)).toEqual(layoutBefore);
 
   await page.setViewportSize({ width: 1440, height: 900 });

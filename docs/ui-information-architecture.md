@@ -33,11 +33,16 @@ workspace, can be toggled with `Shift+G`, and uses the same source as the CLI
 and public guide. A blank Detail module is not shown before a rollout exists.
 
 The docked frame is used at 1200px and wider. From 720px to 1199px, Collection
-stays beside one active module. Below 720px, a module switcher and touch action
-bar expose one module at a time. A dismissible inline notice explains that the
-compact view works but multi-rollout comparison, docking, and keyboard workflows
-are best at 1200px or wider. Resizing changes only the projection: open modules,
-selection, URL state, and desktop geometry remain intact.
+stays beside one active module. Below 720px, an outcome-first reader replaces
+the desktop module strip with five bounded destinations: Browse, Summary,
+Story, Evidence, and Details. Summary establishes task, model, result, verifier
+reason, and work before Story presents the virtualized chronological trace.
+Evidence explains the final output and graders; Details preserves the canonical
+event and raw source escape hatch. A dismissible notice on Browse explains that
+comparison, docking, and keyboard workflows are best at 1200px or wider.
+Resizing changes only the projection: open modules, selection, URL state, and
+desktop geometry remain intact. The logical mobile reading surface is included
+in copied workspace links.
 
 ```text
 +-----------------------------------------------------------------------+
@@ -133,6 +138,12 @@ evidence link back to canonical events. Explicit `context:*` alignment keys
 appear as compatibility landmarks and are keyboard reachable. Sparse structured
 context observations render on a separate source-backed track without
 interpolating unobserved gaps.
+
+At mobile widths the same canonical state is projected into Summary, Story,
+Evidence, and Details. Selecting verifier evidence opens the referenced event
+in Details, and reload or a copied workspace link restores the selected event
+and mobile surface. Desktop lanes, comparison, docking, and raw access are not
+removed or rewritten by this projection.
 
 ## Landmark rail and minimap
 

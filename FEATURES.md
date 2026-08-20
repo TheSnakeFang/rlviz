@@ -23,7 +23,7 @@ work, and `later` is an intended capability without a committed release.
 | Extend an unsupported format | Scaffold, trust, validate, and run a local adapter without changing the viewer | current |
 | Configure the viewer | Use the default Settings module for theme, data opening, and format guidance | current |
 | Let an agent compose the GUI | Query canonical trajectories and open or update named browser workspaces from structured CLI commands | current |
-| Read a trajectory on mobile | Open a narrow-screen, outcome-first story and progressively inspect events, evidence, and raw source truth | next |
+| Read a trajectory on mobile | Open a narrow-screen, outcome-first summary and progressively inspect a virtualized story, verifier evidence, and raw source truth | current |
 | Share a trajectory deliberately | Export a reviewed bundle and publish an explicit read-only link without silently uploading local traces | next |
 | Inspect a Harbor job | Open a Harbor job directory as a run of tasks and trials with ATIF trajectories, verifier evidence, rewards, timing, and artifacts | next |
 | Browse public benchmark examples | Explore pinned benchmark tasks and representative public trajectories with exact source provenance | later |

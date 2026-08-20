@@ -2,6 +2,7 @@ export type LaneBand = "focus" | "context";
 export type WorkspaceDirection = "rows" | "columns";
 export type CollectionView = "rollouts" | "trials";
 export type WorkspaceTarget = "rail" | string;
+export type MobileSurface = "summary" | "story" | "evidence" | "details";
 
 export interface AxisWindow { start: number; end: number }
 export interface LaneDepthSnapshot { depth: number; axis: AxisWindow }
@@ -29,6 +30,8 @@ export interface WorkspaceState {
   railQuery: string;
   railSelected: number;
   collectionView: CollectionView;
+  /** The logical reading surface restored by mobile share links. */
+  mobileSurface: MobileSurface;
   guideOpen: boolean;
   settingsOpen: boolean;
   lanes: WorkspaceLane[];
@@ -60,6 +63,7 @@ export function emptyWorkspace(): WorkspaceState {
     railQuery: "",
     railSelected: 0,
     collectionView: "rollouts",
+    mobileSurface: "summary",
     guideOpen: true,
     settingsOpen: true,
     lanes: [],
@@ -130,6 +134,7 @@ export function normalizeWorkspace(value: unknown): WorkspaceState | undefined {
     railQuery: typeof raw.railQuery === "string" ? raw.railQuery.slice(0, 500) : "",
     railSelected: clamp(finite(raw.railSelected) ? Math.round(raw.railSelected) : 0, 0, Number.MAX_SAFE_INTEGER),
     collectionView: raw.collectionView === "trials" ? "trials" : "rollouts",
+    mobileSurface: raw.mobileSurface === "story" || raw.mobileSurface === "evidence" || raw.mobileSurface === "details" ? raw.mobileSurface : "summary",
     guideOpen,
     settingsOpen,
     lanes,

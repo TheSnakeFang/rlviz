@@ -294,11 +294,11 @@ Delivered:
 
 ## Milestone 13: mobile-first progressive trajectory reader
 
-Status: product direction accepted; implementation pending. The current
-sub-720px projection is functional: it shows one module at a time, exposes
-touch actions, preserves workspace and selected-event state across resizing and
-reload, and avoids horizontal page scrolling. It is still a compressed desktop
-workspace rather than the simplest first-use trajectory reader.
+Status: mobile reader implemented; progressive desktop carry-over remains. The
+sub-720px projection now opens an outcome-first Summary, a virtualized Story,
+source-backed Evidence, and canonical Details behind bounded bottom navigation.
+It preserves the reading surface and selected event across reload and copied
+workspace links without changing the desktop workspace.
 
 The mobile reader is the design nucleus for the next workspace. A narrow screen
 must establish the task, result, verifier explanation, and chronological story
@@ -308,22 +308,23 @@ they do not replace the mobile information hierarchy with a separate product.
 
 ### Vertical slices
 
-1. Replace the default Guide-first mobile state with a concise trajectory
+1. **Implemented.** Replace the default Guide-first mobile state with a concise trajectory
    summary: task, agent/model, result, verifier reason, work, and one primary
    action to read the run. Keep Guide and Settings reachable but secondary.
-2. Define one scrollable story surface for user/model turns, tool calls,
+2. **Implemented.** Define one scrollable story surface for user/model turns, tool calls,
    observations, errors, grader evidence, and artifacts. Preserve exact event
    identity and raw source access behind progressive disclosure.
-3. Replace the horizontally scrolling desktop-module strip with bounded mobile
+3. **Implemented.** Replace the horizontally scrolling desktop-module strip with bounded mobile
    navigation for Browse, Story, Evidence, and Details. Use bottom actions or
    sheets for the selected event without hiding content behind a permanent
    desktop keybar.
 4. Carry the same hierarchy into comfortable desktop mode, then layer on
    collection rails, multiple lanes, docking, pair comparison, configurable
    density, and keyboard workflows.
-5. Add fixed 390 x 844 browser flows and visual/accessibility review for first
-   use, outcome comprehension, event navigation, evidence inspection, deep-link
-   reload, long payloads, images, errors, empty states, and reduced motion.
+5. **Partially implemented.** Fixed 390 x 844 browser coverage now proves first
+   use, outcome comprehension, Story and Evidence navigation, Details, deep-link
+   reload, and horizontal fit. Extend the same coverage to long payloads, images,
+   errors, empty states, and reduced motion.
 
 ### Exit criteria
 

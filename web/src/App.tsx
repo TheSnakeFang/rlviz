@@ -27,6 +27,7 @@ import { Settings } from "./Settings";
 import type { ViewerSetup } from "./Settings";
 import { responsivePrimaryTarget, responsiveWorkspaceTargets, useWorkspaceViewportMode } from "./responsiveWorkspace";
 import { parseRolloutQuery } from "./rolloutQuery";
+import { MobileTrajectoryReader } from "./MobileTrajectoryReader";
 
 const fidelityNames = ["hairline", "glyphs", "detail"];
 const collectionFidelityNames = ["compact", "signals", "summary"];
@@ -649,7 +650,7 @@ function Console({ workspace, lane, data, metadata, breadcrumb, resizeMode, dock
   </section>;
 }
 
-type DockContent = { collection: ReactNode; guide: ReactNode; settings: ReactNode; detail: (id?: string) => ReactNode; lane: (id: string) => ReactNode };
+type DockContent = { collection: ReactNode; guide: ReactNode; settings: ReactNode; detail: (id?: string) => ReactNode; lane: (id: string) => ReactNode; mobileReader: (id: string) => ReactNode };
 const DockContentContext = createContext<DockContent | null>(null);
 
 function WorkspacePanel({ params }: IDockviewPanelProps<{ kind: "collection" | "guide" | "settings" | "detail" | "lane"; laneId?: string }>) {
@@ -691,19 +692,18 @@ function KeyBar({ shortcuts, selection, mode, onModeArrow, onModeExit }: { short
 const compactNoticeStorageKey = "rlviz.compact-notice.v1";
 const compactNoticeDismissed = () => { try { return window.localStorage.getItem(compactNoticeStorageKey) === "dismissed"; } catch { return false; } };
 
-function ResponsiveWorkspace({ mode, workspace, content, onActivate, onOpen, onAdd, onPrevious, onNext, onDetail }: {
+function ResponsiveWorkspace({ mode, workspace, content, activeLaneId, onActivate, onOpen, onAdd }: {
   mode: "compact" | "mobile";
   workspace: WorkspaceState;
   content: DockContent;
+  activeLaneId?: string;
   onActivate: (target: string) => void;
   onOpen: () => void;
   onAdd: () => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  onDetail: () => void;
 }) {
   const [noticeDismissed, setNoticeDismissed] = useState(compactNoticeDismissed);
   const primaryTarget = mode === "mobile" ? workspace.active : responsivePrimaryTarget(workspace);
+  const mobileLaneId = mode === "mobile" ? pinnedDetailLaneId(workspace.active) ?? (workspace.active === "detail" ? activeLaneId ?? workspace.lanes[0]?.id : workspace.lanes.some((lane) => lane.id === workspace.active) ? workspace.active : undefined) : undefined;
   const renderTarget = (target: string) => {
     if (target === "rail") return content.collection;
     if (target === "guide") return content.guide;
@@ -729,22 +729,22 @@ function ResponsiveWorkspace({ mode, workspace, content, onActivate, onOpen, onA
     try { window.localStorage.setItem(compactNoticeStorageKey, "dismissed"); } catch { /* storage is optional */ }
     setNoticeDismissed(true);
   };
-  return <section className={`workspace-stage responsive-workspace mode-${mode}`} aria-label="Trajectory stage">
-    <header className="responsive-workspace-header"><strong>RLViz</strong><span>Compact view</span><small>full workspace ≥1200px</small></header>
-    {mode === "mobile" && !noticeDismissed && <aside className="compact-view-notice" role="status">
+  return <section className={`workspace-stage responsive-workspace mode-${mode} ${mobileLaneId ? "reading" : ""}`} aria-label="Trajectory stage">
+    <header className="responsive-workspace-header"><strong>RLViz</strong><span>{mobileLaneId ? "Reader" : "Compact view"}</span><small>full workspace ≥1200px</small></header>
+    {mode === "mobile" && !mobileLaneId && !noticeDismissed && <aside className="compact-view-notice" role="status">
       <span><b>Compact view</b> RLViz works on this screen, but multi-rollout comparison, docking, and keyboard workflows are best in a window at least 1200px wide.</span>
       <button onClick={dismissNotice}>Got it</button>
     </aside>}
-    <nav className="responsive-module-tabs" aria-label="Workspace modules">
-      {responsiveWorkspaceTargets(workspace).map((target) => <button key={target} aria-pressed={activeTab(target)} onClick={() => onActivate(target)}>{label(target)}</button>)}
-    </nav>
+    {!mobileLaneId && <nav className="responsive-module-tabs" aria-label="Workspace modules">
+      {responsiveWorkspaceTargets(workspace).filter((target) => mode !== "mobile" || (target !== "detail" && !pinnedDetailLaneId(target))).map((target) => <button key={target} aria-pressed={activeTab(target)} onClick={() => onActivate(target)}>{label(target)}</button>)}
+    </nav>}
     <div className="responsive-workspace-body">
       {mode === "compact" && <div className="responsive-collection">{content.collection}</div>}
-      <div className="responsive-primary" data-responsive-target={primaryTarget}>{renderTarget(primaryTarget)}</div>
+      <div className="responsive-primary" data-responsive-target={primaryTarget}>{mobileLaneId ? content.mobileReader(mobileLaneId) : renderTarget(primaryTarget)}</div>
     </div>
-    {mode === "mobile" && <footer className="mobile-actionbar" aria-label="Active module actions">
+    {mode === "mobile" && !mobileLaneId && <footer className="mobile-actionbar" aria-label="Active module actions">
       {workspace.active === "rail" && <><button onClick={onOpen}>Open selected</button><button onClick={onAdd}>Add rollout</button></>}
-      {(activeLane || activeDetail) && <><button onClick={onPrevious}>Previous</button><button onClick={onNext}>Next</button>{activeLane ? <button onClick={onDetail}>Detail</button> : <button onClick={() => onActivate(workspace.detailPinned ?? workspace.lanes[0]?.id ?? "rail")}>Rollout</button>}</>}
+      {(activeLane || activeDetail) && <button onClick={() => onActivate("rail")}>Browse traces</button>}
       {(workspace.active === "guide" || workspace.active === "settings") && <button onClick={() => onActivate("rail")}>Browse traces</button>}
     </footer>}
   </section>;
@@ -951,10 +951,10 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
     void (async () => {
       await loadRowIntoLane(ordered[0], true);
       await loadRowIntoLane(ordered[1], true);
-      change((current) => ({ ...current, active: "guide", guideOpen: true, settingsOpen: true }), false);
+      change((current) => ({ ...current, active: viewportMode === "mobile" ? current.lanes.find((lane) => lane.band === "focus")?.id ?? "guide" : "guide", guideOpen: true, settingsOpen: true }), false);
       arrangeWelcomeLayout();
     })().catch((reason) => setError(reason instanceof Error ? reason.message : "Could not open example workspace"));
-  }, [arrangeWelcomeLayout, change, loadRowIntoLane, ordered]);
+  }, [arrangeWelcomeLayout, change, loadRowIntoLane, ordered, viewportMode]);
   const updateLane = useCallback((id: string, update: (lane: WorkspaceLane, data?: LaneData) => WorkspaceLane, snapshot = true) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => lane.id === id ? update(lane, laneDataRef.current.get(id)) : lane) }), snapshot), [change]);
   const selectEvent = useCallback((id: string, index: number) => updateLane(id, (lane, data) => {
     if (!data) return { ...lane, selected: index };
@@ -1168,6 +1168,7 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
     settings: <Settings active={workspace.active === "settings"} theme={theme} setup={setup} onTheme={setTheme} onActivate={() => { if (canActivateContent("settings")) change((current) => ({ ...current, active: "settings" })); }} onClose={closeSettings} />,
     lane: (id) => { const lane = workspace.lanes.find((item) => item.id === id); return lane ? <LaneTrack lane={lane} data={laneData.get(lane.id)} metadata={viewerMetadata.trajectories[lane.id]} active={workspace.active === lane.id} reference={workspace.reference === lane.id} hover={hover[lane.id]} onActivate={() => { if (canActivateContent(lane.id)) change((current) => ({ ...current, active: lane.id })); }} onSelect={(value) => selectEvent(lane.id, value)} onHover={(value) => setHover((current) => ({ ...current, [lane.id]: value }))} onDescend={(episode) => descendLane(lane.id, episode)} onAscend={() => ascendLane(lane.id)} onAxisChange={(axis) => updateLane(lane.id, (current) => ({ ...current, axis }), false)} /> : null; },
     detail: (id) => { const pinnedId = id ?? workspace.detailPinned; const lane = pinnedId ? workspace.lanes.find((item) => item.id === pinnedId) : activeLane ?? workspace.lanes.find((item) => item.id === lastFocus.current) ?? workspace.lanes.find((item) => item.band === "focus"); const target = id ? pinnedDetailTarget(id) : "detail"; const pinned = !!pinnedId; return <Console workspace={workspace} lane={lane} data={lane ? laneData.get(lane.id) : undefined} metadata={lane ? viewerMetadata.trajectories[lane.id] : undefined} breadcrumb={pinned && lane ? `${lane.trajectoryId} · detail` : breadcrumb} resizeMode={resizeMode} dockPosition={detailPosition} shared={!id} pinned={pinned} compact={!id && workspace.detailCompact} active={workspace.active === target} onMetadata={(value) => lane && updateTrajectory(lane.id, value)} onSelect={(index) => lane && selectEvent(lane.id, index)} onHelp={() => dispatchCommand(commandIds.workspace.toggleGuide)} onClose={() => id ? change((current) => ({ ...current, details: current.details.filter((item) => item !== id), active: id })) : closeDetail()} onCompact={() => { if (!id) toggleDetailCompact(); }} onPin={() => id ? change((current) => ({ ...current, details: current.details.filter((item) => item !== id), active: id })) : toggleDetailPin()} onActivate={() => { if (canActivateContent(target)) change((current) => ({ ...current, active: target })); }} />; },
+    mobileReader: (id) => { const lane = workspace.lanes.find((item) => item.id === id); return lane ? <MobileTrajectoryReader lane={lane} trajectory={laneData.get(id)?.trajectory} surface={workspace.mobileSurface} details={<Console workspace={workspace} lane={lane} data={laneData.get(id)} metadata={viewerMetadata.trajectories[id]} breadcrumb={`${lane.trajectoryId} · details`} resizeMode={false} dockPosition="bottom" shared={false} pinned compact={false} active onMetadata={(value) => updateTrajectory(id, value)} onSelect={(index) => selectEvent(id, index)} onHelp={() => dispatchCommand(commandIds.workspace.toggleGuide)} onClose={() => change((current) => ({ ...current, mobileSurface: "summary" }))} onCompact={() => {}} onPin={() => {}} onActivate={() => {}} />} onBrowse={() => change((current) => ({ ...current, active: "rail" }))} onSurface={(mobileSurface) => change((current) => ({ ...current, active: id, mobileSurface }))} onSelect={(index) => selectEvent(id, index)} /> : null; },
   };
   const activateResponsiveTarget = (target: string) => change((current) => {
     if (target === "guide") return { ...current, guideOpen: true, active: "guide" };
@@ -1178,7 +1179,7 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   });
   return <ViewerProviderContext.Provider value={provider}><DockContentContext.Provider value={dockContent}><div className={`instrument-shell workspace-rack rail-${workspace.railExpanded ? "open" : "closed"}`} data-filter={workspace.railQuery} data-direction={workspace.direction} data-active-zone={workspace.active} data-spotlight={spotlightLane ? "true" : "false"} data-spotlight-lane={spotlightLane ?? ""} data-move-mode={moveMode ? "true" : "false"} data-resize-mode={resizeMode ? "true" : "false"} data-viewport-mode={viewportMode}>
     {error && <div className="instrument-error" role="alert">{error}</div>}{presentation?.notices?.map((notice) => <div className="presentation-notice" role="status" key={notice}>{notice}</div>)}
-    {viewportMode === "full" ? <section className="workspace-stage" aria-label="Trajectory stage"><DockviewReact className="rlviz-dockview" components={dockComponents} tabComponents={dockTabComponents} defaultTabComponent={MinimalTab} onReady={onDockReady} disableFloatingGroups noPanelsOverlay="emptyGroup" keyboardNavigation={false} announcements={false} /></section> : <ResponsiveWorkspace mode={viewportMode} workspace={workspace} content={dockContent} onActivate={activateResponsiveTarget} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} onPrevious={() => moveEvent(-1)} onNext={() => moveEvent(1)} onDetail={() => { toggleDetail(); }} />}
+    {viewportMode === "full" ? <section className="workspace-stage" aria-label="Trajectory stage"><DockviewReact className="rlviz-dockview" components={dockComponents} tabComponents={dockTabComponents} defaultTabComponent={MinimalTab} onReady={onDockReady} disableFloatingGroups noPanelsOverlay="emptyGroup" keyboardNavigation={false} announcements={false} /></section> : <ResponsiveWorkspace mode={viewportMode} workspace={workspace} content={dockContent} activeLaneId={activeLane?.id} onActivate={activateResponsiveTarget} onOpen={() => openSelected(false)} onAdd={() => openSelected(true)} />}
     {viewportMode !== "mobile" && <KeyBar shortcuts={shortcuts} mode={moveMode ? "move" : resizeMode ? "resize" : undefined} onModeArrow={(key) => moveMode ? moveActiveModule(key) : resizeNearest(key)} onModeExit={() => { setMoveMode(false); setResizeMode(false); }} selection={activeLane && laneData.get(activeLane.id)?.trajectory.events[activeLane.selected] ? `#${laneData.get(activeLane.id)!.trajectory.events[Math.min(activeLane.selected, laneData.get(activeLane.id)!.trajectory.events.length - 1)].sequence}` : undefined} />}
   </div></DockContentContext.Provider></ViewerProviderContext.Provider>;
 }
