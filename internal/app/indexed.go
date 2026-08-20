@@ -217,7 +217,8 @@ func detectBuiltInFormat(path string) (string, error) {
 		}
 	}
 	info, statErr := file.Stat()
-	if statErr == nil && info.Size() <= browsercore.MaxRecommendedBytes && strings.EqualFold(filepath.Ext(path), ".json") {
+	extension := filepath.Ext(path)
+	if statErr == nil && info.Size() <= browsercore.MaxRecommendedBytes && (strings.EqualFold(extension, ".json") || strings.EqualFold(extension, ".rlviz")) {
 		if _, seekErr := file.Seek(0, io.SeekStart); seekErr == nil {
 			data, readErr := io.ReadAll(file)
 			if readErr == nil {

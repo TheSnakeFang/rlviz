@@ -6,7 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/TheSnakeFang/rlviz/internal/bundle"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/shape"
 )
@@ -61,6 +63,24 @@ func TestParseBuiltInBrowserFormats(t *testing.T) {
 			}
 			t.Fatalf("no trajectory with %d events", test.firstEvents)
 		})
+	}
+}
+
+func TestParsePortableBundle(t *testing.T) {
+	canonical, err := os.ReadFile(filepath.Join("..", "..", "fixtures", "canonical", "linear.ndjson"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, _, err := bundle.Create(canonical, bundle.CreateOptions{Title: "Reviewed trace", License: "MIT", CreatedAt: time.Unix(1, 0), SourceName: "linear.ndjson", SourceFormat: "canonical-ndjson", SourceFingerprint: "sha256:test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	collection, err := ParseCollection(data, "reviewed.rlviz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if collection.Source.Format != bundle.Format || len(collection.Trajectories) != 1 {
+		t.Fatalf("collection = %#v", collection)
 	}
 }
 

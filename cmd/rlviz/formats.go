@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/TheSnakeFang/rlviz/internal/atif"
+	"github.com/TheSnakeFang/rlviz/internal/bundle"
 	"github.com/TheSnakeFang/rlviz/internal/harborjob"
 	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
@@ -79,6 +80,12 @@ func runFormats(arguments []string) {
 
 func collectFormats(entries []plugins.TrustEntry, discoveries ...plugins.DiscoveryResult) formatsResult {
 	formats := []formatInfo{
+		{
+			ID: bundle.Format, Name: "RLViz portable bundle", Source: "built_in",
+			Kind: "Bundle", APIVersion: bundle.Schema, Version: "1", Status: "available",
+			Capabilities: []string{"groups", "portable", "review-metadata", "source-provenance"},
+			Description:  "Explicit reviewed trajectory bundle with content digests and sharing metadata",
+		},
 		{
 			ID: "canonical-ndjson", Name: "Canonical NDJSON", Source: "built_in",
 			Kind: "Adapter", APIVersion: model.APIVersion, Status: "available",

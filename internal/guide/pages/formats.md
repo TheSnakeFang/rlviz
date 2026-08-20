@@ -2,7 +2,7 @@
 
 RLViz normalizes every source into versioned canonical run, case, group, trajectory, event, signal, artifact, and completion records. The GUI stays format-independent.
 
-Built in: RLViz canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, complete local Harbor job directories, Inspect AI EvalLog JSON v2, and Verifiers GenerateOutputs JSON. Letta support opens the normalized `records` array, not native harness logs. ATIF support covers the public trajectory document, including embedded subagents. The native Harbor job source combines trial results, ATIF, CTRF, rewards, token and cost contexts, exceptions, and artifacts without following symlinks or external references. Organization-specific evaluator files remain adapter territory.
+Built in: reviewed RLViz `.rlviz` bundles, canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, complete local Harbor job directories, Inspect AI EvalLog JSON v2, and Verifiers GenerateOutputs JSON. Letta support opens the normalized `records` array, not native harness logs. ATIF support covers the public trajectory document, including embedded subagents. The native Harbor job source combines trial results, ATIF, CTRF, rewards, token and cost contexts, exceptions, and artifacts without following symlinks or external references. Organization-specific evaluator files remain adapter territory.
 
 ```sh
 rlviz inspect ./jobs/example-job --json
@@ -10,6 +10,15 @@ rlviz open ./jobs/example-job
 ```
 
 Harbor job directories are snapshotted when opened and are not live-watched in this release. Reopen a changed job to refresh its local index. The static browser accepts individual supported files, not complete job folders.
+
+## Portable bundles
+
+```sh
+rlviz bundle create ./jobs/example-job --out reviewed.rlviz --title "Reviewed job" --license CC-BY-4.0 --reviewed --redaction-confirmed
+rlviz open reviewed.rlviz
+```
+
+Export is create-only and local. The bundle carries validated canonical trajectories and a digest-bound sharing manifest. Relative path-backed artifact records remain provenance references and are disclosed as omitted; v1 does not copy their files. Opening the file in the CLI or static browser verifies the trace digest before rendering it.
 
 ## Before writing an adapter
 

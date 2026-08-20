@@ -21,6 +21,7 @@ import (
 	"github.com/TheSnakeFang/rlviz/internal/alignment"
 	"github.com/TheSnakeFang/rlviz/internal/analyzers"
 	"github.com/TheSnakeFang/rlviz/internal/atif"
+	"github.com/TheSnakeFang/rlviz/internal/bundle"
 	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/shape"
@@ -102,6 +103,10 @@ func Normalize(source []byte, name string) ([]byte, string, error) {
 	if len(trimmed) == 0 {
 		return nil, "", errors.New("trace is empty")
 	}
+	if len(trimmed) >= 4 && bytes.Equal(trimmed[:4], []byte{'P', 'K', 3, 4}) {
+		_, canonical, err := bundle.Open(trimmed)
+		return canonical, bundle.Format, err
+	}
 	if bytes.Contains(firstLine(trimmed), []byte(`"record_type"`)) {
 		return source, "canonical-ndjson", nil
 	}
@@ -111,7 +116,7 @@ func Normalize(source []byte, name string) ([]byte, string, error) {
 	}
 	var document map[string]any
 	if err := json.Unmarshal(trimmed, &document); err != nil {
-		return nil, "", errors.New("unsupported trace: expected canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
+		return nil, "", errors.New("unsupported trace: expected an RLViz bundle, canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
 	}
 	if atif.Detect(document) {
 		out, err := atif.Normalize(document, name)
@@ -125,7 +130,7 @@ func Normalize(source []byte, name string) ([]byte, string, error) {
 		out, err := normalizeVerifiers(document, name, source)
 		return out, "prime-verifiers-generate-outputs", err
 	}
-	return nil, "", errors.New("unsupported trace: expected canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
+	return nil, "", errors.New("unsupported trace: expected an RLViz bundle, canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF JSON, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON")
 }
 
 func ParseCanonical(canonical []byte, name, format string, sourceSize int) (Collection, error) {

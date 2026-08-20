@@ -1,7 +1,44 @@
 import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+test("reviewed portable bundle opens locally on desktop and mobile", async ({ page }, testInfo) => {
+  const webappRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const repoRoot = path.resolve(webappRoot, "..");
+  const bundlePath = testInfo.outputPath("reviewed-linear.rlviz");
+  execFileSync("go", ["run", "./cmd/rlviz", "bundle", "create", "fixtures/canonical/linear.ndjson", "--out", bundlePath, "--title", "Reviewed linear rollout", "--license", "CC-BY-4.0", "--reviewed", "--redaction-confirmed"], { cwd: repoRoot });
+
+  const root = path.join(webappRoot, "dist");
+  const requests: string[] = [];
+  const contentTypes: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".ndjson": "application/x-ndjson" };
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    requests.push(url.href);
+    if (url.origin !== "http://127.0.0.1:4174") return route.abort();
+    const relative = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+    try { await route.fulfill({ body: await readFile(path.join(root, relative)), contentType: contentTypes[path.extname(relative)] ?? "application/octet-stream" }); }
+    catch { await route.fulfill({ status: 404, body: "not found" }); }
+  });
+
+  await page.goto("/");
+  await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
+  await page.locator('input[type="file"]').first().setInputFiles(bundlePath);
+  await expect(page.getByText("reviewed-linear.rlviz is open. No trace bytes left this tab.")).toBeVisible({ timeout: 15_000 });
+  const imported = page.getByRole("option").filter({ hasText: "traj-linear" });
+  await expect(imported).toBeVisible();
+  await imported.dblclick();
+  await expect(page.locator('main[aria-label="Read trajectory"][data-trajectory="traj-linear"]')).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const summary = page.getByRole("region", { name: "Trajectory summary" });
+  await expect(summary).toBeVisible();
+  await expect(summary).toContainText("write greeting");
+  await expect(summary).toContainText("Pass");
+  await expect(summary).toContainText("success");
+  expect(requests.some((value) => new URL(value).origin !== "http://127.0.0.1:4174")).toBe(false);
+});
 
 test("first paint stays on the viewer shell while the bundled cohort is delayed", async ({ page }) => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");

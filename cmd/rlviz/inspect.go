@@ -216,7 +216,7 @@ func inspectBuiltInJSON(result inspectResult) (inspectResult, error) {
 	result.Supported = true
 	result.Format = format
 	result.Confidence = 1
-	result.Reason = "recognized documented " + format + " JSON"
+	result.Reason = "recognized documented " + format + " source"
 	result.NextCommand = shellCommand("rlviz", "open", result.Path)
 	return result, nil
 }

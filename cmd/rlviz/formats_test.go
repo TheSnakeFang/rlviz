@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/TheSnakeFang/rlviz/internal/bundle"
 	"github.com/TheSnakeFang/rlviz/internal/harborjob"
 	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
@@ -15,30 +16,33 @@ import (
 
 func TestCollectFormatsAlwaysReportsCanonicalNDJSON(t *testing.T) {
 	result := collectFormats(nil)
-	if len(result.Formats) != 7 {
+	if len(result.Formats) != 8 {
 		t.Fatalf("formats = %#v", result.Formats)
 	}
-	format := result.Formats[0]
+	if result.Formats[0].ID != bundle.Format || result.Formats[0].Kind != "Bundle" {
+		t.Fatalf("bundle format = %#v", result.Formats[0])
+	}
+	format := result.Formats[1]
 	if format.ID != "canonical-ndjson" || format.Source != "built_in" || format.Status != "available" || format.APIVersion != model.APIVersion {
 		t.Fatalf("canonical format = %#v", format)
 	}
 	if text := formatListText(result.Formats); !strings.Contains(text, "Trusted plugins:\n  none") || !strings.Contains(text, "inspect-ai-eval-log-json-v2  rlviz.dev/v1alpha1  available") {
 		t.Fatalf("format list = %q", text)
 	}
-	atif := result.Formats[1]
+	atif := result.Formats[2]
 	if atif.ID != "harbor-atif-json" || atif.Source != "built_in" || atif.Version != "ATIF-v1.5-v1.7" {
 		t.Fatalf("ATIF format = %#v", atif)
 	}
-	if result.Formats[2].ID != harborjob.Format || result.Formats[2].Kind != "Directory" {
-		t.Fatalf("Harbor job format = %#v", result.Formats[2])
+	if result.Formats[3].ID != harborjob.Format || result.Formats[3].Kind != "Directory" {
+		t.Fatalf("Harbor job format = %#v", result.Formats[3])
 	}
-	if result.Formats[3].ID != letta.Format || result.Formats[3].Version != "1" {
-		t.Fatalf("trajectory v1 format = %#v", result.Formats[3])
+	if result.Formats[4].ID != letta.Format || result.Formats[4].Version != "1" {
+		t.Fatalf("trajectory v1 format = %#v", result.Formats[4])
 	}
-	if result.Formats[4].Source != "built_in" || result.Formats[5].Source != "built_in" {
-		t.Fatalf("document built-ins = %#v", result.Formats[4:6])
+	if result.Formats[5].Source != "built_in" || result.Formats[6].Source != "built_in" {
+		t.Fatalf("document built-ins = %#v", result.Formats[5:7])
 	}
-	for _, example := range result.Formats[6:] {
+	for _, example := range result.Formats[7:] {
 		if example.Source != "example_adapter" || example.Status != "example" {
 			t.Fatalf("example format = %#v", example)
 		}
@@ -57,10 +61,10 @@ func TestCollectFormatsIncludesSchemaVersionedDiscoveryInventory(t *testing.T) {
 		Issues: []plugins.DiscoveryIssue{{Root: "/extra", Code: "root_unreadable", Error: "denied"}},
 	}
 	result := collectFormats(nil, discovery)
-	if result.SchemaVersion != 1 || len(result.DiscoveryIssues) != 1 || len(result.Formats) != 8 {
+	if result.SchemaVersion != 1 || len(result.DiscoveryIssues) != 1 || len(result.Formats) != 9 {
 		t.Fatalf("result = %#v", result)
 	}
-	got := result.Formats[6]
+	got := result.Formats[7]
 	if got.Name != "customer" || got.Source != "project_plugin" || got.Status != "untrusted" || got.Rank != 1 {
 		t.Fatalf("discovered format = %#v", got)
 	}
@@ -112,13 +116,13 @@ description: Synthetic research trace adapter
 		{Path: pluginDir, Digest: "sha256:changed"},
 		{Path: missing, Digest: "sha256:missing"},
 	})
-	if got := result.Formats[6]; got.Name != "research-trace" || got.Status != "trusted" || got.Version != "1.2.3" {
+	if got := result.Formats[7]; got.Name != "research-trace" || got.Status != "trusted" || got.Version != "1.2.3" {
 		t.Fatalf("trusted = %#v", got)
 	}
-	if got := result.Formats[7]; got.Status != "changed" || got.Error == "" {
+	if got := result.Formats[8]; got.Status != "changed" || got.Error == "" {
 		t.Fatalf("changed = %#v", got)
 	}
-	if got := result.Formats[8]; got.Status != "unavailable" || got.Error == "" {
+	if got := result.Formats[9]; got.Status != "unavailable" || got.Error == "" {
 		t.Fatalf("unavailable = %#v", got)
 	}
 }

@@ -4,6 +4,8 @@
 
 No. The browser reads local files through the File API and holds its index in memory. The CLI binds to `127.0.0.1`, stores a removable SQLite index in its own state directory, and makes no outbound request during normal viewing.
 
+`rlviz bundle create` is also local-only. It requires explicit review and redaction confirmations, a title, a license, and a new `.rlviz` destination. It refuses to overwrite. Opening a bundle verifies its canonical trace digest. An optional expiration in a portable file is advisory; a future hosted service must enforce link expiration and deletion separately.
+
 Package installation and opening external documentation are separate network actions. Local process plugins run with the current user's permissions, which is why trust is explicit and digest-bound.
 
 ## What changes the source?
@@ -12,7 +14,7 @@ Nothing. Titles, descriptions, shortcuts, theme, named workspace state, and dock
 
 ## Which surface should I use?
 
-Use the browser for individual supported files and modest cohorts. Use the CLI for complete Harbor job directories, larger or growing sources, private process adapters, persistent indexing, structured agent queries, and remotely controlled named workspaces.
+Use the browser for individual supported files, reviewed `.rlviz` bundles, and modest cohorts. Use the CLI for complete Harbor job directories, bundle creation, larger or growing sources, private process adapters, persistent indexing, structured agent queries, and remotely controlled named workspaces.
 
 ## Where can an agent read these docs?
 

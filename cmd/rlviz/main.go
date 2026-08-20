@@ -107,6 +107,8 @@ func main() {
 		runSetup(os.Args[2:])
 	case "cache":
 		runCache(os.Args[2:])
+	case "bundle":
+		runBundle(os.Args[2:])
 	case "plugin":
 		runPlugin(os.Args[2:])
 	case "daemon":
@@ -851,6 +853,7 @@ Usage:
   rlviz inspect [--json] [--adapter PATH] SOURCE
   rlviz setup agent <codex|claude-code|cursor> (--print | --dry-run --destination PATH | --write --destination PATH) [--json]
   rlviz cache <status|clean>
+  rlviz bundle create --out FILE --title TITLE --license LICENSE --reviewed --redaction-confirmed [--expires RFC3339] [--adapter PATH] SOURCE
   rlviz plugin <init|trust|validate|list|revoke>
   rlviz version [--json]
   rlviz help

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rlviz.dev/schemas/v1alpha1/bundle-manifest.schema.json",
+  "title": "RLViz portable bundle manifest v1",
+  "type": "object",
+  "required": ["schema", "title", "created_at", "license", "source", "trace", "review", "limitations"],
+  "properties": {
+    "schema": { "const": "rlviz.dev/bundle/v1" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "license": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "source": {
+      "type": "object",
+      "required": ["name", "format", "fingerprint"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 512, "pattern": "^[^/\\\\]+$" },
+        "format": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "fingerprint": { "type": "string", "minLength": 1, "maxLength": 512 }
+      },
+      "additionalProperties": false
+    },
+    "trace": {
+      "type": "object",
+      "required": ["path", "media_type", "sha256", "size_bytes"],
+      "properties": {
+        "path": { "const": "trace.ndjson" },
+        "media_type": { "const": "application/x-ndjson" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "size_bytes": { "type": "integer", "minimum": 0, "maximum": 33554432 }
+      },
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "required": ["status", "redaction"],
+      "properties": {
+        "status": { "const": "reviewed" },
+        "redaction": { "const": "confirmed" }
+      },
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "object",
+      "properties": {
+        "path_backed_artifacts": { "type": "string", "maxLength": 256 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
