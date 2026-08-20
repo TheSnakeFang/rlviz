@@ -219,8 +219,8 @@ test("default workspace prioritizes rollout and detail space", async ({ page }) 
 
 test("mobile workspace reads summary, story, evidence, and details without losing its place", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-	await page.evaluate(() => localStorage.removeItem("rlviz.workspace.v6"));
-	await page.goto("/");
+  await page.evaluate(() => localStorage.removeItem("rlviz.workspace.v6"));
+  await page.goto("http://127.0.0.1:4174/?fresh=1");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
   await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByText("Verifier reason")).toBeVisible();
@@ -278,6 +278,10 @@ test("resizing restores the docked workspace without losing selection", async ({
   await expect(lane).toBeVisible();
   await page.keyboard.press("j");
   const selectedBefore = await lane.getAttribute("data-selected-index");
+  await expect.poll(() => page.evaluate(() => {
+    const workspace = JSON.parse(new URLSearchParams(location.search).get("workspace")!);
+    return workspace.lanes.find((item: { id: string }) => item.id === workspace.active)?.selected;
+  })).toBe(Number(selectedBefore));
   const layoutBefore = await page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).layout);
   const detail = page.getByRole("region", { name: "Workspace console" });
   const detailLaneBefore = await detail.getAttribute("data-detail-lane-id");
