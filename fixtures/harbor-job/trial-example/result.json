@@ -1,0 +1,13 @@
+{
+  "id": "trial-example",
+  "trial_name": "trial-example",
+  "task_name": "repair-example",
+  "task_id": "repair-example-001",
+  "source": "synthetic",
+  "started_at": "2026-08-20T10:00:01Z",
+  "finished_at": "2026-08-20T10:00:11Z",
+  "agent_info": {"name":"example-agent","version":"1.0.0","model_info":{"name":"example-model","provider":"example-provider"}},
+  "agent_result": {"n_input_tokens":120,"n_cache_tokens":30,"n_output_tokens":24,"cost_usd":0.0042},
+  "verifier_result": {"rewards":{"reward":1}},
+  "agent_execution": {"started_at":"2026-08-20T10:00:02Z","finished_at":"2026-08-20T10:00:09Z"}
+}

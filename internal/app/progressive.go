@@ -46,9 +46,12 @@ func (indexer *SourceIndexer) Index(ctx context.Context, path, adapterPath strin
 	if adapterPath != "" {
 		return IndexSource(ctx, indexer.store, path, adapterPath)
 	}
-	resolved, err := ValidateSource(path)
+	resolved, info, err := ResolveSource(path)
 	if err != nil {
 		return IndexedSource{}, err
+	}
+	if info.IsDir() {
+		return IndexSource(ctx, indexer.store, resolved, "")
 	}
 	format, err := detectBuiltInFormat(resolved)
 	if err != nil {

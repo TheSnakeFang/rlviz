@@ -192,7 +192,7 @@ func usableSource(path string) bool {
 		return false
 	}
 	info, err := os.Stat(path)
-	return err == nil && !info.IsDir()
+	return err == nil && (info.Mode().IsRegular() || info.IsDir())
 }
 
 func runGuide(arguments []string) {

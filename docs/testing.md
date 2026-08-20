@@ -69,6 +69,11 @@ running the fixture harness executes adapter code.
 
 Keep table-driven tests at model, plugin, index, daemon, server, alignment, and
 watch boundaries. Race-test daemon, indexing, refresh, and shared-job behavior.
+Harbor job tests cover direct and `trials/` layouts, failed trials without ATIF,
+multi-step parentage, exact verifier and signal mapping, deterministic refresh,
+and symlink rejection.
+`fixtures/harbor-job/` is the redistributable manual and browser-QA source for
+the native whole-job path.
 
 ### React unit and interaction tests
 

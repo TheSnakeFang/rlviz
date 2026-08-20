@@ -30,6 +30,17 @@ func TestValidateSourceRejectsDirectory(t *testing.T) {
 	}
 }
 
+func TestResolveSourceAcceptsDirectory(t *testing.T) {
+	path := t.TempDir()
+	resolved, info, err := ResolveSource(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.IsDir() || resolved == "" {
+		t.Fatalf("ResolveSource() = %q %#v", resolved, info)
+	}
+}
+
 func TestValidateSourceRejectsMissingPath(t *testing.T) {
 	if _, err := ValidateSource(filepath.Join(t.TempDir(), "missing")); err == nil {
 		t.Fatal("ValidateSource() accepted a missing path")

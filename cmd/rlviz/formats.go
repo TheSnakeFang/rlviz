@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/TheSnakeFang/rlviz/internal/atif"
+	"github.com/TheSnakeFang/rlviz/internal/harborjob"
 	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
@@ -89,6 +90,12 @@ func collectFormats(entries []plugins.TrustEntry, discoveries ...plugins.Discove
 			Kind: "Adapter", APIVersion: model.APIVersion, Version: "ATIF-v1.5-v1.7", Status: "available",
 			Capabilities: []string{"adapter.probe", "adapter.stream", "subagents", "artifacts", "source-provenance"},
 			Description:  "Public Harbor Agent Trajectory Interchange Format",
+		},
+		{
+			ID: harborjob.Format, Name: "Harbor job directory", Source: "built_in",
+			Kind: "Directory", APIVersion: model.APIVersion, Version: "1", Status: "available",
+			Capabilities: []string{"groups", "rewards", "tokens", "cost", "verifiers", "artifacts", "source-provenance"},
+			Description:  "Complete local Harbor jobs with trials, ATIF trajectories, CTRF results, and artifacts",
 		},
 		{
 			ID: letta.Format, Name: "Letta trajectory v1 JSON", Source: "built_in",

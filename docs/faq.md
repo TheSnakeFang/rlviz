@@ -34,6 +34,8 @@ local adapters map the stored format into canonical events.
 Canonical RLViz NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs
 JSON up to 32 MiB. The browser holds source bytes, canonical records, and the
 browse index in tab memory, so larger files and cohorts belong in the CLI.
+Complete Harbor job directories are supported by the native CLI, not the
+static browser file picker.
 
 ## How do private formats work?
 

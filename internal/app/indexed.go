@@ -12,6 +12,7 @@ import (
 
 	"github.com/TheSnakeFang/rlviz/internal/atif"
 	"github.com/TheSnakeFang/rlviz/internal/browsercore"
+	"github.com/TheSnakeFang/rlviz/internal/harborjob"
 	rolloutindex "github.com/TheSnakeFang/rlviz/internal/index"
 	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
@@ -30,13 +31,12 @@ func IndexSource(ctx context.Context, store *rolloutindex.Index, path, adapterPa
 	if store == nil {
 		return IndexedSource{}, errors.New("rollout index is required")
 	}
-	resolved, err := ValidateSource(path)
+	resolved, info, err := ResolveSource(path)
 	if err != nil {
 		return IndexedSource{}, err
 	}
-	info, err := os.Stat(resolved)
-	if err != nil {
-		return IndexedSource{}, err
+	if info.IsDir() && adapterPath == "" {
+		return indexHarborJob(ctx, store, resolved)
 	}
 
 	if adapterPath == "" {
@@ -130,10 +130,15 @@ func IndexSource(ctx context.Context, store *rolloutindex.Index, path, adapterPa
 		ID: server.SourceID(resolved + "\x00adapter:" + plugin.Path), Path: resolved,
 		Adapter: plugin.Path, Fingerprint: plugin.Digest, Size: info.Size(), ModTime: info.ModTime(),
 	}
-	if cached, ok, err := freshSource(ctx, store, source); err != nil {
-		return IndexedSource{}, err
-	} else if ok {
-		return IndexedSource{Info: cached}, nil
+	// A plugin controls which files inside a directory are meaningful. Without
+	// a plugin-supplied inventory contract, refresh directory adapters on every
+	// explicit open instead of claiming that the root directory mtime is fresh.
+	if !info.IsDir() {
+		if cached, ok, err := freshSource(ctx, store, source); err != nil {
+			return IndexedSource{}, err
+		} else if ok {
+			return IndexedSource{Info: cached}, nil
+		}
 	}
 
 	streamRequest, err := plugins.NewRequest("stream", resolved, probeRequest.Source.Root)
@@ -150,6 +155,47 @@ func IndexSource(ctx context.Context, store *rolloutindex.Index, path, adapterPa
 	})
 	if err != nil {
 		return IndexedSource{}, fmt.Errorf("stream and index adapter output: %w", err)
+	}
+	return IndexedSource{Info: indexed, Refreshed: true}, nil
+}
+
+func indexHarborJob(ctx context.Context, store *rolloutindex.Index, resolved string) (IndexedSource, error) {
+	snapshot, err := harborjob.Inspect(resolved)
+	if err != nil {
+		return IndexedSource{}, &UnsupportedFormatError{Path: resolved, Cause: err}
+	}
+	source := rolloutindex.Source{
+		ID: server.SourceID(resolved + "\x00builtin:" + harborjob.Format), Path: resolved,
+		Fingerprint: snapshot.Fingerprint, Size: snapshot.Size, ModTime: snapshot.ModTime,
+	}
+	if cached, ok, err := freshSource(ctx, store, source); err != nil {
+		return IndexedSource{}, err
+	} else if ok {
+		return IndexedSource{Info: cached}, nil
+	}
+	var canonical []byte
+	for attempt := 0; attempt < 3; attempt++ {
+		canonical, err = harborjob.Normalize(snapshot)
+		confirmed, inspectErr := harborjob.Inspect(resolved)
+		if inspectErr != nil {
+			return IndexedSource{}, &UnsupportedFormatError{Path: resolved, Cause: inspectErr}
+		}
+		if confirmed.Fingerprint == snapshot.Fingerprint {
+			if err != nil {
+				return IndexedSource{}, &UnsupportedFormatError{Path: resolved, Cause: err}
+			}
+			break
+		}
+		snapshot = confirmed
+		source.Fingerprint, source.Size, source.ModTime = snapshot.Fingerprint, snapshot.Size, snapshot.ModTime
+		canonical = nil
+	}
+	if len(canonical) == 0 {
+		return IndexedSource{}, fmt.Errorf("harbor job changed repeatedly while it was being indexed; reopen it after the current write finishes")
+	}
+	indexed, err := store.Replace(ctx, source, bytes.NewReader(canonical))
+	if err != nil {
+		return IndexedSource{}, fmt.Errorf("index %s source: %w", harborjob.Format, err)
 	}
 	return IndexedSource{Info: indexed, Refreshed: true}, nil
 }

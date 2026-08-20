@@ -104,7 +104,9 @@ The browser viewer is for individual files and modest cohorts. The UI and Go
 core both refuse files above 32 MiB with a CLI next step because the raw bytes,
 canonical output, and browse index coexist in tab memory. The 300-event gallery
 trace is a required build and browser test fixture. Private formats and large
-cohorts remain the full CLI's job.
+cohorts remain the full CLI's job. Complete Harbor job directories also require
+the native CLI; browser directory selection still accepts exactly one supported
+trace file.
 
 ### Installation
 
@@ -120,6 +122,9 @@ brew install <tap>/rlviz
 rlviz open ./artifacts/task-184.jsonl
 ```
 
+The same workflow accepts a complete local Harbor job directory. It becomes one
+canonical run containing its tasks and trials; source files remain read-only.
+
 Expected behavior:
 
 1. Detect a compatible built-in or installed adapter.
@@ -127,7 +132,8 @@ Expected behavior:
 3. Register and index the source without mutating it.
 4. Open the system browser at a stable local URL.
 5. Return immediately so coding-agent shell calls do not hang.
-6. Watch active source files and stream appended events into the UI.
+6. Watch active regular files and stream appended events into the UI. Snapshot
+   Harbor job directories on open and refresh them when reopened.
 
 With no explicit source, `rlviz` and `rlviz open` restore the last usable local
 source. With no usable history they open bundled synthetic data. The browser

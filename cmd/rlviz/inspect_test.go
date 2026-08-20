@@ -66,6 +66,38 @@ func TestInspectHarborATIFBuiltIn(t *testing.T) {
 	}
 }
 
+func TestInspectHarborJobDirectoryBuiltIn(t *testing.T) {
+	root := t.TempDir()
+	writeInspectJSON(t, filepath.Join(root, "config.json"), map[string]any{"job_name": "inspect-job"})
+	writeInspectJSON(t, filepath.Join(root, "result.json"), map[string]any{"id": "inspect-job", "n_total_trials": 1})
+	writeInspectJSON(t, filepath.Join(root, "trial-1", "result.json"), map[string]any{"id": "trial-1", "task_name": "task-1"})
+
+	result, err := inspectSource(context.Background(), root, "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !result.Supported || result.Format != "harbor-job-directory" || result.Shape.Kind != "directory" || result.Shape.SizeBytes == 0 {
+		t.Fatalf("result = %#v", result)
+	}
+	if result.Adapter == nil || result.Adapter.Kind != "built_in" || result.Adapter.Version != "1" {
+		t.Fatalf("adapter = %#v", result.Adapter)
+	}
+}
+
+func writeInspectJSON(t *testing.T, path string, value any) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestInspectDocumentJSONBuiltIns(t *testing.T) {
 	for _, test := range []struct{ path, format string }{
 		{"letta-trajectory-v1.json", "letta-trajectory-v1-json"},
