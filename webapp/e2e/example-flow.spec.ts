@@ -111,8 +111,8 @@ test("bundled viewer starts inside an opaque-origin sandbox", async ({ page }) =
 
   await page.goto("https://chatblocks.test/");
   const viewer = page.frameLocator('iframe[title="Block"]').frameLocator('iframe[title="Sandboxed RLViz"]');
-  await expect(viewer.getByText("Compact view", { exact: true }).first()).toBeVisible({ timeout: 15_000 });
-  await viewer.getByRole("button", { name: "Browse traces", exact: true }).click();
+  await expect(viewer.getByRole("region", { name: "Trajectory summary" })).toBeVisible({ timeout: 15_000 });
+  await viewer.getByRole("button", { name: "Browse", exact: true }).click();
   await expect(viewer.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
   await expect(viewer.getByRole("option").filter({ hasText: "checkout-rollout-01" })).toBeVisible();
   expect(errors.filter((message) => /localStorage|SecurityError|Failed to read/i.test(message))).toEqual([]);

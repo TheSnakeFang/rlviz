@@ -302,9 +302,11 @@ workspace links without changing the desktop workspace.
 
 The mobile reader is the design nucleus for the next workspace. A narrow screen
 must establish the task, result, verifier explanation, and chronological story
-before exposing cohort controls, docking, comparison, source records, or dense
-research settings. Wider layouts progressively add those expert capabilities;
-they do not replace the mobile information hierarchy with a separate product.
+without removing cohort controls, comparison, source records, or research
+settings. Screen size changes the hierarchy and how much context can be shown at
+once, not which evidence or capabilities exist. Wider layouts add simultaneity,
+density, and faster multi-trajectory workflows rather than an exclusive expert
+mode or a separate product.
 
 ### Vertical slices
 
@@ -395,7 +397,10 @@ directory or combine its task, trial, verifier, reward, and artifact files.
    redaction review. Export remains local and makes no upload by itself.
 3. Add a separate hosted share surface for public, unlisted, and later private
    read-only links. Upload is always explicit; the page uses the mobile reader,
-   records the exact bundle digest, and provides expiration and deletion.
+   records the exact bundle digest, and provides expiration and deletion. The
+   local reader never requires an account. Evaluate GitHub, Google, and X as
+   hosted identity providers, choosing the smallest set that supports reliable
+   stewardship and account recovery without coupling portable bundles to login.
 4. Evaluate stable Harbor Hub job/trial links as an import boundary before
    duplicating Harbor storage or registry functions. Prefer reciprocal deep
    links and exact-version references over a competing runner or job manager.

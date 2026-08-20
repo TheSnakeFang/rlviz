@@ -142,8 +142,10 @@ interpolating unobserved gaps.
 At mobile widths the same canonical state is projected into Summary, Story,
 Evidence, and Details. Selecting verifier evidence opens the referenced event
 in Details, and reload or a copied workspace link restores the selected event
-and mobile surface. Desktop lanes, comparison, docking, and raw access are not
-removed or rewritten by this projection.
+and mobile surface. This is an information hierarchy, not a reduced feature
+tier: comparison, source records, research settings, and raw evidence remain
+reachable as their mobile interactions are implemented. Wider layouts primarily
+add simultaneous context, density, and faster multi-trajectory workflows.
 
 ## Landmark rail and minimap
 
