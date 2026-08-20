@@ -6,6 +6,7 @@
 - Added native, read-only Harbor job directory support for trials, ATIF trajectories, CTRF verifier evidence, rewards, token and cost totals, exceptions, and path-backed artifacts.
 - Added bounded job snapshots and explicit symlink rejection. Job directories refresh when reopened and are not uploaded or live-watched.
 - Added explicit create-only `.rlviz` bundles with review, redaction, license, provenance, digest, and optional advisory-expiration metadata. Both the CLI and static browser validate them before opening.
+- Added digest-pinned public bundle links. RLViz shows the exact HTTPS source and SHA-256 without making a request, then fetches and verifies the file only after explicit confirmation.
 
 ## 0.3.7
 

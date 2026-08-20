@@ -282,4 +282,6 @@ Real parent-child branches recorded by a harness remain separate and preserve so
 - Large JSONL inputs render progressively without loading the entire file into memory.
 - Navigation remains smooth with at least 10,000 events.
 - Every normalized event can be traced back to its raw source record.
-- The viewer performs zero source mutations and zero outbound network requests.
+- The viewer performs zero source mutations and zero unsolicited outbound
+  network requests. A digest-pinned public bundle is fetched only after the
+  reader explicitly confirms the displayed origin, path, and SHA-256.

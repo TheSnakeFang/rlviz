@@ -13,12 +13,19 @@
 .wordmark { color: var(--ink); font-weight: 750; text-decoration: none; }
 .landing-links { display: flex; align-items: center; gap: 16px; }
 .landing-links a { color: var(--ink-secondary); font-size: 12px; }
-.landing nav button, .viewer-bar button, .viewer-bar select, .example-actions button, .adapter-callout button { padding: 7px 10px; }
+.landing nav button, .viewer-bar button, .viewer-bar select, .example-actions button, .adapter-callout button, .public-bundle button { padding: 7px 10px; }
 .hero { max-width: 920px; margin: 0 auto; padding: 14vh 0 10vh; }
 .kicker { margin: 0 0 18px; color: var(--ink-secondary); font: 11px ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
 .hero h1 { max-width: 820px; margin: 0; font-size: clamp(44px, 8vw, 104px); line-height: .92; letter-spacing: -.06em; }
 .privacy { max-width: 760px; margin: 34px 0 10px; font-size: clamp(20px, 3vw, 32px); line-height: 1.2; }
 .support { max-width: 680px; color: var(--ink-secondary); font-size: 15px; }
+.public-bundle { max-width: 680px; margin-top: 28px; padding: 18px; border: 1px solid var(--ink); background: var(--surface); }
+.public-bundle h2 { margin: 0 0 10px; font-size: 18px; }
+.public-bundle p { color: var(--ink-secondary); }
+.public-bundle dl { display: grid; grid-template-columns: 72px 1fr; gap: 7px 12px; font-size: 12px; }
+.public-bundle dt { color: var(--ink-secondary); }
+.public-bundle dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.public-bundle button + button { margin-left: 8px; }
 .primary-actions, .example-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 26px; }
 .primary-actions span, .example-actions > span { color: var(--ink-secondary); font-size: 12px; }
 button.primary { padding: 11px 16px; color: var(--surface); background: var(--ink); border-color: var(--ink); font-weight: 700; }

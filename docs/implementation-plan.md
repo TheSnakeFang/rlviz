@@ -388,7 +388,9 @@ native CLI opens complete local Harbor job directories, and both native and
 static browser readers open reviewed digest-bound `.rlviz` bundles, including
 tool/result correlation, metrics, multimodal references, continuation
 references, embedded subagents, trials, verifier results, rewards, and
-artifacts. Hosted sharing remains planned.
+artifacts. Public catalogs can now deep-link an immutable HTTPS bundle and
+exact SHA-256 into an explicit-consent browser handoff. Hosted storage and
+access control remain planned.
 
 1. **Implemented.** Add a read-only Harbor job-directory source that maps job,
    dataset, task, trial, trajectory, verifier result, reward, timing, and
@@ -400,13 +402,17 @@ artifacts. Hosted sharing remains planned.
    v1 preserves inline artifacts and discloses, but does not copy, path-backed
    artifact files; trajectory selection and artifact embedding remain later
    extensions of the same schema.
-3. Add a separate hosted share surface for public, unlisted, and later private
+3. **Implemented in core for immutable public files.** Add a digest-pinned,
+   explicit-consent HTTPS handoff to the static mobile reader. It performs no
+   request before confirmation, refuses redirects and credential-bearing URLs,
+   verifies the full file digest, and then applies normal bundle validation.
+4. Add a separate hosted share surface for public, unlisted, and later private
    read-only links. Upload is always explicit; the page uses the mobile reader,
    records the exact bundle digest, and provides expiration and deletion. The
    local reader never requires an account. Evaluate GitHub, Google, and X as
    hosted identity providers, choosing the smallest set that supports reliable
    stewardship and account recovery without coupling portable bundles to login.
-4. Evaluate stable Harbor Hub job/trial links as an import boundary before
+5. Evaluate stable Harbor Hub job/trial links as an import boundary before
    duplicating Harbor storage or registry functions. Prefer reciprocal deep
    links and exact-version references over a competing runner or job manager.
 

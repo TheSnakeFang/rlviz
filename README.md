@@ -87,7 +87,8 @@ rlviz bundle create ./jobs/example-job \
 ```
 
 Open the resulting file in the CLI or at [rlviz.dev](https://rlviz.dev). See
-[portable sharing](docs/portable-sharing.md) for the exact v1 boundary.
+[portable sharing](docs/portable-sharing.md) for the exact v1 boundary and the
+explicit-consent, digest-pinned public HTTPS handoff.
 
 ## Unsupported formats
 

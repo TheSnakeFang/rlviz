@@ -12,7 +12,7 @@ import { BrowserApp } from "./App";
 import { parseTrace } from "./wasm";
 
 describe("browser startup", () => {
-  afterEach(() => { vi.unstubAllGlobals(); });
+  afterEach(() => { vi.unstubAllGlobals(); history.replaceState(null, "", "/"); });
 
   it("opens the bundled checkout cohort without an initial click", async () => {
     const fetch = vi.fn(async (_input: RequestInfo | URL) => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
@@ -39,5 +39,17 @@ describe("browser startup", () => {
     finish?.({ collection: {}, collection_id: "sample" } as Awaited<ReturnType<typeof parseTrace>>);
     expect(await screen.findByText("sample viewer ready")).toBeInTheDocument();
     expect(screen.queryByText("Inspect agent rollouts locally.")).not.toBeInTheDocument();
+  });
+
+  it("does not fetch a digest-pinned shared bundle before confirmation", async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    history.replaceState(null, "", `/?bundle=${encodeURIComponent("https://bundles.example/reviewed.rlviz")}&sha256=${"a".repeat(64)}`);
+    render(<BrowserApp />);
+
+    expect(await screen.findByRole("region", { name: "Shared bundle confirmation" })).toBeInTheDocument();
+    expect(screen.getByText("https://bundles.example/reviewed.rlviz")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "verify and open" })).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
   });
 });

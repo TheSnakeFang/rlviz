@@ -5,6 +5,7 @@ import researchExample from "../../examples/gallery/web-research-agent.ndjson?ur
 import cohortExample from "../../examples/gallery/checkout-cohort.ndjson?url";
 import { adapterIdentity, runAdapter } from "./adapter";
 import { createInMemoryProvider } from "./provider";
+import { fetchVerifiedPublicBundle, parsePublicBundleHandoff } from "./publicBundle";
 import { limits, parseTrace } from "./wasm";
 
 const viewerModule = import("../../web/src/App");
@@ -39,6 +40,7 @@ interface PendingAdapter {
 }
 
 export function BrowserApp() {
+  const [publicBundle, setPublicBundle] = useState(() => parsePublicBundleHandoff(window.location.search));
   const [provider, setProvider] = useState<ViewerProvider>();
   const [bootstrapping, setBootstrapping] = useState(true);
   const [activeSample, setActiveSample] = useState("checkout-cohort.ndjson");
@@ -90,6 +92,7 @@ export function BrowserApp() {
   useEffect(() => {
     if (autoLoaded.current) return;
     autoLoaded.current = true;
+    if (publicBundle.kind !== "none") { setBootstrapping(false); return; }
     void openExample(cohortExample, "checkout-cohort.ndjson").finally(() => setBootstrapping(false));
   }, []);
 
@@ -124,6 +127,27 @@ export function BrowserApp() {
     } finally { setBusy(false); }
   };
 
+  const confirmPublicBundle = async () => {
+    if (publicBundle.kind !== "ready") return;
+    setBusy(true); setStatus(`Fetching ${publicBundle.request.name} after your confirmation…`);
+    try {
+      const { maxRecommendedBytes } = await limits();
+      const bytes = await fetchVerifiedPublicBundle(publicBundle.request, maxRecommendedBytes);
+      setActiveSample("");
+      await openBytes(bytes, publicBundle.request.name);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not verify shared bundle");
+      setBusy(false);
+    }
+  };
+
+  const dismissPublicBundle = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("bundle"); url.searchParams.delete("sha256");
+    history.replaceState(null, "", url);
+    setPublicBundle({ kind: "none" });
+  };
+
   const picker = <>
     <input ref={traceInput} hidden type="file" onChange={(event) => void openFile(event.target.files?.[0])} />
     <input ref={directoryInput} hidden type="file" multiple onChange={(event) => void openDirectory(event.target.files)} />
@@ -135,16 +159,25 @@ export function BrowserApp() {
     {!provider ? bootstrapping ? <div className="viewer-boot" role="status" aria-label="Loading RLViz"><span /><span /><span /></div> : <main className={`landing ${dragging ? "dragging" : ""}`}>
       <nav><a className="wordmark" href="/">RLViz</a><div className="landing-links"><a href="/docs.html">docs</a><a href="https://github.com/TheSnakeFang/rlviz">GitHub</a><button onClick={() => setHelp(true)}>adapter help</button></div></nav>
       <section className="hero">
-        <p className="kicker">Browser viewer · local files only</p>
+        <p className="kicker">Local-first browser viewer</p>
         <h1>Inspect agent rollouts locally.</h1>
         <p className="privacy">Read events, compare trajectories, and trace failures without uploading the source.</p>
         <p className="support">Reviewed .rlviz bundles, canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON are parsed in this tab through the same Go core as the CLI. Complete Harbor job folders and bundle creation require the native CLI.</p>
+        {publicBundle.kind !== "none" && <section className="public-bundle" aria-label="Shared bundle confirmation">
+          <h2>Open a shared bundle</h2>
+          {publicBundle.kind === "invalid" ? <p>{publicBundle.message}</p> : <>
+            <p>RLViz has not contacted this host. Confirm to fetch the public file, verify its exact SHA-256, and then open it locally.</p>
+            <dl><dt>source</dt><dd>{publicBundle.request.url.origin}{publicBundle.request.url.pathname}</dd><dt>SHA-256</dt><dd><code>{publicBundle.request.digest}</code></dd></dl>
+            <button className="primary" disabled={busy} onClick={() => void confirmPublicBundle()}>{busy ? "verifying…" : "verify and open"}</button>
+          </>}
+          <button disabled={busy} onClick={dismissPublicBundle}>dismiss</button>
+        </section>}
         <div className="primary-actions"><button className="primary" disabled={busy} onClick={() => traceInput.current?.click()}>{busy ? "parsing…" : "open a local trace"}</button><span>or drag it anywhere onto this page</span></div>
         <div className="example-actions"><span>load example</span>{examples.map(([label, name, url]) => <button key={name} disabled={busy} onClick={() => void openExample(url, name)}>{label}</button>)}</div>
         <p className="status" role="status">{status}</p>
         {source && <div className="adapter-callout"><p>This format needs an adapter. The module runs in the browser sandbox after you confirm its digest.</p><button onClick={() => adapterInput.current?.click()}>upload WASM adapter</button><button onClick={() => setHelp(true)}>show adapter prompt</button></div>}
       </section>
-      <section className="privacy-proof" aria-label="Privacy guarantees"><div><b>zero upload</b><span>File and adapter APIs read local bytes directly.</span></div><div><b>in-memory index</b><span>No SQLite, account, cache, or server is involved.</span></div><div><b>static app</b><span>No CDN dependencies. Opened trace bytes never leave the tab.</span></div></section>
+      <section className="privacy-proof" aria-label="Privacy guarantees"><div><b>zero upload</b><span>Local files and adapters are read directly in this tab.</span></div><div><b>explicit fetch</b><span>Shared HTTPS bundles are never requested before confirmation.</span></div><div><b>digest verified</b><span>Shared bytes must match the link's exact SHA-256 before parsing.</span></div></section>
     </main> : <>
       <Suspense fallback={<div className="viewer-loading" role="status">loading viewer…</div>}><Viewer provider={provider} setup={{ mode: "browser", status, samples: [...(activeSample ? [] : [{ label: "local trace", value: "" }]), ...examples.map(([label, value]) => ({ label, value }))], selectedSample: activeSample, onSample: (value) => { const sample = examples.find(([, name]) => name === value); if (sample) void openExample(sample[2], sample[1]); }, onOpenTrace: () => traceInput.current?.click(), onOpenDirectory: () => directoryInput.current?.click(), onOpenAdapter: () => adapterInput.current?.click(), onAdapterHelp: () => setHelp(true) }} /></Suspense>
     </>}

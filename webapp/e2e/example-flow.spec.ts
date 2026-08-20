@@ -1,8 +1,41 @@
 import { expect, test } from "@playwright/test";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+test("digest-pinned public bundle waits for consent, verifies, and opens on mobile", async ({ page }, testInfo) => {
+  const webappRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const repoRoot = path.resolve(webappRoot, "..");
+  const bundlePath = testInfo.outputPath("public-linear.rlviz");
+  execFileSync("go", ["run", "./cmd/rlviz", "bundle", "create", "fixtures/canonical/linear.ndjson", "--out", bundlePath, "--title", "Public linear rollout", "--license", "CC-BY-4.0", "--reviewed", "--redaction-confirmed"], { cwd: repoRoot });
+  const bundle = await readFile(bundlePath);
+  const digest = createHash("sha256").update(bundle).digest("hex");
+  const bundleURL = "https://bundles.test/public-linear.rlviz";
+  const externalRequests: string[] = [];
+  const root = path.join(webappRoot, "dist");
+  const contentTypes: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm", ".ndjson": "application/x-ndjson" };
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.href === bundleURL) { externalRequests.push(url.href); return route.fulfill({ body: bundle, contentType: "application/vnd.rlviz.bundle+zip" }); }
+    if (url.origin !== "http://127.0.0.1:4174") return route.abort();
+    const relative = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
+    try { await route.fulfill({ body: await readFile(path.join(root, relative)), contentType: contentTypes[path.extname(relative)] ?? "application/octet-stream" }); }
+    catch { await route.fulfill({ status: 404, body: "not found" }); }
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/?bundle=${encodeURIComponent(bundleURL)}&sha256=${digest}`);
+  await expect(page.getByRole("region", { name: "Shared bundle confirmation" })).toBeVisible();
+  await expect(page.getByText("RLViz has not contacted this host.")).toBeVisible();
+  expect(externalRequests).toEqual([]);
+  await page.getByRole("button", { name: "verify and open" }).click();
+  await expect(page.getByRole("option").filter({ hasText: "traj-linear" })).toBeVisible({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Open selected" }).click();
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toContainText("write greeting");
+  expect(externalRequests).toEqual([bundleURL]);
+});
 
 test("reviewed portable bundle opens locally on desktop and mobile", async ({ page }, testInfo) => {
   const webappRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

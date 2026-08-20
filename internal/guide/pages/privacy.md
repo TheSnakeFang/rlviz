@@ -6,6 +6,8 @@ No. The browser reads local files through the File API and holds its index in me
 
 `rlviz bundle create` is also local-only. It requires explicit review and redaction confirmations, a title, a license, and a new `.rlviz` destination. It refuses to overwrite. Opening a bundle verifies its canonical trace digest. An optional expiration in a portable file is advisory; a future hosted service must enforce link expiration and deletion separately.
 
+A public link containing both `bundle` and `sha256` is an explicit fetch boundary. The browser first shows the HTTPS origin, path, and digest without contacting that host. If you choose **verify and open**, it makes one credential-free, no-referrer request, refuses redirects, enforces the browser size ceiling, and verifies the complete file digest before parsing. Local files are never uploaded.
+
 Package installation and opening external documentation are separate network actions. Local process plugins run with the current user's permissions, which is why trust is explicit and digest-bound.
 
 ## What changes the source?
