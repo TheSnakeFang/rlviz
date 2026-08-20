@@ -24,6 +24,10 @@ documented JSON shapes:
 
 Those mappings compile into both the native binary and local Go WASM core.
 
+The native CLI also recognizes complete local Harbor job directories. Directory
+sources are not available in the static browser viewer because browser folder
+selection does not provide the same stable, read-only filesystem boundary.
+
 ### Letta trajectory v1 JSON
 
 RLViz recognizes the public [trajectory v1 schema](https://github.com/letta-ai/trajectory/blob/main/schema/trajectory-v1.schema.json)
@@ -50,10 +54,27 @@ followed automatically.
 The reader accepts the RFC's one-based step IDs and historical Harbor v1.5-v1.6
 exports that begin at zero. Negative IDs remain invalid.
 
-This support is deliberately limited to an ATIF trajectory document. Harbor
-job directories, evaluator outputs, rewards stored beside the trajectory, and
-organization-specific metadata require a local adapter. No private schema or
-customer fixture is part of the built-in mapping.
+### Harbor job directory
+
+The native CLI recognizes a Harbor job root containing `config.json`,
+`result.json`, and trial directories with their own `result.json`. It supports
+both current direct trial directories and the documented `trials/` container,
+plus multi-step trajectories under `steps/`.
+
+The mapping is explicit: a Harbor job becomes a run, task identity becomes a
+case, agent and model identity become a group, and each trial becomes a
+trajectory. ATIF files supply events and subagents. Exact Harbor rewards remain
+separate signals; agent token and cost contexts are normalized without
+double-counting aggregate and per-step values. CTRF summaries become grader
+events only when their explicit test summary supports a verdict. Trial
+exceptions remain error events even when the failed trial has no ATIF file.
+Verifier files and collected artifacts remain path-backed to the job root.
+
+RLViz never follows symlinks or external ATIF continuation references while
+opening a job. The job is snapshotted with a bounded inventory of recognized
+files and reindexed when it is opened again after those files change. Directory
+sources are not live-watched in this release; reopen the job to refresh it. No
+file is modified or uploaded.
 
 The browser retains its 32 MiB per-source ceiling. The local CLI is the intended
 path for longer trajectories and persistent indexes.

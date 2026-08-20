@@ -25,7 +25,7 @@ work, and `later` is an intended capability without a committed release.
 | Let an agent compose the GUI | Query canonical trajectories and open or update named browser workspaces from structured CLI commands | current |
 | Read a trajectory on mobile | Open a narrow-screen, outcome-first summary and progressively inspect a virtualized story, verifier evidence, and raw source truth | current |
 | Share a trajectory deliberately | Export a reviewed bundle and publish an explicit read-only link without silently uploading local traces | next |
-| Inspect a Harbor job | Open a Harbor job directory as a run of tasks and trials with ATIF trajectories, verifier evidence, rewards, timing, and artifacts | next |
+| Inspect a Harbor job | Open a Harbor job directory as a run of tasks and trials with ATIF trajectories, verifier evidence, rewards, timing, and artifacts | current |
 | Browse public benchmark examples | Explore pinned benchmark tasks and representative public trajectories with exact source provenance | later |
 | Improve a benchmark task | Ground a defect claim in evidence, propose or reproduce a repair, and follow it to an upstream revision | later |
 | Inspect alignment in context | Overlay aligned reference events and divergence evidence directly on rollout lanes | next |
@@ -37,7 +37,7 @@ work, and `later` is an intended capability without a committed release.
 ### Local data and formats
 
 - `current` Canonical run, case, rollout-group, trajectory, event, signal, and artifact model.
-- `current` Built-in canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs detection plus process-isolated adapters and analyzers.
+- `current` Built-in canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, complete native Harbor job directories, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs detection plus process-isolated adapters and analyzers.
 - `current` Source provenance down to line, byte range, or original raw record.
 - `current` Read-only source handling, removable caches, loopback binding, and no outbound requests during normal viewing.
 - `current` Progressive indexing and updates for growing local files.
@@ -99,7 +99,7 @@ work, and `later` is an intended capability without a committed release.
 - `current` Agent-readable setup instructions plus query and named-workspace control commands.
 - `next` Mobile-first progressive reader with an outcome-first summary, one chronological story, bounded navigation, and touch-sized actions.
 - `next` Explicit portable trace bundles and a separate read-only hosted share surface with digest, license, redaction, expiration, and deletion controls.
-- `next` Read-only Harbor job-directory ingestion layered on the existing built-in ATIF v1.5-v1.7 trajectory mapping.
+- `current` Read-only native Harbor job-directory ingestion layered on the existing built-in ATIF v1.5-v1.7 trajectory mapping.
 - `later` Curated, revision-pinned public benchmark and trajectory showcases.
 - `later` Provenance database, clean-subset manifests, evidence-grounded defect claims, repair validation, maintainer stewardship, and domain-scoped contributor reputation.
 - `next` Agent-readable analysis workbooks.

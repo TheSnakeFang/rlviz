@@ -383,15 +383,16 @@ public trajectories and benchmarks shareable.
 
 ### Phase A: portable sharing and Harbor job interoperability
 
-Status: planned. RLViz already opens Harbor ATIF v1.5-v1.7 trajectory JSON,
-including tool/result correlation, metrics, multimodal references, continuation
-references, and embedded subagents. It does not yet open a complete Harbor job
-directory or combine its task, trial, verifier, reward, and artifact files.
+Status: in progress. RLViz opens Harbor ATIF v1.5-v1.7 trajectory JSON and the
+native CLI now opens complete local Harbor job directories, including
+tool/result correlation, metrics, multimodal references, continuation
+references, embedded subagents, trials, verifier results, rewards, and
+artifacts. Portable bundle export and hosted sharing remain planned.
 
-1. Add a read-only Harbor job-directory source that maps job, dataset, task,
-   trial, trajectory, verifier result, reward, timing, and artifact provenance
-   into the existing canonical hierarchy. Do not infer missing outcomes or
-   follow external references automatically.
+1. **Implemented.** Add a read-only Harbor job-directory source that maps job,
+   dataset, task, trial, trajectory, verifier result, reward, timing, and
+   artifact provenance into the existing canonical hierarchy. Do not infer
+   missing outcomes or follow external references automatically.
 2. Add an explicit export step that packages one trajectory or bounded cohort
    with a versioned manifest, referenced public artifacts, source licenses, and
    redaction review. Export remains local and makes no upload by itself.

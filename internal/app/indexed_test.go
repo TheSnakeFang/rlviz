@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -63,6 +64,80 @@ func TestIndexSourceHarborATIFBuiltIn(t *testing.T) {
 	page, err := store.Events(context.Background(), rolloutindex.EventQuery{SourceID: indexed.Info.ID, TrajectoryID: trajectories[0].Value.ID})
 	if err != nil || page.Total != 5 {
 		t.Fatalf("page=%#v err=%v", page, err)
+	}
+}
+
+func TestIndexSourceHarborJobDirectoryCachesAndRefreshes(t *testing.T) {
+	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "index.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	root := t.TempDir()
+	writeAppJSON(t, filepath.Join(root, "config.json"), map[string]any{"job_name": "directory-job"})
+	writeAppJSON(t, filepath.Join(root, "result.json"), map[string]any{"id": "job-directory", "n_total_trials": 1})
+	trial := filepath.Join(root, "trial-1")
+	resultPath := filepath.Join(trial, "result.json")
+	result := map[string]any{
+		"id": "trial-1", "task_name": "task-1", "finished_at": "2026-08-20T10:00:01Z",
+		"agent_info":      map[string]any{"name": "codex", "model_info": map[string]any{"name": "gpt-test"}},
+		"verifier_result": map[string]any{"rewards": map[string]any{"reward": 1}},
+	}
+	writeAppJSON(t, resultPath, result)
+	writeAppJSON(t, filepath.Join(trial, "agent", "trajectory.json"), map[string]any{
+		"schema_version": "ATIF-v1.7", "session_id": "session-1", "agent": map[string]any{"name": "codex"},
+		"steps": []any{map[string]any{"step_id": 1, "source": "user", "message": "Solve it."}},
+	})
+
+	first, err := IndexSource(context.Background(), store, root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.Refreshed || first.Info.Source.Path != resolvedRoot {
+		t.Fatalf("first index = %#v", first)
+	}
+	trajectories, err := store.Trajectories(context.Background(), first.Info.ID)
+	if err != nil || len(trajectories) != 1 {
+		t.Fatalf("trajectories=%#v err=%v", trajectories, err)
+	}
+	signals, err := store.Signals(context.Background(), first.Info.ID, trajectories[0].Value.ID)
+	if err != nil || len(signals) != 1 || signals[0].Value.Name != "reward" {
+		t.Fatalf("signals=%#v err=%v", signals, err)
+	}
+	second, err := IndexSource(context.Background(), store, root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second.Refreshed {
+		t.Fatal("unchanged Harbor job was reindexed")
+	}
+
+	result["updated_at"] = "2026-08-20T10:01:00Z"
+	writeAppJSON(t, resultPath, result)
+	third, err := IndexSource(context.Background(), store, root, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !third.Refreshed || third.Info.ID != first.Info.ID {
+		t.Fatalf("refreshed index = %#v", third)
+	}
+}
+
+func writeAppJSON(t *testing.T, path string, value any) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
 	}
 }
 

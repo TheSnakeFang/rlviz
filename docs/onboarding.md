@@ -65,9 +65,17 @@ Then open it:
 rlviz open ./path/to/rollout.ndjson
 ```
 
+The same commands accept a complete local Harbor job directory:
+
+```bash
+rlviz inspect ./jobs/example-job
+rlviz open ./jobs/example-job
+```
+
 RLViz starts or reuses a loopback-only daemon, builds a removable local SQLite
 index, opens the browser, and returns immediately. It watches active files and
-adds appended events without changing the source.
+adds appended events without changing the source. Harbor job directories are
+snapshotted on open rather than live-watched; reopen one after the job changes.
 
 Every operational command has structured output for scripts and coding agents:
 

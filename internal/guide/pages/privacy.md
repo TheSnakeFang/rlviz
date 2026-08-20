@@ -12,7 +12,7 @@ Nothing. Titles, descriptions, shortcuts, theme, named workspace state, and dock
 
 ## Which surface should I use?
 
-Use the browser for individual supported files and modest cohorts. Use the CLI for larger or growing sources, private process adapters, persistent indexing, structured agent queries, and remotely controlled named workspaces.
+Use the browser for individual supported files and modest cohorts. Use the CLI for complete Harbor job directories, larger or growing sources, private process adapters, persistent indexing, structured agent queries, and remotely controlled named workspaces.
 
 ## Where can an agent read these docs?
 

@@ -39,8 +39,8 @@ concise guide available as a workspace module in the viewer.
 ## What it does
 
 - Opens canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7,
-  Inspect AI EvalLog JSON, Verifiers GenerateOutputs JSON, and explicitly
-  trusted adapter output.
+  complete local Harbor job directories, Inspect AI EvalLog JSON, Verifiers
+  GenerateOutputs JSON, and explicitly trusted adapter output.
 - Browses one trajectory or a collection with truthful event positions,
   adjustable fidelity and depth, trial grouping, landmarks, and a draggable
   timeline viewport.
@@ -63,6 +63,15 @@ without rendering traces in the terminal:
 ```bash
 rlviz trajectories ./path/to/rollout.ndjson --failed --json
 rlviz workspace open ./path/to/rollout.ndjson --trajectory TRAJECTORY_ID --json
+```
+
+Open a complete Harbor job directory with the same command. RLViz treats the
+job as one read-only source and combines its trials, trajectories, rewards,
+token and cost totals, CTRF verifier evidence, failures, and artifacts:
+
+```bash
+rlviz inspect ./jobs/example-job
+rlviz open ./jobs/example-job
 ```
 
 ## Unsupported formats

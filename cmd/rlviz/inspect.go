@@ -14,6 +14,7 @@ import (
 	"github.com/TheSnakeFang/rlviz/internal/app"
 	"github.com/TheSnakeFang/rlviz/internal/atif"
 	"github.com/TheSnakeFang/rlviz/internal/browsercore"
+	"github.com/TheSnakeFang/rlviz/internal/harborjob"
 	"github.com/TheSnakeFang/rlviz/internal/letta"
 	"github.com/TheSnakeFang/rlviz/internal/model"
 	"github.com/TheSnakeFang/rlviz/internal/plugins"
@@ -88,6 +89,9 @@ func inspectSource(ctx context.Context, sourcePath, adapterPath string, trust *p
 		Warnings: []string{},
 	}
 	if adapterPath == "" {
+		if result.Shape.Kind == "directory" {
+			return inspectHarborJob(result)
+		}
 		result, err = inspectATIF(result)
 		if err != nil || result.Supported {
 			return result, err
@@ -150,6 +154,24 @@ func inspectSource(ctx context.Context, sourcePath, adapterPath string, trust *p
 	} else {
 		result.NextCommand = shellCommand("rlviz", "plugin", "validate", plugin.Path, result.Path)
 	}
+	return result, nil
+}
+
+func inspectHarborJob(result inspectResult) (inspectResult, error) {
+	snapshot, err := harborjob.Inspect(result.Path)
+	if err != nil {
+		result.Format = "unknown-directory"
+		result.Reason = err.Error()
+		result.NextCommand = app.AdapterScaffoldCommand(result.Path)
+		return result, nil
+	}
+	result.Shape.SizeBytes = snapshot.Size
+	result.Adapter = &inspectAdapter{Kind: "built_in", Name: harborjob.Format, Version: "1"}
+	result.Supported = true
+	result.Format = harborjob.Format
+	result.Confidence = 1
+	result.Reason = "recognized complete Harbor job directory"
+	result.NextCommand = shellCommand("rlviz", "open", result.Path)
 	return result, nil
 }
 

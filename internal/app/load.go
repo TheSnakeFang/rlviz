@@ -17,7 +17,7 @@ type UnsupportedFormatError struct {
 }
 
 func (err *UnsupportedFormatError) Error() string {
-	return fmt.Sprintf("unsupported canonical format at %q: %v", err.Path, err.Cause)
+	return fmt.Sprintf("unsupported source format at %q: %v", err.Path, err.Cause)
 }
 
 func (err *UnsupportedFormatError) Unwrap() error { return err.Cause }

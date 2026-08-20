@@ -4,9 +4,9 @@ RLViz is an open-source viewer for agent rollouts: model output, tool calls, obs
 
 ## Please read
 
-The hosted browser directly supports RLViz canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON. A selected directory must contain exactly one supported `.ndjson` or `.json` trace export.
+The hosted browser directly supports RLViz canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON. A selected browser directory must contain exactly one supported `.ndjson` or `.json` trace export. Complete Harbor job directories use the native CLI.
 
-We highly recommend installing the local CLI. Coding agents can operate its workspaces and build adapters or plugins for private formats, larger cohorts, and multi-file datasets. Browser adapters run as reviewed WASM modules; local adapters can use the source system's native files and libraries.
+We highly recommend installing the local CLI. It opens complete Harbor jobs as one read-only source. Coding agents can operate its workspaces and build adapters or plugins for private formats, larger cohorts, and other multi-file datasets. Browser adapters run as reviewed WASM modules; local adapters can use the source system's native files and libraries.
 
 ## Install the local CLI
 

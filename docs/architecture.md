@@ -58,6 +58,7 @@ project-local adapters; the browser remains the only trajectory renderer.
 | `webapp` | Static browser entry point for `rlviz.dev`; reuses `web/src` through the provider boundary |
 | `internal/browsercore` | WASM-safe normalization, validation, in-memory browse/read data, analysis, and comparison |
 | `internal/atif` | Public Harbor ATIF v1.5-v1.7 detection and canonical mapping shared by native and WASM paths |
+| `internal/harborjob` | Bounded native-only Harbor job inventory and canonical run/trial/verifier/artifact mapping |
 | `internal/letta` | Public Letta trajectory v1 detection and canonical mapping shared by native and WASM paths |
 | `schemas/v1alpha1` | Public canonical and plugin contracts |
 | `fixtures` | Canonical, malformed, adversarial, and protocol conformance data |
@@ -84,6 +85,11 @@ The app makes no outbound request containing trace bytes. Its JavaScript, Go
 WASM runtime, WASM binary, and examples are local static build assets, with no
 CDN dependencies. Uploaded browser adapters execute only after an explicit
 SHA-256 and size confirmation and are never persisted.
+
+Complete Harbor job directories use the native source boundary. The app builds
+a deterministic bounded inventory, normalizes all recognized trials into one
+canonical run, and keeps artifacts path-backed to the directory. Regular files
+retain live watching; directories refresh when reopened.
 
 ### Open a source
 

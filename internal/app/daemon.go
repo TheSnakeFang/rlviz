@@ -57,14 +57,20 @@ func RunDaemon(paths daemon.Paths, version string) error {
 			return server.Registration{}, err
 		}
 		source := indexed.Info.Source
-		if err := sourceWatcher.Add(watchContext, source.ID, source.Path, func(changeContext context.Context, _ watch.Change) error {
-			_, refreshErr := sourceIndexer.Index(changeContext, source.Path, adapter)
-			if refreshErr != nil {
-				fmt.Fprintf(os.Stderr, "refresh source %s: %v\n", source.Path, refreshErr)
+		info, statErr := os.Stat(source.Path)
+		if statErr != nil {
+			return server.Registration{}, fmt.Errorf("inspect source for watch: %w", statErr)
+		}
+		if info.Mode().IsRegular() {
+			if err := sourceWatcher.Add(watchContext, source.ID, source.Path, func(changeContext context.Context, _ watch.Change) error {
+				_, refreshErr := sourceIndexer.Index(changeContext, source.Path, adapter)
+				if refreshErr != nil {
+					fmt.Fprintf(os.Stderr, "refresh source %s: %v\n", source.Path, refreshErr)
+				}
+				return refreshErr
+			}); err != nil {
+				return server.Registration{}, fmt.Errorf("watch source: %w", err)
 			}
-			return refreshErr
-		}); err != nil {
-			return server.Registration{}, fmt.Errorf("watch source: %w", err)
 		}
 		if err := store.SetPresentation(ctx, source.ID, presentationConfig); err != nil {
 			return server.Registration{}, err

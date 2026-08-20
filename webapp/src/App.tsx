@@ -138,7 +138,7 @@ export function BrowserApp() {
         <p className="kicker">Browser viewer · local files only</p>
         <h1>Inspect agent rollouts locally.</h1>
         <p className="privacy">Read events, compare trajectories, and trace failures without uploading the source.</p>
-        <p className="support">Canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON are parsed in this tab through the same Go core as the CLI.</p>
+        <p className="support">Canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON are parsed in this tab through the same Go core as the CLI. Complete Harbor job folders require the native CLI.</p>
         <div className="primary-actions"><button className="primary" disabled={busy} onClick={() => traceInput.current?.click()}>{busy ? "parsing…" : "open a local trace"}</button><span>or drag it anywhere onto this page</span></div>
         <div className="example-actions"><span>load example</span>{examples.map(([label, name, url]) => <button key={name} disabled={busy} onClick={() => void openExample(url, name)}>{label}</button>)}</div>
         <p className="status" role="status">{status}</p>
