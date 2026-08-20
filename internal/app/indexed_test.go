@@ -127,6 +127,31 @@ func TestIndexSourceHarborJobDirectoryCachesAndRefreshes(t *testing.T) {
 	}
 }
 
+func TestIndexSourceHarborJobFixture(t *testing.T) {
+	store, err := rolloutindex.Open(filepath.Join(t.TempDir(), "index.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	indexed, err := IndexSource(context.Background(), store, filepath.Join("..", "..", "fixtures", "harbor-job"), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	trajectories, err := store.Trajectories(context.Background(), indexed.Info.ID)
+	if err != nil || len(trajectories) != 1 {
+		t.Fatalf("trajectories=%#v err=%v", trajectories, err)
+	}
+	trajectoryID := trajectories[0].Value.ID
+	page, err := store.Events(context.Background(), rolloutindex.EventQuery{SourceID: indexed.Info.ID, TrajectoryID: trajectoryID})
+	if err != nil || page.Total != 6 {
+		t.Fatalf("events=%#v err=%v", page, err)
+	}
+	artifacts, err := store.Artifacts(context.Background(), indexed.Info.ID, trajectoryID)
+	if err != nil || len(artifacts) != 6 {
+		t.Fatalf("artifacts=%#v err=%v", artifacts, err)
+	}
+}
+
 func writeAppJSON(t *testing.T, path string, value any) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

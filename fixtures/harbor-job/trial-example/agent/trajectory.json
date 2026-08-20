@@ -1,0 +1,11 @@
+{
+  "schema_version": "ATIF-v1.7",
+  "session_id": "harbor-example-session",
+  "agent": {"name":"example-agent","model_name":"example-model"},
+  "steps": [
+    {"step_id":1,"source":"user","message":"Repair the failing example and verify the result."},
+    {"step_id":2,"source":"agent","message":"I will inspect the failure before changing the file.","reasoning_content":"Check the current state first."},
+    {"step_id":3,"source":"agent","tool_calls":[{"tool_call_id":"call-1","function_name":"read_file","arguments":{"path":"example.txt"}}],"observation":{"results":[{"source_call_id":"call-1","content":"expected=ready actual=pending"}]}},
+    {"step_id":4,"source":"agent","message":"Updated the example and verified the expected state."}
+  ]
+}

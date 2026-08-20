@@ -76,6 +76,13 @@ files and reindexed when it is opened again after those files change. Directory
 sources are not live-watched in this release; reopen the job to refresh it. No
 file is modified or uploaded.
 
+A redistributable synthetic example is available at `fixtures/harbor-job/`:
+
+```bash
+rlviz inspect fixtures/harbor-job
+rlviz open fixtures/harbor-job
+```
+
 The browser retains its 32 MiB per-source ceiling. The local CLI is the intended
 path for longer trajectories and persistent indexes.
 
