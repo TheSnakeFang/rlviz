@@ -17,6 +17,10 @@ Open a supported file directly at [rlviz.dev](https://rlviz.dev). Parsing and
 indexing stay in the browser tab. Use the CLI for larger traces, growing files,
 private formats, and local adapters.
 
+Browse reviewed, revision-pinned public evidence at
+[benchmarks.rlviz.dev](https://benchmarks.rlviz.dev). The catalog shows source
+and review provenance before handing an exact bundle to the viewer.
+
 ## Quickstart
 
 ```bash

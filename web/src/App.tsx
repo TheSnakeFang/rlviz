@@ -730,7 +730,7 @@ function ResponsiveWorkspace({ mode, workspace, content, activeLaneId, onActivat
     setNoticeDismissed(true);
   };
   return <section className={`workspace-stage responsive-workspace mode-${mode} ${mobileLaneId ? "reading" : ""}`} aria-label="Trajectory stage">
-    <header className="responsive-workspace-header"><strong>RLViz</strong><span>{mobileLaneId ? "Reader" : "Compact view"}</span><small>full workspace ≥1200px</small></header>
+    <header className="responsive-workspace-header"><strong>RLViz</strong><span>{mobileLaneId ? "Reader" : "Compact view"}</span><small>full workspace ≥1200px</small><a href="https://benchmarks.rlviz.dev" target="_blank" rel="noreferrer">Benchmarks</a></header>
     {mode === "mobile" && !mobileLaneId && !noticeDismissed && <aside className="compact-view-notice" role="status">
       <span><b>Compact view</b> RLViz works on this screen, but multi-rollout comparison, docking, and keyboard workflows are best in a window at least 1200px wide.</span>
       <button onClick={dismissNotice}>Got it</button>
