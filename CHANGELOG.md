@@ -1,10 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
 - Add an explicit-consent browser handoff for immutable public HTTPS `.rlviz`
   bundles, pinned by the complete file SHA-256 and fetched without credentials,
   redirects, or referrer information.
+- Add reviewed portable `.rlviz` bundles with provenance, license, redaction,
+  digest, and advisory-expiration metadata.
+- Add native, read-only Harbor job ingestion for ATIF trajectories, CTRF
+  verifier evidence, rewards, usage, exceptions, and path-backed artifacts.
+- Add a mobile trajectory reader for outcome, story, evidence, and exact detail
+  views without reducing the underlying trajectory model.
 - Replace browser mode swaps with the serializable workspace rack: a
   collapsible collection rail, two-band trajectory stage, bottom console,
   per-lane view state, reference pins, resizable persisted seams, arrangement
