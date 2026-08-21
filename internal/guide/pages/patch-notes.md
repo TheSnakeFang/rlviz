@@ -1,6 +1,6 @@
 # Patch notes
 
-## Unreleased
+## 0.4.0
 
 - Added a mobile trajectory reader with outcome, story, evidence, and exact detail surfaces while retaining the canonical source model.
 - Added native, read-only Harbor job directory support for trials, ATIF trajectories, CTRF verifier evidence, rewards, token and cost totals, exceptions, and path-backed artifacts.
