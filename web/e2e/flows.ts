@@ -410,7 +410,7 @@ export const flows: Flow[] = [
     ],
   },
   {
-    id: "y", name: "local-metadata-edit-filter-and-restore", keyboardOnly: false, surfaces: ["daemon", "webapp"], steps: [
+    id: "y", name: "local-metadata-edit-filter-and-restore", keyboardOnly: false, surfaces: ["daemon", "webapp"], webappExample: "Terminal-Bench 2.0 · reviewed cohort", steps: [
       { action: { kind: "click", target: ".workspace-rail .metadata-edit" }, expect: [{ target: "rail", selector: ".metadata-editor.collection" }] },
       { action: { kind: "fill", target: "[aria-label='collection title']", value: "Checkout reliability" }, expect: [{ target: "rail", selector: "[aria-label='collection title']", value: "Checkout reliability" }] },
       { action: { kind: "fill", target: "[aria-label='collection description']", value: "Saved-card confirmation rollouts" }, expect: [{ target: "rail", selector: "[aria-label='collection description']", value: "Saved-card confirmation rollouts" }] },

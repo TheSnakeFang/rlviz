@@ -90,7 +90,7 @@ test("first paint stays on the viewer shell while the bundled cohort is delayed"
     const url = new URL(route.request().url());
     if (url.origin !== "http://127.0.0.1:4174") return route.abort();
     const relative = url.pathname === "/" ? "index.html" : url.pathname.slice(1);
-    if (relative.includes("checkout-cohort")) await sampleReady;
+    if (relative.includes("terminal-bench-2-showcase")) await sampleReady;
     try { await route.fulfill({ body: await readFile(path.join(root, relative)), contentType: contentTypes[path.extname(relative)] ?? "application/octet-stream" }); }
     catch { await route.fulfill({ status: 404, body: "not found" }); }
   });
@@ -123,15 +123,15 @@ test("bundled sample opens automatically, keeps guide state, and walks Browse to
   await page.goto("/");
   await expect(page.getByText("Inspect agent rollouts locally.")).toHaveCount(0);
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByRole("main", { name: "Browse trajectories" }).getByRole("option").first()).toContainText("checkout-rollout-01");
+  await expect(page.getByRole("main", { name: "Browse trajectories" }).getByRole("option").first()).toContainText("sampler-fail");
   await expect(page.getByRole("article", { name: "RLViz guide" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Overview" })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("region", { name: "RLViz settings" })).toBeVisible();
   await page.getByRole("button", { name: "trials" }).click();
-  await expect(page.locator(".rail-evaluation-case")).toHaveCount(1);
+  await expect(page.locator(".rail-evaluation-case")).toHaveCount(2);
   await expect(page.locator(".rail-evaluation-variant")).toHaveCount(2);
-  await expect(page.getByRole("group", { name: "Deliberate · temperature 0.2" })).toContainText("8 rollouts");
-  await expect(page.getByRole("group", { name: "Direct · temperature 0.8" })).toContainText("8 rollouts");
+  await expect(page.getByRole("group", { name: "mini-swe-agent · openai/gpt-oss-120b@together_ai" })).toContainText("2 rollouts");
+  await expect(page.getByRole("group", { name: "terminus-2 · openai/gpt-oss-120b@together_ai" })).toContainText("2 rollouts");
   await page.getByRole("button", { name: "rollouts" }).click();
   await page.getByRole("article", { name: "RLViz guide" }).getByRole("button", { name: "close" }).click();
   await page.getByRole("region", { name: "RLViz settings" }).getByRole("button", { name: "close" }).click();
@@ -153,7 +153,7 @@ test("bundled sample opens automatically, keeps guide state, and walks Browse to
   expect(requests.map((request) => new URL(request.url).pathname)).toContain("/rlviz.wasm");
 });
 
-test("checkout browse summary surfaces the known failed event", async ({ page }) => {
+test("Terminal-Bench browse summary surfaces source-reported outcomes", async ({ page }) => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
   const contentTypes: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm" };
   await page.route("**/*", async (route) => {
@@ -166,8 +166,10 @@ test("checkout browse summary surfaces the known failed event", async ({ page })
 
   await page.goto("/");
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
-  const rollout = page.getByRole("option").filter({ hasText: "checkout-rollout-06" });
-  await expect(rollout.getByText("1 failed", { exact: true })).toBeVisible();
+  const failed = page.getByRole("option").filter({ hasText: "sampler-fail" });
+  const passed = page.getByRole("option").filter({ hasText: "sampler-pass" });
+  await expect(failed).toHaveClass(/outcome-fail/);
+  await expect(passed).toHaveClass(/outcome-pass/);
 });
 
 test("bundled viewer starts inside an opaque-origin sandbox", async ({ page }) => {
@@ -189,9 +191,10 @@ test("bundled viewer starts inside an opaque-origin sandbox", async ({ page }) =
 
   await page.goto("https://chatblocks.test/");
   const viewer = page.frameLocator('iframe[title="Block"]').frameLocator('iframe[title="Sandboxed RLViz"]');
-  await expect(viewer.getByRole("region", { name: "Trajectory summary" })).toBeVisible({ timeout: 15_000 });
-  await viewer.getByRole("button", { name: "Browse", exact: true }).click();
-  await expect(viewer.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
-  await expect(viewer.getByRole("option").filter({ hasText: "checkout-rollout-01" })).toBeVisible();
+  await expect(viewer.getByRole("region", { name: "Trajectory stage" })).toBeVisible({ timeout: 15_000 });
+  const browse = viewer.getByRole("main", { name: "Browse trajectories" });
+  if (!await browse.isVisible()) await viewer.getByRole("button", { name: "Browse", exact: true }).click();
+  await expect(browse).toBeVisible();
+  await expect(browse.getByRole("option").filter({ hasText: "sampler-fail" })).toBeVisible();
   expect(errors.filter((message) => /localStorage|SecurityError|Failed to read/i.test(message))).toEqual([]);
 });

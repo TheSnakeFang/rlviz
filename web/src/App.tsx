@@ -1058,7 +1058,7 @@ export function App({ initialTrajectory, provider = daemonProvider, setup = { mo
   const adjustZoom = (factor: number | "fit", all: boolean) => change((current) => ({ ...current, lanes: current.lanes.map((lane) => { if (!all && lane.id !== current.active) return lane; const data = laneDataRef.current.get(lane.id); if (!data) return lane; const min = data.trajectory.events[0]?.sequence ?? 0, max = data.trajectory.events.at(-1)?.sequence ?? 1, sequence = data.trajectory.events[lane.selected]?.sequence ?? min; return { ...lane, axis: factor === "fit" ? { start: min, end: max } : zoomWindow(lane.axis, sequence, factor, min, max) }; }) }), false);
   const toggleSettings = () => {
     const current = workspaceRef.current;
-    const openingWelcomeSettings = !current.settingsOpen && setup.mode === "browser" && current.guideOpen && current.details.length === 0 && current.lanes.length === 2 && current.lanes[0].trajectoryId === "checkout-rollout-01" && current.lanes[1].trajectoryId === "checkout-rollout-02";
+    const openingWelcomeSettings = !current.settingsOpen && setup.mode === "browser" && current.guideOpen && current.details.length === 0 && current.lanes.length === 2 && current.lanes.every((lane) => lane.band === "focus");
     change((state) => { const settingsOpen = !state.settingsOpen; if (settingsOpen) lastSettingsTarget.current = state.active; return { ...state, settingsOpen, active: settingsOpen ? "settings" : state.active === "settings" ? lastSettingsTarget.current : state.active }; });
     if (openingWelcomeSettings) arrangeWelcomeLayout();
   };

@@ -40,9 +40,22 @@ test.beforeEach(async ({ page }) => {
 
 async function loadExample(page: Page, name: string) {
   await expect(page.getByRole("main", { name: "Browse trajectories" })).toBeVisible({ timeout: 15_000 });
-  if (name !== "checkout cohort") {
-    await page.getByLabel("Example data").selectOption({ label: name });
-    await expect(page.getByText(new RegExp(`${name === "300-event coding trace" ? "coding-agent-bugfix" : "web-research-agent"}\\.ndjson is open`))).toBeVisible();
+  const examples: Record<string, { label: string; file: string }> = {
+    "checkout cohort": { label: "checkout cohort · synthetic", file: "checkout-cohort" },
+    "300-event coding trace": { label: "300-event coding trace · synthetic", file: "coding-agent-bugfix" },
+    "web research trace": { label: "web research trace · synthetic", file: "web-research-agent" },
+  };
+  const example = examples[name];
+  if (example) {
+    await page.getByLabel("Example data").selectOption({ label: example.label });
+    await expect(page.getByText(new RegExp(`${example.file}\\.ndjson is open`))).toBeVisible();
+  }
+  const lanes = page.getByRole("main", { name: "Read trajectory" });
+  while (await lanes.count()) {
+    const count = await lanes.count();
+    await lanes.last().focus();
+    await page.keyboard.press("x");
+    await expect(lanes).toHaveCount(count - 1);
   }
   const guide = page.getByRole("article", { name: "RLViz guide" });
   await expect(guide).toBeVisible();
@@ -191,14 +204,14 @@ test("opens Letta trajectory v1 through the browser WASM core", async ({ page })
 
 test("default workspace prioritizes rollout and detail space", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.getByRole("option", { name: "checkout-rollout-02 Rollout signal summary" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "sampler-pass Rollout signal summary" })).toBeVisible();
   await page.keyboard.press("a");
   await page.keyboard.press("j");
   await page.keyboard.press("a");
   await page.keyboard.press("Shift+S");
   await page.keyboard.press("Shift+S");
 
-  await expect(page.getByRole("region", { name: "checkout-rollout-02" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("region", { name: "sampler-pass" })).toBeVisible({ timeout: 15_000 });
   const collection = await page.locator(".workspace-rail").boundingBox();
   const guide = await page.locator(".workspace-guide").boundingBox();
   const settings = await page.locator(".workspace-settings").boundingBox();
@@ -223,7 +236,8 @@ test("mobile workspace reads summary, story, evidence, and details without losin
   await page.goto("http://127.0.0.1:4174/?fresh=1");
   await expect(page.locator(".instrument-shell")).toHaveAttribute("data-viewport-mode", "mobile");
   await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByText("Verifier reason")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toContainText("Fail");
+  await expect(page.getByRole("region", { name: "Trajectory summary" })).toContainText("Reward");
   await page.getByRole("button", { name: "Browse", exact: true }).click();
   await expect(page.getByText("multi-rollout comparison, docking, and keyboard workflows", { exact: false })).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -246,7 +260,7 @@ test("mobile workspace reads summary, story, evidence, and details without losin
   await page.reload();
   await expect(page.getByRole("region", { name: /Detail for/ })).toBeVisible();
   await page.getByRole("button", { name: "Browse", exact: true }).click();
-  await page.getByRole("option", { name: "checkout-rollout-02 Rollout signal summary" }).click();
+  await page.getByRole("option", { name: "sampler-pass Rollout signal summary" }).click();
   await page.getByRole("button", { name: "Open selected" }).click();
   await expect(page.getByRole("region", { name: "Trajectory summary" })).toBeVisible();
   await expect.poll(() => page.evaluate(() => JSON.parse(new URLSearchParams(location.search).get("workspace")!).mobileSurface)).toBe("summary");
@@ -272,7 +286,7 @@ test("compact workspace keeps the collection beside one readable module", async 
 
 test("resizing restores the docked workspace without losing selection", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await expect(page.getByRole("option", { name: "checkout-rollout-01 Rollout signal summary" })).toBeVisible();
+  await expect(page.getByRole("option", { name: "sampler-fail Rollout signal summary" })).toBeVisible();
   await page.keyboard.press("Enter");
   const lane = page.getByRole("main", { name: "Read trajectory" });
   await expect(lane).toBeVisible();

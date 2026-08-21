@@ -24,17 +24,17 @@ describe("browser startup", () => {
   });
   afterEach(() => { cleanup(); history.replaceState(null, "", "/"); vi.unstubAllGlobals(); });
 
-  it("opens the bundled checkout cohort without an initial click", async () => {
+  it("opens the reviewed Terminal-Bench cohort without an initial click", async () => {
     const fetch = vi.fn(async (_input: RequestInfo | URL) => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
     vi.stubGlobal("fetch", fetch);
     render(<BrowserApp />);
 
     expect(await screen.findByText("sample viewer ready")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(String(fetch.mock.calls[0][0])).toContain("checkout-cohort");
+    expect(String(fetch.mock.calls[0][0])).toContain("terminal-bench-2-showcase");
     expect(screen.getByText("browser")).toBeInTheDocument();
-    expect(screen.getByText(/checkout-cohort\.ndjson is open/)).toBeInTheDocument();
-    expect(screen.getByText("checkout-cohort.ndjson")).toBeInTheDocument();
+    expect(screen.getByText(/terminal-bench-2-showcase\.ndjson is open/)).toBeInTheDocument();
+    expect(screen.getByText("terminal-bench-2-showcase.ndjson")).toBeInTheDocument();
     expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
   });
 
