@@ -251,9 +251,11 @@ describe("instrument viewer", () => {
     expect(screen.getByRole("article", { name: "RLViz guide" })).not.toHaveTextContent("The sample checkout cohort around this Guide");
     expect(screen.getByRole("button", { name: "Open trace directory" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "rlviz.dev" })).toHaveAttribute("href", "https://rlviz.dev");
+    expect(screen.getByRole("link", { name: "Benchmarks" })).toHaveAttribute("href", "https://benchmarks.rlviz.dev");
+    expect(screen.getByRole("link", { name: "Browse public benchmarks" })).toHaveAttribute("href", "https://benchmarks.rlviz.dev");
     expect(screen.getByRole("link", { name: "Repo" })).toHaveAttribute("href", "https://github.com/TheSnakeFang/rlviz");
     expect(screen.getByRole("link", { name: "Created by Kevin Fang" })).toHaveAttribute("href", "https://x.com/sofangtastic");
-    expect(document.querySelectorAll(".guide-link img, .guide-link svg")).toHaveLength(3);
+    expect(document.querySelectorAll(".guide-link img, .guide-link svg")).toHaveLength(4);
     expect(screen.getByRole("navigation", { name: "RLViz links" })).toContainElement(screen.getByRole("link", { name: "Repo" }));
     expect(document.querySelector(".workspace-guide > header > span")).not.toBeInTheDocument();
     fireEvent.click(screen.getAllByRole("button", { name: "Copy command" })[0]);

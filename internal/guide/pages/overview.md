@@ -2,6 +2,8 @@
 
 RLViz is an open-source viewer for agent rollouts: model output, tool calls, observations, graders, rewards, errors, and source provenance in one local workspace.
 
+Browse reviewed public trajectories at [benchmarks.rlviz.dev](https://benchmarks.rlviz.dev). The catalog keeps benchmark provenance and quality gaps visible before opening an exact, digest-pinned bundle here.
+
 ## Please read
 
 The hosted browser directly supports reviewed `.rlviz` bundles, RLViz canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF v1.5-v1.7, Inspect AI EvalLog JSON, and Verifiers GenerateOutputs JSON. A selected browser directory must contain exactly one supported `.ndjson` or `.json` trace export; open an `.rlviz` bundle through the file picker, drag it onto the viewer, or follow an explicit-consent public HTTPS link pinned by the complete file SHA-256. Complete Harbor job directories and bundle creation use the native CLI.
