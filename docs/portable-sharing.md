@@ -80,7 +80,7 @@ https://rlviz.dev/?bundle=https%3A%2F%2Fexample.org%2Frun.rlviz&sha256=FULL_64_H
 ```
 
 RLViz displays the exact host, path, and digest without contacting the bundle
-host. It makes one request only after the reader chooses **verify and open**.
+host. It makes one request only after the reader chooses **Verify and open**.
 The request omits credentials and referrer information, refuses redirects and
 URL credentials or query tokens, applies the browser size limit, and hashes the
 complete `.rlviz` file before parsing it. The bundle's own manifest and trace
