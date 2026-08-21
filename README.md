@@ -14,8 +14,10 @@ normalized data back to its raw source record. The source is never modified.
 ![RLViz default workspace](webapp/public/rlviz-social.png)
 
 Open a supported file directly at [rlviz.dev](https://rlviz.dev). Parsing and
-indexing stay in the browser tab. Use the CLI for larger traces, growing files,
-private formats, and local adapters.
+indexing stay in the browser tab. The default collection is a reviewed public
+Terminal-Bench pass/fail cohort, with synthetic examples still available in
+Settings. Use the CLI for larger traces, growing files, private formats, and
+local adapters.
 
 Browse reviewed, revision-pinned public evidence at
 [benchmarks.rlviz.dev](https://benchmarks.rlviz.dev). The catalog shows source

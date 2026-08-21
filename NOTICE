@@ -2,3 +2,6 @@ RLViz
 Copyright 2026 Kevin Fang
 
 This product includes software developed for the RLViz project.
+
+The hosted viewer includes selected trajectories from
+yoonholee/terminalbench-trajectories, licensed under Apache-2.0.

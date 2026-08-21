@@ -4,6 +4,7 @@ import { workspaceStorageKey } from "../../web/src/workspace";
 import codingExample from "../../examples/gallery/coding-agent-bugfix.ndjson?url";
 import researchExample from "../../examples/gallery/web-research-agent.ndjson?url";
 import cohortExample from "../../examples/gallery/checkout-cohort.ndjson?url";
+import terminalBenchExample from "./examples/terminal-bench-2-showcase.ndjson?url";
 import { adapterIdentity, runAdapter } from "./adapter";
 import { createInMemoryProvider } from "./provider";
 import { fetchVerifiedPublicBundle, parsePublicBundleHandoff } from "./publicBundle";
@@ -12,9 +13,10 @@ import { limits, parseTrace } from "./wasm";
 const viewerModule = import("../../web/src/App");
 const Viewer = lazy(() => viewerModule.then(({ App }) => ({ default: App })));
 const examples = [
-  ["300-event coding trace", "coding-agent-bugfix.ndjson", codingExample],
-  ["web research trace", "web-research-agent.ndjson", researchExample],
-  ["checkout cohort", "checkout-cohort.ndjson", cohortExample],
+  ["Terminal-Bench 2.0 · reviewed cohort", "terminal-bench-2-showcase.ndjson", terminalBenchExample],
+  ["300-event coding trace · synthetic", "coding-agent-bugfix.ndjson", codingExample],
+  ["web research trace · synthetic", "web-research-agent.ndjson", researchExample],
+  ["checkout cohort · synthetic", "checkout-cohort.ndjson", cohortExample],
 ] as const;
 const initialStatus = "Ready for a reviewed .rlviz bundle or supported local trace.";
 
@@ -46,7 +48,7 @@ export function BrowserApp() {
   const [provider, setProvider] = useState<ViewerProvider>();
   const [viewerGeneration, setViewerGeneration] = useState(0);
   const [bootstrapping, setBootstrapping] = useState(true);
-  const [activeSample, setActiveSample] = useState("checkout-cohort.ndjson");
+  const [activeSample, setActiveSample] = useState("terminal-bench-2-showcase.ndjson");
   const [source, setSource] = useState<{ bytes: Uint8Array; name: string }>();
   const [status, setStatus] = useState(initialStatus);
   const [busy, setBusy] = useState(false);
@@ -105,7 +107,7 @@ export function BrowserApp() {
     if (autoLoaded.current) return;
     autoLoaded.current = true;
     if (publicBundle.kind !== "none") { setBootstrapping(false); return; }
-    void openExample(cohortExample, "checkout-cohort.ndjson", false).finally(() => setBootstrapping(false));
+    void openExample(terminalBenchExample, "terminal-bench-2-showcase.ndjson", false).finally(() => setBootstrapping(false));
   }, []);
 
   useEffect(() => { directoryInput.current?.setAttribute("webkitdirectory", ""); }, []);

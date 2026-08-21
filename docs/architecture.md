@@ -73,8 +73,10 @@ project-local adapters; the browser remains the only trajectory renderer.
 
 `rlviz.dev` serves the browser viewer and generated external documentation from
 one static deployment. The former `app.rlviz.dev` surface redirects to the same
-path on `rlviz.dev`. The root loads a bundled synthetic cohort into the viewer;
-Settings can replace it with a dropped or selected `File` in the current tab.
+path on `rlviz.dev`. The root loads a reviewed, revision-pinned public
+Terminal-Bench cohort from the same static deployment; Settings can replace it
+with a bundled synthetic example or a dropped or selected `File` in the current
+tab.
 A Go WASM core detects canonical NDJSON, Letta trajectory v1 JSON, Harbor ATIF
 v1.5-v1.7, Inspect AI EvalLog JSON, or Verifiers GenerateOutputs JSON, validates canonical records, and
 builds an in-memory collection. The shared React instrument consumes a

@@ -2,7 +2,7 @@
 
 ## Start in the browser
 
-Open `https://rlviz.dev`. The viewer loads a synthetic checkout cohort so every control is available immediately. Use Settings to open another local trace or reviewed `.rlviz` bundle, choose an example, change theme, or load a reviewed browser adapter.
+Open `https://rlviz.dev`. The viewer loads four reviewed public Terminal-Bench trajectories: reward-0 and reward-1 runs for two tasks. Use Settings to open another local trace or reviewed `.rlviz` bundle, choose a clearly labeled synthetic example, change theme, or load a reviewed browser adapter.
 
 Supported files are parsed in memory in the current tab. No account or upload is involved.
 

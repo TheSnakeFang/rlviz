@@ -107,8 +107,8 @@ deep-link reveal, and Help focus return. Grow the suite toward five flows:
 4. Pair comparison reaches divergence, next change, and restores its URL.
 5. The packaged binary starts a daemon, serves an authenticated fixture, loads
    the browser UI, and stops cleanly.
-6. The static browser app loads its bundled 300-event example, transitions from
-   Browse to Read, and makes no request containing trace data.
+6. The static browser app loads its reviewed Terminal-Bench cohort, transitions
+   from Browse to Read, and makes no request containing trace data.
 7. At 390 x 844, first use opens the mobile trajectory Summary; Story, Evidence,
    and Details remain horizontally contained, and reload restores the selected
    reading surface.

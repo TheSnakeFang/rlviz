@@ -5,9 +5,11 @@ native CLI for larger and private datasets.
 
 ## Browser
 
-Open [rlviz.dev](https://rlviz.dev). The viewer starts with a bundled synthetic
-checkout cohort and an in-workspace Guide module. Open or drop a local trace
-when you are ready; the file is parsed in that tab and is not uploaded.
+Open [rlviz.dev](https://rlviz.dev). The viewer starts with four reviewed public
+Terminal-Bench trajectories: reward-0 and reward-1 runs for two tasks. Their
+source revision and publication provenance are included in the bundled data.
+Open or drop a local trace when you are ready; the file is parsed in that tab
+and is not uploaded.
 
 The browser accepts files up to 32 MiB in these formats:
 
@@ -18,9 +20,9 @@ The browser accepts files up to 32 MiB in these formats:
 - Verifiers GenerateOutputs JSON
 - Harbor ATIF JSON v1.5-v1.7
 
-Settings can reload any bundled example, open your own file, change theme, or
-load a reviewed browser adapter. The Guide opens to installation instructions
-in the hosted viewer.
+Settings can reload the Terminal-Bench cohort, choose a clearly labeled
+synthetic example, open your own file, change theme, or load a reviewed browser
+adapter. The Guide opens to installation instructions in the hosted viewer.
 
 ## CLI
 

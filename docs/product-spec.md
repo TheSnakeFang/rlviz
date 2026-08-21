@@ -137,7 +137,9 @@ Expected behavior:
 
 With no explicit source, `rlviz` and `rlviz open` restore the last usable local
 source. With no usable history they open bundled synthetic data. The browser
-root also enters the shared viewer directly with a bundled synthetic cohort.
+root enters the shared viewer directly with a small reviewed public
+Terminal-Bench cohort; its immutable source and review provenance are committed
+beside the asset. Synthetic examples remain available from Settings.
 
 ### Open an unsupported trajectory
 
