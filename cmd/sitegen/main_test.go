@@ -52,6 +52,14 @@ func TestBuildWritesEveryPageAndStylesheet(t *testing.T) {
 		}
 	}
 
+	vercelConfig, err := os.ReadFile(filepath.Join(output, "vercel.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(vercelConfig), "connect-src 'self' https:") {
+		t.Fatalf("deployed site CSP does not allow explicit public HTTPS bundle fetches: %s", vercelConfig)
+	}
+
 	cname, err := os.ReadFile(filepath.Join(output, "CNAME"))
 	if err != nil {
 		t.Fatal(err)
