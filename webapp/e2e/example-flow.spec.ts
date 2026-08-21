@@ -28,9 +28,17 @@ test("digest-pinned public bundle waits for consent, verifies, and opens on mobi
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/?bundle=${encodeURIComponent(bundleURL)}&sha256=${digest}`);
   await expect(page.getByRole("region", { name: "Shared bundle confirmation" })).toBeVisible();
-  await expect(page.getByText("RLViz has not contacted this host.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Open shared trajectory" })).toBeVisible();
+  await expect(page.getByText("Nothing is uploaded.", { exact: false })).toBeVisible();
+  await expect(page.locator(".kicker, .privacy-proof, .example-actions")).toHaveCount(0);
+  const presentation = await page.evaluate(() => ({
+    backgroundImage: getComputedStyle(document.body).backgroundImage,
+    headingSize: Number.parseFloat(getComputedStyle(document.querySelector("h1")!).fontSize),
+  }));
+  expect(presentation.backgroundImage).toBe("none");
+  expect(presentation.headingSize).toBeLessThanOrEqual(32);
   expect(externalRequests).toEqual([]);
-  await page.getByRole("button", { name: "verify and open" }).click();
+  await page.getByRole("button", { name: "Verify and open" }).click();
   await expect(page.getByRole("option").filter({ hasText: "traj-linear" })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Open selected" }).click();
   await expect(page.getByRole("region", { name: "Trajectory summary" })).toContainText("write greeting");

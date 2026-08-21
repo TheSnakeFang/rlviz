@@ -60,7 +60,11 @@ describe("browser startup", () => {
 
     expect(await screen.findByRole("region", { name: "Shared bundle confirmation" })).toBeInTheDocument();
     expect(screen.getByText("https://bundles.example/reviewed.rlviz")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "verify and open" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Open shared trajectory" })).toBeInTheDocument();
+    expect(screen.getByText("Nothing is uploaded.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Verify and open" })).toBeInTheDocument();
+    expect(screen.queryByText("Inspect agent rollouts locally.")).not.toBeInTheDocument();
+    expect(document.querySelector(".kicker, .privacy-proof, .example-actions")).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -72,7 +76,7 @@ describe("browser startup", () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 })));
     render(<BrowserApp />);
 
-    await userEvent.click(await screen.findByRole("button", { name: "verify and open" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Verify and open" }));
 
     expect(await screen.findByText("sample viewer ready")).toBeInTheDocument();
     expect(localStorage.getItem("rlviz.workspace.v6")).toBeNull();
